@@ -9,21 +9,21 @@ Status legend:
 
 ## Phases
 
-### [ ] Phase 0: Foundation
-- [ ] Environment verification (Flutter doctor, Android SDK, ADB, FFmpeg, Emulator/Device)
-- [ ] Project scaffolding & Git configuration
-- [ ] AGENTS.md, docs/PRD.md, docs/ROADMAP.md, docs/DECISIONS.md
-- [ ] Dependency verification & pinning (DECISIONS.md table)
-- [ ] Architecture skeleton (`lib/app`, `core`, `data`, `domain`, `audio`, `features`, `shared`)
-- [ ] Design tokens and theme system (Light, Dark, AMOLED + dynamic color foundation)
-- [ ] App shell (3-tab navigation shell, mini-player slot, Now Playing sheet stub)
-- [ ] Drift database schema v1 with bundled SQLite, WAL, FTS5 table, and migration tests
-- [ ] Riverpod state management wiring
-- [ ] Localization (l10n) scaffolding (ARB files, RTL-ready)
-- [ ] Strict analysis options (`analysis_options.yaml`) and test harness
-- [ ] `tool/seed_music` FFmpeg sine-wave track generator and ADB push utility
-- [ ] Debug-only 20,000 synthetic DB rows stress seeder
-- [ ] Quality gates: `dart format`, `flutter analyze`, test suite green, debug APK boots
+### [x] Phase 0: Foundation
+- [x] Environment verification (Flutter doctor, Android SDK, ADB, FFmpeg, Emulator/Device)
+- [x] Project scaffolding & Git configuration
+- [x] AGENTS.md, docs/PRD.md, docs/ROADMAP.md, docs/DECISIONS.md
+- [x] Dependency verification & pinning (DECISIONS.md table)
+- [x] Architecture skeleton (`lib/app`, `core`, `data`, `domain`, `audio`, `features`, `shared`)
+- [x] Design tokens and theme system (Light, Dark, AMOLED + dynamic color foundation)
+- [x] App shell (3-tab navigation shell, mini-player slot, Now Playing sheet stub)
+- [x] Drift database schema v1 with bundled SQLite, WAL, FTS5 table, and migration tests
+- [x] Riverpod state management wiring
+- [x] Localization (l10n) scaffolding (ARB files, RTL-ready)
+- [x] Strict analysis options (`analysis_options.yaml`) and test harness
+- [x] `tool/seed_music` FFmpeg sine-wave track generator and ADB push utility
+- [x] Debug-only 20,000 synthetic DB rows stress seeder
+- [x] Quality gates: `dart format`, `flutter analyze`, test suite green, debug APK boots
 
 ### [ ] Phase 1: Library Engine and Browse UI
 - [ ] Permission flow & onboarding rationale (READ_EXTERNAL_STORAGE for <=32, READ_MEDIA_AUDIO for 33+)

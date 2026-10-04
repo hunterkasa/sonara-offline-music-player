@@ -50,7 +50,7 @@ This log records non-obvious technical choices, architecture invariants, and dep
 | `audio_service` | `^0.18.18` | Yes | Android MediaSession, notification controls, and background playback service. |
 | `just_audio` | `^0.9.46` | Yes | High-performance audio playback engine supporting gapless, buffering, speed. |
 | `audio_session` | `^0.1.25` | Yes | Audio focus management, headphone unplug handling, interruption policies. |
-| `material_color_utilities` | `^0.11.1` | Yes | Off-thread dynamic color extraction from artwork (Material You palette). |
+| `material_color_utilities` | `^0.13.0` | Yes | Off-thread dynamic color extraction from artwork (Material You palette). Pinned to Flutter SDK requirement. |
 | `permission_handler` | `^11.3.1` | Yes | Standard permission requests across Android 12- (`READ_EXTERNAL_STORAGE`) and 13+ (`READ_MEDIA_AUDIO`). |
 | `intl` | `^0.20.2` | Yes | Internationalization, plural handling, and date/number formatting. |
 | `crypto` | `^3.0.6` | Yes | SHA-256 calculation for stable `trackKey`. |
