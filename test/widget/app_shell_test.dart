@@ -39,7 +39,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Your Library'), findsOneWidget);
-    expect(find.text('Your library is empty'), findsOneWidget);
+    expect(find.text('No songs found in your library'), findsOneWidget);
 
     // 4. Tap MiniPlayer to expand Now Playing sheet
     await tester.tap(find.byType(MiniPlayer));

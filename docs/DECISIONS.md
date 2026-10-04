@@ -67,3 +67,21 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Minimum Android SDK:** API 26 (Android 8.0 Oreo)
 - **Compile & Target SDK:** API 34+
 - **NDK / ABI Targets:** `arm64-v8a`, `armeabi-v7a`, `x86_64`
+
+---
+
+## 4. Phase 1 Architecture Decisions
+
+### ADR 1.1: Native MediaStore & Pure-Dart TagReader Hybrid Pipeline
+- **Decision:** MediaStore query is executed natively via lightweight MethodChannel (`com.example.sonara/mediastore`), extracting Content URIs, IDs, and coarse file metadata without heavy dependencies. Detailed tags (multi-artist, genres, release year, ReplayGain, embedded APIC artwork) are parsed via a robust, pure-Dart `TagReader` in background isolates.
+- **Rationale:** Minimizes native third-party dependencies, keeps tag extraction reproducible and fast in pure Dart, avoids memory leaks on large media libraries, and allows graceful recovery from corrupt headers.
+
+### ADR 1.2: Gradle Cross-Drive Kotlin Incremental Compilation
+- **Decision:** Added `kotlin.incremental=false` to `android/gradle.properties`.
+- **Rationale:** On Windows multi-drive setups (e.g. project on `E:\`, pub cache on `C:\`), the Kotlin incremental compilation lookup cache throws `IllegalArgumentException: this and base files have different roots` when computing relative paths. Disabling incremental compilation ensures consistent and reliable builds.
+
+### ADR 1.3: ContentObserver & Incremental Rescan
+- **Decision:** Native `ContentObserver` on `MediaStore.Audio.Media.EXTERNAL_CONTENT_URI` streams change notifications over EventChannel `com.example.sonara/mediastore_observer`. The `LibraryScanner` debounces notifications (3s) and queries MediaStore filtering by `DATE_MODIFIED > last_scan_timestamp`. Manual rescan actions execute a full scan (`isFullScan = true`) with deletion reconciliation.
+
+### ADR 1.4: Deterministic Palette & Artwork Fallback
+- **Decision:** Audio files without embedded or sidecar artwork display a deterministic Material 3 tonal gradient generated from SHA-256 hash seeds of title/artist metadata. Cached thumbnails are stored in app cache directory with fixed downscaled dimensions (256x256) to prevent OutOfMemory issues.

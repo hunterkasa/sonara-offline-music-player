@@ -49,10 +49,12 @@ flutter devices
 flutter run -d emulator-5554
 ```
 
-### 4. Interactive In-App Testing (Phase 0 Features)
-- **Navigation Shell:** Switch between the 3 main tabs: **Home**, **Search**, and **Library**.
-- **Mini-Player:** Located persistently at the bottom above the tab bar. Tap the play/pause button or the track title to open the **Now Playing** sheet.
-- **Now Playing Sheet:** Supports drag handle swipe down, back gesture interception (`PopScope`), scrubber, and playback control toggles.
-- **Theme Modes:** Navigate to **Settings** (top right on Home) and switch between **Dark**, **AMOLED** (pure black `#000000`), and **Light** themes.
-- **20,000 Tracks Stress Test:** In **Settings**, tap **"Seed 20,000 Synthetic Tracks"**. Drift SQLite inserts 20,000 indexed records via transactional batching in ~2.5 seconds. Switch to the **Library** tab to inspect 60 FPS scrolling over 20,000 items with fixed extents.
-- **Audio Synthesis Tool:** In `tool/seed_music.dart`, FFmpeg generates test sine-wave audio tracks (MP3, FLAC, M4A, OGG) and pushes them to `/storage/emulated/0/Music/SonaraTest/`.
+### 4. Interactive In-App Testing (Phase 0 & Phase 1)
+- **Permission Flow & Onboarding:** First launch presents the private & offline rationale screen. Dynamically requests `READ_MEDIA_AUDIO` on Android 13+ (API 33+) or `READ_EXTERNAL_STORAGE` on API <=32, with a settings deep-link fallback on permanent denial.
+- **MediaStore Native Scanner:** Scans audio files via background platform channel with transactional batching into Drift SQLite, real-time progress indicators, and incremental `ContentObserver` updates.
+- **Pure-Dart TagReader:** Reads ID3v1, ID3v2.2-2.4 (TIT2, TPE1, TALB, USLT, APIC, ReplayGain), FLAC Vorbis comments + picture blocks, MP4/M4A atoms, and OGG with automatic fallback heuristics.
+- **Browse Tabs:** Switch between **Songs**, **Albums**, **Artists**, **Genres**, and **Folders** tabs in Library.
+- **A-Z Sticky Scrubber:** Tap or slide the right-edge letter alphabet to instantaneously scroll large libraries.
+- **Detail Screens:** Collapsing headers with dynamic Material 3 palettes for Albums and circular headers for Artists with albums shelves.
+- **Mini-Player & Theme Modes:** Floating mini-player above navigation bar; Dark, Light, and pure black AMOLED themes.
+- **Audio Synthesis Tool:** Run `dart tool/seed_music.dart` to synthesize real tagged test tracks (MP3, FLAC, M4A, OGG) with sidecar artwork and push them directly to Android devices via ADB.

@@ -55,7 +55,7 @@ void main(List<String> args) async {
     _SeedTrack(
       filename: '01_sine_440_acoustic.mp3',
       frequency: 440,
-      durationSec: 15,
+      durationSec: 45,
       title: 'Harmonic Prelude',
       artist: 'Acoustic Labs',
       album: 'Resonance',
@@ -66,7 +66,7 @@ void main(List<String> args) async {
     _SeedTrack(
       filename: '02_sine_528_solfeggio.flac',
       frequency: 528,
-      durationSec: 20,
+      durationSec: 60,
       title: 'Miracle Frequency',
       artist: 'Solfeggio Ensemble',
       album: 'Resonance',
@@ -77,7 +77,7 @@ void main(List<String> args) async {
     _SeedTrack(
       filename: '03_sine_660_pulse.m4a',
       frequency: 660,
-      durationSec: 12,
+      durationSec: 36,
       title: 'High Pulse',
       artist: 'Sine Wave Collective',
       album: 'Waveforms',
@@ -88,12 +88,23 @@ void main(List<String> args) async {
     _SeedTrack(
       filename: '04_sine_330_warmth.ogg',
       frequency: 330,
-      durationSec: 18,
+      durationSec: 50,
       title: 'Warm Current',
       artist: 'Acoustic Labs',
       album: 'Waveforms',
       genre: 'Ambient',
       trackNo: 4,
+      year: 2025,
+    ),
+    _SeedTrack(
+      filename: '05_nebula_drift.mp3',
+      frequency: 220,
+      durationSec: 40,
+      title: 'Nebula Drift',
+      artist: 'Cosmic Echoes',
+      album: 'Starlight Odyssey',
+      genre: 'Ambient',
+      trackNo: 1,
       year: 2025,
     ),
   ];
@@ -132,6 +143,20 @@ void main(List<String> args) async {
       stdout.writeln('Successfully generated ${track.filename}');
     }
   }
+
+  // Generate cover.jpg
+  final coverPath = '${tempDir.path}\\cover.jpg';
+  stdout.writeln('Generating cover.jpg artwork...');
+  await Process.run('ffmpeg', [
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    'color=c=royalblue:s=500x500:d=1',
+    '-vframes',
+    '1',
+    coverPath,
+  ]);
 
   // 4. Push generated tracks to device
   const targetDeviceFolder = '/storage/emulated/0/Music/SonaraTest';

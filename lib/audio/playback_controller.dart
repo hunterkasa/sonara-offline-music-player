@@ -33,6 +33,7 @@ abstract class PlaybackController {
   Stream<PlaybackSnapshot> get snapshotStream;
 
   Future<void> play();
+  Future<void> playTrack(String trackKey);
   Future<void> pause();
   Future<void> togglePlayPause();
   Future<void> skipToNext();
@@ -60,6 +61,16 @@ class StubPlaybackController implements PlaybackController {
       currentTrackKey: _snapshot.currentTrackKey,
       title: _snapshot.title,
       artist: _snapshot.artist,
+      state: PlaybackState.playing,
+    );
+  }
+
+  @override
+  Future<void> playTrack(String trackKey) async {
+    _snapshot = PlaybackSnapshot(
+      currentTrackKey: trackKey,
+      title: 'Playing track',
+      artist: 'Local audio',
       state: PlaybackState.playing,
     );
   }

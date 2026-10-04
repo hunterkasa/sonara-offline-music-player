@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/theme_provider.dart';
@@ -42,19 +43,61 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const Divider(),
           if (kDebugMode) ...[
+            const Divider(),
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.m,
                 vertical: AppSpacing.xs,
               ),
               child: Text(
-                'DEBUG TOOLS (PHASE 0)',
+                'LIBRARY & PERMISSIONS',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.security_rounded),
+              title: const Text('Storage Permissions & Onboarding'),
+              subtitle: const Text('Check audio permission and scan status'),
+              onTap: () => context.push('/permission'),
+            ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.m,
+                vertical: AppSpacing.xs,
+              ),
+              child: Text(
+                'DEBUG TOOLS',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: Colors.redAccent,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
                 ),
               ),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_sweep_rounded,
+                color: Colors.orangeAccent,
+              ),
+              title: const Text('Clear Database'),
+              subtitle: const Text('Removes all indexed and synthetic data'),
+              onTap: () async {
+                final db = ref.read(databaseProvider);
+                await db.clearAllData();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Database cleared successfully'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.speed_rounded, color: Colors.amber),

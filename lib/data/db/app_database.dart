@@ -90,6 +90,20 @@ class AppDatabase extends _$AppDatabase {
     return rows.map((row) => row.read<String>('track_key')).toList();
   }
 
+  /// Clear all track, album, and artist data from DB
+  Future<void> clearAllData() async {
+    await transaction(() async {
+      await delete(trackGenres).go();
+      await delete(playlistTracks).go();
+      await delete(tracks).go();
+      await delete(albums).go();
+      await delete(artists).go();
+      await delete(genres).go();
+      await delete(appSettings).go();
+      await customStatement('DELETE FROM tracks_fts;');
+    });
+  }
+
   /// Debug-only synthetic data seeder for 20,000 tracks
   Future<void> seedSyntheticData({int count = 20000}) async {
     await transaction(() async {

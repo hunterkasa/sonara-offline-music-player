@@ -25,18 +25,18 @@ Status legend:
 - [x] Debug-only 20,000 synthetic DB rows stress seeder
 - [x] Quality gates: `dart format`, `flutter analyze`, test suite green, debug APK boots
 
-### [ ] Phase 1: Library Engine and Browse UI
-- [ ] Permission flow & onboarding rationale (READ_EXTERNAL_STORAGE for <=32, READ_MEDIA_AUDIO for 33+)
-- [ ] MediaStore background isolate scanner with batched transactional upserts & streaming progress
-- [ ] Pure-Dart / robust tag reader & metadata fallbacks (filename, folder, "Unknown Artist")
-- [ ] Artwork extraction pipeline (embedded, folder.jpg/cover.jpg/front.png, gradient fallback)
-- [ ] Disk LRU thumbnail cache & off-UI palette extraction via `material_color_utilities`
-- [ ] Incremental rescan (generation/modified timestamp diffs) & ContentObserver auto-refresh
-- [ ] Folder include/exclude configuration and minimum duration filter (default 30s)
-- [ ] Core browse screens: Songs, Albums, Artists, Genres, Folders
-- [ ] Browse controls: Sort options, filter chips, list/grid toggle, sticky A-Z scrubber
-- [ ] Album and Artist detail pages
-- [ ] Skeletons, empty states, and error handling states
+### [x] Phase 1: Library Engine and Browse UI
+- [x] Permission flow & onboarding rationale (READ_EXTERNAL_STORAGE for <=32, READ_MEDIA_AUDIO for 33+)
+- [x] MediaStore background isolate scanner with batched transactional upserts & streaming progress
+- [x] Pure-Dart / robust tag reader & metadata fallbacks (filename, folder, "Unknown Artist")
+- [x] Artwork extraction pipeline (embedded, folder.jpg/cover.jpg/front.png, gradient fallback)
+- [x] Disk LRU thumbnail cache & off-UI palette extraction via `material_color_utilities`
+- [x] Incremental rescan (generation/modified timestamp diffs) & ContentObserver auto-refresh
+- [x] Folder include/exclude configuration and minimum duration filter (default 30s)
+- [x] Core browse screens: Songs, Albums, Artists, Genres, Folders
+- [x] Browse controls: Sort options, filter chips, list/grid toggle, sticky A-Z scrubber
+- [x] Album and Artist detail pages
+- [x] Skeletons, empty states, and error handling states
 
 ### [ ] Phase 2: Playback Core
 - [ ] Audio handler background service (`mediaPlayback` foreground service on Android 14+)
