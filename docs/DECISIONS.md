@@ -85,3 +85,28 @@ This log records non-obvious technical choices, architecture invariants, and dep
 
 ### ADR 1.4: Deterministic Palette & Artwork Fallback
 - **Decision:** Audio files without embedded or sidecar artwork display a deterministic Material 3 tonal gradient generated from SHA-256 hash seeds of title/artist metadata. Cached thumbnails are stored in app cache directory with fixed downscaled dimensions (256x256) to prevent OutOfMemory issues.
+
+---
+
+## 5. Phase 2 Architecture Decisions
+
+### ADR 2.1: Logical Queue vs. Sliding-Window Player Engine
+- **Decision:** The entire logical queue (supporting 20,000+ tracks) resides in memory within `QueueManager` and is backed by Drift SQLite. The underlying `just_audio` player engine only ever receives a bounded sliding window of upcoming tracks (window size 5).
+- **Rationale:** Instantiating 20,000 `AudioSource` instances in `just_audio` causes excessive memory consumption, slow seek operations, and OutOfMemory crashes on Android. The sliding window buffers upcoming tracks for seamless transitions while keeping memory overhead negligible.
+
+### ADR 2.2: QueueRepeatMode Naming Convention
+- **Decision:** Named the domain repeat mode enum `QueueRepeatMode` (`off`, `all`, `one`) instead of `RepeatMode`.
+- **Rationale:** Flutter 3.44+ introduced an internal `RepeatMode` enum in `package:flutter/widgets.dart`. Explicitly prefixing with `QueueRepeatMode` prevents naming collisions and ambiguous import errors across widgets and domain controllers.
+
+### ADR 2.3: Seeded Fisher-Yates Shuffle with Current Track Pinning
+- **Decision:** Shuffling generates a reproducible permutation using a 64-bit integer seed while pinning the currently active track to index 0. The shuffle sequence must be fully exhausted before repeating.
+- **Rationale:** Prevents immediate re-playing of the current song upon activating shuffle, ensures all songs in the playlist are heard once without repeats, and allows persisting the exact shuffle state across app restarts via the seed and index pointer.
+
+### ADR 2.4: Three-Trigger Process Death Persistence
+- **Decision:** Playback state (queue track keys, active index, seek position, shuffle seed/state, repeat mode) is saved to the Drift `QueueStateTable` on: (1) pause, (2) periodically every 5 seconds during active playback, and (3) on Android lifecycle detach/pause.
+- **Rationale:** Guarantees cold-start state recovery if the app is killed by Android low-memory killer (LMK) or user swipe-dismiss without causing excessive SQLite disk writes.
+
+### ADR 2.5: Real Decoder Duration Reconciliation
+- **Decision:** MediaStore or tag-extracted track durations are reconciled against the actual decoder duration reported by `just_audio` when playback starts, and asynchronously updated in Drift DB.
+- **Rationale:** Variable Bitrate (VBR) MP3s and certain containers frequently report inaccurate durations in headers. Dynamic reconciliation ensures seekbars, scrubbers, and remaining-time timers are sample-accurate.
+

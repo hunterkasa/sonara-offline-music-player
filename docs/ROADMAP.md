@@ -38,18 +38,18 @@ Status legend:
 - [x] Album and Artist detail pages
 - [x] Skeletons, empty states, and error handling states
 
-### [ ] Phase 2: Playback Core
-- [ ] Audio handler background service (`mediaPlayback` foreground service on Android 14+)
-- [ ] MediaSession, rich lock-screen & notification controls with artwork
-- [ ] Headset gestures (single, double, triple clicks) & Bluetooth AVRCP metadata
-- [ ] Audio focus management (pause on calls, transient ducking, unplug pause, auto-resume)
-- [ ] Logical queue manager (Play now, next, last, reorder, remove, clear, undo)
-- [ ] Shuffle (Fisher-Yates with saved seed, exhaust before repeat) & repeat modes (off/all/one)
-- [ ] Gapless playback support & accurate decoder duration reconciliation
-- [ ] Process death state persistence (logical queue, active index, position, shuffle/repeat)
-- [ ] Corrupt / missing file skip resilience
-- [ ] Persistent Mini-Player and base Now Playing expansion
-- [ ] Tap-to-play from all browse lists & Android `ACTION_VIEW audio/*` intent handling
+### [x] Phase 2: Playback Core
+- [x] Audio handler background service (`mediaPlayback` foreground service on Android 14+)
+- [x] MediaSession, rich lock-screen & notification controls with artwork
+- [x] Headset gestures (single, double, triple clicks) & Bluetooth AVRCP metadata
+- [x] Audio focus management (pause on calls, transient ducking, unplug pause, auto-resume)
+- [x] Logical queue manager (Play now, next, last, reorder, remove, clear, undo)
+- [x] Shuffle (Fisher-Yates with saved seed, exhaust before repeat) & repeat modes (off/all/one)
+- [x] Gapless playback support & accurate decoder duration reconciliation
+- [x] Process death state persistence (logical queue, active index, position, shuffle/repeat)
+- [x] Corrupt / missing file skip resilience
+- [x] Persistent Mini-Player and base Now Playing expansion
+- [x] Tap-to-play from all browse lists & Android `ACTION_VIEW audio/*` intent handling
 
 ### [ ] Phase 3: Now Playing and Motion
 - [ ] Expandable full Now Playing screen with shared-element transition & dynamic gradient

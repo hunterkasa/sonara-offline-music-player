@@ -305,7 +305,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 return TrackTile(
                   track: track,
                   onTap: () {
-                    playback.playTrack(track.trackKey);
+                    playback.playQueue(
+                      tracks.map((t) => t.trackKey).toList(),
+                      initialIndex: index,
+                    );
                   },
                 );
               },

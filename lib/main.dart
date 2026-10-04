@@ -1,3 +1,4 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,10 +7,59 @@ import 'app/l10n/app_localizations.dart';
 import 'app/router/app_router.dart';
 import 'app/theme/app_theme.dart';
 import 'app/theme/theme_provider.dart';
+import 'audio/playback_controller.dart';
+import 'audio/sonara_audio_handler.dart';
+import 'core/services/audio_intent_service.dart';
+import 'data/db/app_database.dart';
+import 'data/db/database_provider.dart';
+import 'domain/services/queue_manager.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: SonaraApp()));
+
+  final database = AppDatabase();
+  final queueManager = QueueManager(db: database);
+
+  SonaraAudioHandler? audioHandler;
+  try {
+    audioHandler = await AudioService.init(
+      builder: () =>
+          SonaraAudioHandler(queueManager: queueManager, db: database),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.example.sonara.playback',
+        androidNotificationChannelName: 'Sonara Music Playback',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
+        notificationColor: Color(0xFF6750A4),
+      ),
+    );
+    await audioHandler.restoreSavedState();
+  } catch (e) {
+    debugPrint('AudioService.init skipped or unavailable: $e');
+  }
+
+  final container = ProviderContainer(
+    overrides: [
+      databaseProvider.overrideWithValue(database),
+      if (audioHandler != null)
+        audioHandlerProvider.overrideWithValue(audioHandler),
+    ],
+  );
+
+  try {
+    final controller = container.read(playbackControllerProvider);
+    final intentService = AudioIntentService(
+      playbackController: controller,
+      db: database,
+    );
+    await intentService.init();
+  } catch (e) {
+    debugPrint('AudioIntentService init skipped: $e');
+  }
+
+  runApp(
+    UncontrolledProviderScope(container: container, child: const SonaraApp()),
+  );
 }
 
 class SonaraApp extends ConsumerWidget {

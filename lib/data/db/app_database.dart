@@ -100,8 +100,92 @@ class AppDatabase extends _$AppDatabase {
       await delete(artists).go();
       await delete(genres).go();
       await delete(appSettings).go();
+      await delete(queueStateTable).go();
       await customStatement('DELETE FROM tracks_fts;');
     });
+  }
+
+  /// Get track by unique trackKey
+  Future<Track?> getTrackByKey(String trackKey) {
+    return (select(
+      tracks,
+    )..where((t) => t.trackKey.equals(trackKey))).getSingleOrNull();
+  }
+
+  /// Get list of tracks matching given keys preserving order
+  Future<List<Track>> getTracksByKeys(List<String> keys) async {
+    if (keys.isEmpty) return [];
+    final fetched = await (select(
+      tracks,
+    )..where((t) => t.trackKey.isIn(keys))).get();
+    final map = {for (final t in fetched) t.trackKey: t};
+    final ordered = <Track>[];
+    for (final key in keys) {
+      final t = map[key];
+      if (t != null) ordered.add(t);
+    }
+    return ordered;
+  }
+
+  /// Get artist name by ID
+  Future<String?> getArtistName(int? artistId) async {
+    if (artistId == null) return null;
+    final row = await (select(
+      artists,
+    )..where((a) => a.id.equals(artistId))).getSingleOrNull();
+    return row?.name;
+  }
+
+  /// Get album title by ID
+  Future<String?> getAlbumTitle(int? albumId) async {
+    if (albumId == null) return null;
+    final row = await (select(
+      albums,
+    )..where((a) => a.id.equals(albumId))).getSingleOrNull();
+    return row?.title;
+  }
+
+  /// Reconcile decoder duration with tracks table
+  Future<void> updateTrackDuration(String trackKey, int durationMs) async {
+    await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
+      TracksCompanion(durationMs: Value(durationMs)),
+    );
+  }
+
+  /// Mark track as missing when file not found
+  Future<void> markTrackMissing(String trackKey) async {
+    await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
+      const TracksCompanion(isMissing: Value(true)),
+    );
+  }
+
+  /// Persist current queue state
+  Future<void> saveQueueState({
+    required String? currentTrackKey,
+    required int positionMs,
+    required bool shuffle,
+    required int repeatMode,
+    required int seed,
+    required String queueJson,
+  }) async {
+    await into(queueStateTable).insertOnConflictUpdate(
+      QueueStateTableCompanion(
+        id: const Value(1),
+        currentTrackKey: Value(currentTrackKey),
+        positionMs: Value(positionMs),
+        shuffle: Value(shuffle),
+        repeatMode: Value(repeatMode),
+        seed: Value(seed),
+        queueJson: Value(queueJson),
+      ),
+    );
+  }
+
+  /// Retrieve saved queue state
+  Future<QueueStateTableData?> getQueueState() {
+    return (select(
+      queueStateTable,
+    )..where((q) => q.id.equals(1))).getSingleOrNull();
   }
 
   /// Debug-only synthetic data seeder for 20,000 tracks

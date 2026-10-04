@@ -1,30 +1,62 @@
 package com.example.sonara.sonara
 
 import android.content.ContentUris
+import android.content.Intent
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : AudioServiceActivity() {
     private val METHOD_CHANNEL = "com.example.sonara/mediastore"
     private val EVENT_CHANNEL = "com.example.sonara/mediastore_observer"
 
     private var contentObserver: ContentObserver? = null
     private var eventSink: EventChannel.EventSink? = null
+    private var initialAudioUri: String? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+        initialAudioUri?.let { uri ->
+            flutterEngine?.dartExecutor?.binaryMessenger?.let { messenger ->
+                MethodChannel(messenger, METHOD_CHANNEL).invokeMethod("onAudioIntent", uri)
+            }
+        }
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_VIEW) {
+            val uri = intent.data
+            if (uri != null) {
+                initialAudioUri = uri.toString()
+            }
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "getInitialAudioIntent" -> {
+                    val uri = initialAudioUri
+                    initialAudioUri = null
+                    result.success(uri)
+                }
                 "queryAudioFiles" -> {
                     val minDurationMs = (call.argument<Number>("minDurationMs") ?: 30000).toLong()
                     val modifiedSinceSec = (call.argument<Number>("modifiedSinceSec") ?: 0).toLong()

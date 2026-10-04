@@ -126,8 +126,11 @@ class ArtistDetailScreen extends ConsumerWidget {
                                       onPressed: tracks.isEmpty
                                           ? null
                                           : () {
-                                              playback.playTrack(
-                                                tracks.first.trackKey,
+                                              playback.playQueue(
+                                                tracks
+                                                    .map((t) => t.trackKey)
+                                                    .toList(),
+                                                initialIndex: 0,
                                               );
                                             },
                                       icon: const Icon(
@@ -142,11 +145,12 @@ class ArtistDetailScreen extends ConsumerWidget {
                                       onPressed: tracks.isEmpty
                                           ? null
                                           : () {
-                                              final shuffled = List<Track>.from(
-                                                tracks,
-                                              )..shuffle();
-                                              playback.playTrack(
-                                                shuffled.first.trackKey,
+                                              playback.playQueue(
+                                                tracks
+                                                    .map((t) => t.trackKey)
+                                                    .toList(),
+                                                initialIndex: 0,
+                                                shuffle: true,
                                               );
                                             },
                                       icon: const Icon(Icons.shuffle_rounded),
@@ -238,7 +242,10 @@ class ArtistDetailScreen extends ConsumerWidget {
                             return TrackTile(
                               track: track,
                               onTap: () {
-                                playback.playTrack(track.trackKey);
+                                playback.playQueue(
+                                  tracks.map((t) => t.trackKey).toList(),
+                                  initialIndex: index,
+                                );
                               },
                             );
                           }, childCount: tracks.length),
