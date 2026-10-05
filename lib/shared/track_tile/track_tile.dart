@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:sonara/data/db/app_database.dart';
 import 'package:sonara/shared/artwork/artwork_widget.dart';
 
+import '../sheets/track_context_sheet.dart';
+
 class TrackTile extends StatelessWidget {
   final Track track;
   final String? artistName;
@@ -43,12 +45,24 @@ class TrackTile extends StatelessWidget {
     }
     final subtitle = subtitleParts.join(' • ');
 
-    return SizedBox(
+    final defaultOnMore =
+        onMore ??
+        () {
+          showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            builder: (context) => TrackContextSheet(track: track),
+          );
+        };
+
+    final tileContent = SizedBox(
       height: 64.0,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          onLongPress: defaultOnMore,
           borderRadius: BorderRadius.circular(8.0),
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -125,18 +139,55 @@ class TrackTile extends StatelessWidget {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                if (onMore != null)
-                  IconButton(
-                    icon: const Icon(Icons.more_vert, size: 20.0),
-                    color: colorScheme.onSurfaceVariant,
-                    onPressed: onMore,
-                    visualDensity: VisualDensity.compact,
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.more_vert, size: 20.0),
+                  color: colorScheme.onSurfaceVariant,
+                  onPressed: defaultOnMore,
+                  visualDensity: VisualDensity.compact,
+                ),
               ],
             ),
           ),
         ),
       ),
+    );
+
+    return Dismissible(
+      key: ValueKey('swipe_${track.trackKey}'),
+      direction: DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        // Play next with Undo snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Playing next: ${track.title}'),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(label: 'Undo', onPressed: () {}),
+          ),
+        );
+        return false; // Do not dismiss row from UI list
+      },
+      background: Container(
+        color: colorScheme.primaryContainer,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20.0),
+        child: Row(
+          children: [
+            Icon(
+              Icons.playlist_play_rounded,
+              color: colorScheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Play Next',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: tileContent,
     );
   }
 }

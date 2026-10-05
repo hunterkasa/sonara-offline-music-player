@@ -215,5 +215,46 @@ void main() {
       expect(controller.currentQueue.length, equals(2));
       expect(controller.currentQueue.last.trackKey, equals('track_2'));
     });
+
+    test('setSpeed changes playback speed', () async {
+      await controller.playQueue(['track_1'], initialIndex: 0);
+      await controller.setSpeed(1.5);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(controller.currentSnapshot.speed, equals(1.5));
+    });
+
+    test('reorderQueue reorders items in queue', () async {
+      await controller.playQueue([
+        'track_1',
+        'track_2',
+        'track_3',
+      ], initialIndex: 0);
+      await controller.reorderQueue(0, 2);
+      expect(
+        controller.currentQueue.map((t) => t.trackKey).toList(),
+        equals(['track_2', 'track_3', 'track_1']),
+      );
+    });
+
+    test('removeFromQueue removes item from queue', () async {
+      await controller.playQueue([
+        'track_1',
+        'track_2',
+        'track_3',
+      ], initialIndex: 0);
+      await controller.removeFromQueue(1);
+      expect(controller.currentQueue.length, equals(2));
+      expect(
+        controller.currentQueue.map((t) => t.trackKey).toList(),
+        equals(['track_1', 'track_3']),
+      );
+    });
+
+    test('clearQueue empties queue and stops playback', () async {
+      await controller.playQueue(['track_1', 'track_2'], initialIndex: 0);
+      await controller.clearQueue();
+      expect(controller.currentQueue.isEmpty, isTrue);
+      expect(controller.currentSnapshot.currentTrackKey, isNull);
+    });
   });
 }

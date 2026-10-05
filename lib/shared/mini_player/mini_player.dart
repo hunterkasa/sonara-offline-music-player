@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme_tokens.dart';
 import '../../audio/playback_controller.dart';
+import '../../core/services/haptic_service.dart';
+import '../../data/db/app_database.dart';
+import '../../data/db/database_provider.dart';
+import '../artwork/artwork_widget.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key, required this.onTap});
@@ -16,6 +20,9 @@ class MiniPlayer extends ConsumerWidget {
     final snapshot =
         snapshotAsync.value ??
         ref.read(playbackControllerProvider).currentSnapshot;
+    final playback = ref.read(playbackControllerProvider);
+    final haptics = ref.read(hapticServiceProvider);
+    final db = ref.watch(databaseProvider);
 
     final progressRatio = snapshot.duration.inMilliseconds > 0
         ? (snapshot.position.inMilliseconds / snapshot.duration.inMilliseconds)
@@ -26,7 +33,28 @@ class MiniPlayer extends ConsumerWidget {
       label: 'Mini Player: ${snapshot.title} by ${snapshot.artist}',
       button: true,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          haptics.light();
+          onTap();
+        },
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity != null) {
+            if (details.primaryVelocity! < -200) {
+              haptics.selection();
+              playback.skipToNext();
+            } else if (details.primaryVelocity! > 200) {
+              haptics.selection();
+              playback.skipToPrevious();
+            }
+          }
+        },
+        onVerticalDragEnd: (details) {
+          if (details.primaryVelocity != null &&
+              details.primaryVelocity! < -200) {
+            haptics.light();
+            onTap();
+          }
+        },
         child: Container(
           height: 64,
           margin: const EdgeInsets.symmetric(
@@ -61,21 +89,29 @@ class MiniPlayer extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
                   child: Row(
                     children: [
-                      // Artwork thumbnail with RepaintBoundary per coding standard
+                      // Artwork thumbnail with RepaintBoundary
                       RepaintBoundary(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            color: theme.colorScheme.secondaryContainer,
-                            child: Icon(
-                              Icons.music_note,
-                              color: theme.colorScheme.onSecondaryContainer,
-                              size: 24,
-                            ),
-                          ),
-                        ),
+                        child: snapshot.currentTrackKey != null
+                            ? FutureBuilder<Track?>(
+                                future: db.getTrackByKey(
+                                  snapshot.currentTrackKey!,
+                                ),
+                                builder: (context, trackSnap) {
+                                  final track = trackSnap.data;
+                                  return ArtworkWidget(
+                                    artworkKey: track?.artworkKey,
+                                    filePath: track?.path,
+                                    title: snapshot.title,
+                                    size: 44,
+                                    borderRadius: 8.0,
+                                  );
+                                },
+                              )
+                            : ArtworkWidget(
+                                title: snapshot.title,
+                                size: 44,
+                                borderRadius: 8.0,
+                              ),
                       ),
                       const SizedBox(width: AppSpacing.s),
                       // Title & Artist
@@ -118,9 +154,8 @@ class MiniPlayer extends ConsumerWidget {
                         iconSize: 30,
                         tooltip: snapshot.isPlaying ? 'Pause' : 'Play',
                         onPressed: () {
-                          ref
-                              .read(playbackControllerProvider)
-                              .togglePlayPause();
+                          haptics.medium();
+                          playback.togglePlayPause();
                         },
                       ),
                       // Skip to next button
@@ -129,7 +164,8 @@ class MiniPlayer extends ConsumerWidget {
                         iconSize: 26,
                         tooltip: 'Next Track',
                         onPressed: () {
-                          ref.read(playbackControllerProvider).skipToNext();
+                          haptics.selection();
+                          playback.skipToNext();
                         },
                       ),
                     ],

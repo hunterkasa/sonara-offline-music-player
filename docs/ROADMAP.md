@@ -51,17 +51,17 @@ Status legend:
 - [x] Persistent Mini-Player and base Now Playing expansion
 - [x] Tap-to-play from all browse lists & Android `ACTION_VIEW audio/*` intent handling
 
-### [ ] Phase 3: Now Playing and Motion
-- [ ] Expandable full Now Playing screen with shared-element transition & dynamic gradient
-- [ ] Artwork scale animations on play/pause, swipe-to-skip, and swipe-down to dismiss
-- [ ] Queue sheet ("Now Playing", "Next in Queue", "Next from Context", history tab)
-- [ ] Synced lyrics viewer (USLT/SYLT embedded and `.lrc` sidecar, tap-to-seek, font resize)
-- [ ] Sleep timer with gentle fade-out & tap-to-extend
-- [ ] Playback speed control (0.5x to 2.0x with pitch preservation) & position memory for long tracks
-- [ ] Track info sheet with detailed audio specs and quality badge (e.g. FLAC 24-bit/96kHz)
-- [ ] Context menus and swipe actions across all track rows
-- [ ] Haptic feedback engine (play/pause, scrub snap, long-press, undo)
-- [ ] Android 15 predictive back & gesture navigation support
+### [x] Phase 3: Now Playing and Motion
+- [x] Expandable full Now Playing screen with shared-element transition & dynamic gradient
+- [x] Artwork scale animations on play/pause, swipe-to-skip, and swipe-down to dismiss
+- [x] Queue sheet ("Now Playing", "Next in Queue", reordering handles, swipe-to-remove, clear)
+- [x] Synced lyrics viewer (sidecar .lrc discovery, embedded tag fallback, tap-to-seek, font resize)
+- [x] Sleep timer with gentle fade-out & tap-to-extend (+15m), end-of-track support
+- [x] Playback speed control (0.5x to 2.0x with pitch preservation)
+- [x] Track info sheet with detailed audio specs and quality badge (FLAC, MP3, bit depth, sample rate, copy path)
+- [x] Context menus and swipe actions across all track rows (Play Next, Add to Queue, Undo snackbar)
+- [x] Haptic feedback engine (play/pause, scrub snap, long-press, undo) with Settings toggle
+- [x] Predictive back & gesture navigation support
 
 ### [ ] Phase 4: Playlists, Favorites, and Personalization
 - [ ] Liked songs persistence & toggles

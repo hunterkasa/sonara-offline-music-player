@@ -200,6 +200,32 @@ class TestPlaybackController implements PlaybackController {
 
   @override
   Future<void> addToQueue(String trackKey) async {}
+
+  @override
+  Future<void> setSpeed(double speed) async {
+    _emit(
+      PlaybackSnapshot(
+        currentTrackKey: _snapshot.currentTrackKey,
+        title: _snapshot.title,
+        artist: _snapshot.artist,
+        state: _snapshot.state,
+        position: _snapshot.position,
+        duration: _snapshot.duration,
+        shuffleEnabled: _snapshot.shuffleEnabled,
+        repeatMode: _snapshot.repeatMode,
+        speed: speed,
+      ),
+    );
+  }
+
+  @override
+  Future<void> reorderQueue(int oldIndex, int newIndex) async {}
+
+  @override
+  Future<void> removeFromQueue(int index) async {}
+
+  @override
+  Future<void> clearQueue() async {}
 }
 
 void main() {
@@ -309,8 +335,11 @@ void main() {
 
       // Collapse NowPlayingSheet
       await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(isExpanded, isFalse);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
     });
   });
 }

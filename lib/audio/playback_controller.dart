@@ -21,6 +21,7 @@ class PlaybackSnapshot {
     this.duration = Duration.zero,
     this.shuffleEnabled = false,
     this.repeatMode = 0,
+    this.speed = 1.0,
   });
 
   final String? currentTrackKey;
@@ -32,6 +33,7 @@ class PlaybackSnapshot {
   final Duration duration;
   final bool shuffleEnabled;
   final int repeatMode;
+  final double speed;
 
   bool get isPlaying => state == PlaybackState.playing;
 }
@@ -58,6 +60,10 @@ abstract class PlaybackController {
   Future<void> seek(Duration position);
   Future<void> setShuffle(bool enabled);
   Future<void> setRepeatMode(int mode);
+  Future<void> setSpeed(double speed);
+  Future<void> reorderQueue(int oldIndex, int newIndex);
+  Future<void> removeFromQueue(int index);
+  Future<void> clearQueue();
 }
 
 class StubPlaybackController implements PlaybackController {
@@ -148,6 +154,31 @@ class StubPlaybackController implements PlaybackController {
 
   @override
   Future<void> setRepeatMode(int mode) async {}
+
+  @override
+  Future<void> setSpeed(double speed) async {
+    _snapshot = PlaybackSnapshot(
+      currentTrackKey: _snapshot.currentTrackKey,
+      title: _snapshot.title,
+      artist: _snapshot.artist,
+      artworkUri: _snapshot.artworkUri,
+      state: _snapshot.state,
+      position: _snapshot.position,
+      duration: _snapshot.duration,
+      shuffleEnabled: _snapshot.shuffleEnabled,
+      repeatMode: _snapshot.repeatMode,
+      speed: speed,
+    );
+  }
+
+  @override
+  Future<void> reorderQueue(int oldIndex, int newIndex) async {}
+
+  @override
+  Future<void> removeFromQueue(int index) async {}
+
+  @override
+  Future<void> clearQueue() async {}
 }
 
 class RealPlaybackController implements PlaybackController {
@@ -208,6 +239,7 @@ class RealPlaybackController implements PlaybackController {
       duration: media?.duration ?? Duration.zero,
       shuffleEnabled: queueState.shuffleEnabled,
       repeatMode: queueState.repeatMode.index,
+      speed: state.speed,
     );
 
     _snapshotController.add(_currentSnapshot);
@@ -306,6 +338,27 @@ class RealPlaybackController implements PlaybackController {
     if (track != null) {
       _handler.queueManager.addToQueue(track);
     }
+  }
+
+  @override
+  Future<void> setSpeed(double speed) async {
+    await _handler.setSpeed(speed);
+  }
+
+  @override
+  Future<void> reorderQueue(int oldIndex, int newIndex) async {
+    _handler.queueManager.reorder(oldIndex, newIndex);
+  }
+
+  @override
+  Future<void> removeFromQueue(int index) async {
+    _handler.queueManager.removeAt(index);
+  }
+
+  @override
+  Future<void> clearQueue() async {
+    _handler.queueManager.clear();
+    await _handler.stop();
   }
 
   void dispose() {

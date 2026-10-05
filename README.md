@@ -61,5 +61,14 @@ flutter run -d emulator-5554
 - **Crash & Skip Resilience (Phase 2):** Missing/unplayable files skip smoothly with user snackbars without crash loops. Accurate decoder duration reconciliation in Drift DB.
 - **Process Death Restoration (Phase 2):** Drift DB persistence of logical queue, seek position, active index, and repeat/shuffle states across process kills and cold restarts.
 - **External Intent Handling (Phase 2):** Plays external audio files opened from file managers via Android `ACTION_VIEW audio/*` intent.
+- **Now Playing Screen & Dynamic Motion (Phase 3):** Full expandable Now Playing sheet with adaptive artwork color gradient, animated artwork scale (1.0 playing, 0.88 paused), swipe-to-skip, swipe-down collapse, and predictive back support.
+- **Reorderable Queue Sheet (Phase 3):** Modal queue with active track indicator, reorder drag handles (`onReorderItem`), swipe-to-remove dismissible tiles, and clear queue action.
+- **Synchronized Lyrics (Phase 3):** High-precision LRC parser (`LrcParser`) supporting sidecar `.lrc` / `.LRC` files, embedded ID3 tags (`USLT`/`SYLT`), active line auto-scroll, tap-to-seek, and dynamic font resizing (`A-` / `A+`).
+- **Sleep Timer (Phase 3):** Timer presets (15m, 30m, 45m, 60m), custom duration slider, "End of track" option, 20-second gentle linear volume ramp-down, and tap-to-extend (+15m).
+- **Playback Speed Control (Phase 3):** Pitch-preserved speed selection from 0.5x to 2.0x.
+- **Track Audio Specifications (Phase 3):** Technical inspection sheet displaying format, codec, bitrate, sample rate, bit depth, channels, file size, duration, storage path, and quality badges.
+- **Track Context Menu & Row Gestures (Phase 3):** Long-press and 3-dot context sheets (Play Next, Add to Queue, Favorites, Details) and swipe-right "Play Next" row gesture with Undo snackbar.
+- **Haptic Engine (Phase 3):** Tactile feedback on playback controls, scrubbing, long-press, and sheet actions with user toggle in Settings.
 - **Audio Synthesis Tool:** Run `dart tool/seed_music.dart` to synthesize real tagged test tracks (MP3, FLAC, M4A, OGG) with sidecar artwork and push them directly to Android devices via ADB.
+
 

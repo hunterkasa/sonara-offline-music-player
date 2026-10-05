@@ -45,6 +45,7 @@ class _AppShellState extends State<AppShell> {
             ),
         ],
       ),
+
       bottomNavigationBar: NavigationBar(
         selectedIndex: widget.navigationShell.currentIndex,
         onDestinationSelected: (index) {

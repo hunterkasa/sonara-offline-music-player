@@ -355,6 +355,12 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  @override
+  Future<void> setSpeed(double speed) async {
+    await _player.setSpeed(speed);
+    _broadcastPlaybackState(_player.playbackEvent);
+  }
+
   /// Sets entire queue and starts playing
   Future<void> playQueue(
     List<Track> tracks, {

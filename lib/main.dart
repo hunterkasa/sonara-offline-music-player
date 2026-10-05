@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -33,7 +35,12 @@ Future<void> main() async {
         notificationColor: Color(0xFF6750A4),
       ),
     );
-    await audioHandler.restoreSavedState();
+    // Non-blocking state restoration so app renders first frame immediately
+    unawaited(
+      audioHandler.restoreSavedState().catchError((Object e) {
+        debugPrint('restoreSavedState non-fatal error: $e');
+      }),
+    );
   } catch (e) {
     debugPrint('AudioService.init skipped or unavailable: $e');
   }

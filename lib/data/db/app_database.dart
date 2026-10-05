@@ -159,6 +159,24 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// Toggle favorite status of a track
+  Future<bool> toggleFavorite(String trackKey) async {
+    final track = await getTrackByKey(trackKey);
+    if (track == null) return false;
+    final newFavorite = !track.isFavorite;
+    await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
+      TracksCompanion(isFavorite: Value(newFavorite)),
+    );
+    return newFavorite;
+  }
+
+  /// Watch a track by key reactively
+  Stream<Track?> watchTrack(String trackKey) {
+    return (select(
+      tracks,
+    )..where((t) => t.trackKey.equals(trackKey))).watchSingleOrNull();
+  }
+
   /// Persist current queue state
   Future<void> saveQueueState({
     required String? currentTrackKey,

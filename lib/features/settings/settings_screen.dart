@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/theme_provider.dart';
 import '../../app/theme/theme_tokens.dart';
+import '../../core/services/haptic_service.dart';
 import '../../data/db/database_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -42,6 +43,31 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _showThemeDialog(context, ref, currentThemeMode),
           ),
           const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.m,
+              vertical: AppSpacing.xs,
+            ),
+            child: Text(
+              'HAPTICS & FEEDBACK',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.vibration_rounded),
+            title: const Text('Haptic Feedback'),
+            subtitle: const Text('Vibrate on playback controls and actions'),
+            value: ref.watch(hapticsEnabledProvider),
+            onChanged: (val) {
+              ref.read(hapticsEnabledProvider.notifier).state = val;
+            },
+          ),
+          const Divider(),
+
           if (kDebugMode) ...[
             const Divider(),
             Padding(

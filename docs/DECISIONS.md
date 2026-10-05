@@ -110,3 +110,19 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Decision:** MediaStore or tag-extracted track durations are reconciled against the actual decoder duration reported by `just_audio` when playback starts, and asynchronously updated in Drift DB.
 - **Rationale:** Variable Bitrate (VBR) MP3s and certain containers frequently report inaccurate durations in headers. Dynamic reconciliation ensures seekbars, scrubbers, and remaining-time timers are sample-accurate.
 
+### ADR 3.1: Re-entrant Emission Protection in QueueManager
+- **Decision:** State emissions in `QueueManager` are protected by an `_isEmitting` boolean flag and a `_pendingEmits` counter. If a listener triggers an action that requests another emission while a previous event is still broadcasting, the new emission is queued and processed iteratively.
+- **Rationale:** Prevents `Bad state: Cannot fire new event. Controller is already firing an event` exceptions caused by synchronous event loops when UI sheets or error handlers respond immediately to queue mutations.
+
+### ADR 3.2: Non-blocking Startup Playback Restoration
+- **Decision:** `audioHandler.restoreSavedState()` is invoked with `unawaited(...)` during bootstrap rather than blocking `main()` before `runApp()`.
+- **Rationale:** Guarantees that the Flutter UI mounts and renders the first frame immediately (<1s) even if persistent audio sources are inaccessible or slow to initialize.
+
+### ADR 3.3: Synced Lyrics Discovery Precedence and Fallbacks
+- **Decision:** Synced lyrics are queried in order: (1) memory cache, (2) sidecar `.lrc` and `.LRC` files matching track filename in the same directory, (3) embedded ID3 `USLT` / `SYLT` tags. Plain-text fallback displays lyrics when timestamps are absent.
+- **Rationale:** Respects audiophile local library conventions where synchronized `.lrc` files often accompany lossless audio, while gracefully falling back to embedded metadata.
+
+### ADR 3.4: Linear Volume Ramp-Down for Sleep Timer
+- **Decision:** Sleep timer initiates a linear volume ramp-down from 1.0 to 0.0 over the final 20 seconds before pausing playback, with instant volume restoration if extended or cancelled.
+- **Rationale:** Avoids abrupt audio cutoffs that wake listeners while falling asleep, providing a smooth transition.
+

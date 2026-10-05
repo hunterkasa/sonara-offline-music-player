@@ -71,9 +71,27 @@ class QueueManager {
   QueueRepeatMode get repeatMode => _state.repeatMode;
   Stream<QueueState> get stateStream => _stateController.stream;
 
+  bool _isEmitting = false;
+  QueueState? _pendingState;
+
   void _emit(QueueState newState) {
     _state = newState;
-    _stateController.add(_state);
+    if (_stateController.isClosed) return;
+    if (_isEmitting) {
+      _pendingState = newState;
+      return;
+    }
+    _isEmitting = true;
+    try {
+      _stateController.add(_state);
+    } finally {
+      _isEmitting = false;
+      if (_pendingState != null) {
+        final pending = _pendingState!;
+        _pendingState = null;
+        _emit(pending);
+      }
+    }
   }
 
   /// Sets a new queue of tracks and sets the active track index.
