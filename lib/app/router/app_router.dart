@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/album/album_detail_screen.dart';
 import '../../features/artist/artist_detail_screen.dart';
+import '../../features/audio_settings/audio_settings_screen.dart';
+import '../../features/audio_settings/equalizer_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/library/library_screen.dart';
 import '../../features/onboarding/permission_screen.dart';
@@ -85,6 +87,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/equalizer',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const EqualizerScreen(),
+      ),
+      GoRoute(
+        path: '/audio-settings',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AudioSettingsScreen(),
       ),
     ],
   );

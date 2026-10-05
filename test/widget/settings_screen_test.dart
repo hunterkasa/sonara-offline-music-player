@@ -37,7 +37,10 @@ void main() {
       expect(find.text('AMOLED Dark (Pure Black)'), findsOneWidget);
 
       // Tap Seed Synthetic Tracks
-      await tester.tap(find.text('Seed 20,000 Synthetic DB Tracks'));
+      final seedButton = find.text('Seed 20,000 Synthetic DB Tracks');
+      await tester.scrollUntilVisible(seedButton, 200);
+      await tester.pumpAndSettle();
+      await tester.tap(seedButton);
       await tester.pump(); // Starts action
       await tester.pump(
         const Duration(seconds: 1),

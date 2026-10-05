@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/theme/theme_tokens.dart';
 import '../../audio/playback_controller.dart';
@@ -95,6 +96,14 @@ class NowPlayingSheet extends ConsumerWidget {
             ),
             centerTitle: true,
             actions: [
+              IconButton(
+                icon: const Icon(Icons.equalizer_rounded),
+                tooltip: 'Equalizer',
+                onPressed: () {
+                  haptics.light();
+                  context.push('/equalizer');
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.more_vert_rounded),
                 tooltip: 'More options',

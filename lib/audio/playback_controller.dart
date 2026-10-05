@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
 import '../data/db/database_provider.dart';
+import '../domain/models/audio_settings.dart';
+import '../domain/services/audio_settings_service.dart';
 import '../domain/services/listening_stats_service.dart';
 import '../domain/services/queue_manager.dart';
 import 'sonara_audio_handler.dart';
@@ -65,6 +67,7 @@ abstract class PlaybackController {
   Future<void> reorderQueue(int oldIndex, int newIndex);
   Future<void> removeFromQueue(int index);
   Future<void> clearQueue();
+  Future<void> applyAudioSettings(AudioSettings settings);
 }
 
 class StubPlaybackController implements PlaybackController {
@@ -180,6 +183,9 @@ class StubPlaybackController implements PlaybackController {
 
   @override
   Future<void> clearQueue() async {}
+
+  @override
+  Future<void> applyAudioSettings(AudioSettings settings) async {}
 }
 
 class RealPlaybackController implements PlaybackController {
@@ -378,6 +384,10 @@ class RealPlaybackController implements PlaybackController {
     await _handler.stop();
   }
 
+  @override
+  Future<void> applyAudioSettings(AudioSettings settings) =>
+      _handler.applyAudioSettings(settings);
+
   void dispose() {
     for (final sub in _subscriptions) {
       sub.cancel();
@@ -393,11 +403,16 @@ final playbackControllerProvider = Provider<PlaybackController>((ref) {
   if (audioHandler != null) {
     final db = ref.watch(databaseProvider);
     final stats = ref.watch(listeningStatsServiceProvider);
-    return RealPlaybackController(
+    final controller = RealPlaybackController(
       audioHandler: audioHandler,
       db: db,
       statsService: stats,
     );
+    ref.listen<AudioSettings>(audioSettingsProvider, (prev, next) {
+      controller.applyAudioSettings(next);
+    }, fireImmediately: true);
+    ref.onDispose(controller.dispose);
+    return controller;
   }
   return StubPlaybackController();
 });

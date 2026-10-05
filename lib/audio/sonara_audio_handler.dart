@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
@@ -6,7 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../data/db/app_database.dart';
+import '../domain/models/audio_settings.dart';
+import '../domain/services/long_audio_service.dart';
 import '../domain/services/queue_manager.dart';
+import '../domain/services/replay_gain_calculator.dart';
 
 /// Background AudioHandler managing AudioService MediaSession,
 /// AudioSession focus & noisy events, and just_audio playback engine.
@@ -14,9 +18,15 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   SonaraAudioHandler({
     required this.queueManager,
     this.db,
+    this.longAudioService,
     AudioPlayer? player,
+    AndroidEqualizer? equalizer,
+    AndroidLoudnessEnhancer? loudnessEnhancer,
     bool enablePersistenceTimer = true,
-  }) : _player = player ?? AudioPlayer() {
+  }) : equalizer = equalizer ?? (player == null ? _defaultEffects.$2 : null),
+       loudnessEnhancer =
+           loudnessEnhancer ?? (player == null ? _defaultEffects.$3 : null),
+       _player = player ?? _defaultEffects.$1 {
     _initAudioSession();
     _listenToPlayerEvents();
     _listenToQueueManager();
@@ -25,10 +35,31 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  static (AudioPlayer, AndroidEqualizer?, AndroidLoudnessEnhancer?)
+  get _defaultEffects {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final eq = AndroidEqualizer();
+        final le = AndroidLoudnessEnhancer();
+        final pipeline = AudioPipeline(androidAudioEffects: [eq, le]);
+        final player = AudioPlayer(audioPipeline: pipeline);
+        return (player, eq, le);
+      } catch (e) {
+        debugPrint('AudioPipeline creation skipped: $e');
+      }
+    }
+    return (AudioPlayer(), null, null);
+  }
+
   final QueueManager queueManager;
   final AppDatabase? db;
+  final LongAudioService? longAudioService;
+  final AndroidEqualizer? equalizer;
+  final AndroidLoudnessEnhancer? loudnessEnhancer;
   final AudioPlayer _player;
 
+  AudioSettings _audioSettings = const AudioSettings();
+  double _currentVolumeMultiplier = 1.0;
   Timer? _persistTimer;
   bool _wasPlayingBeforeInterruption = false;
   int _consecutiveErrors = 0;
@@ -36,6 +67,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   bool _isSwitchingSource = false;
 
   AudioPlayer get player => _player;
+  AudioSettings get audioSettings => _audioSettings;
 
   Future<void> _initAudioSession() async {
     try {
@@ -129,7 +161,20 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   void _startPersistenceTimer() {
     _persistTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (_player.playing) {
-        queueManager.persistState(positionMs: _player.position.inMilliseconds);
+        final current = queueManager.currentTrack;
+        final pos = _player.position.inMilliseconds;
+        queueManager.persistState(positionMs: pos);
+
+        // Long-audio memory persistence (>= 20m)
+        if (_audioSettings.longAudioPositionMemory &&
+            current != null &&
+            (longAudioService?.isLongAudio(current.durationMs) ?? false)) {
+          longAudioService?.savePosition(
+            current.trackKey,
+            positionMs: pos,
+            speed: _player.speed,
+          );
+        }
       }
     });
   }
@@ -245,16 +290,42 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
         );
       }
 
+      var targetPosition = initialPosition;
+      if (targetPosition == null &&
+          _audioSettings.longAudioPositionMemory &&
+          window.isNotEmpty &&
+          (longAudioService?.isLongAudio(window.first.durationMs) ?? false)) {
+        final saved = await longAudioService?.getSavedPosition(
+          window.first.trackKey,
+        );
+        if (saved != null && saved.positionMs > 10000) {
+          targetPosition = Duration(milliseconds: saved.positionMs);
+          if (saved.speed != 1.0) {
+            await setSpeed(saved.speed);
+          }
+        }
+      }
+
       _audioSource = ConcatenatingAudioSource(children: children);
       await _player.setAudioSource(
         _audioSource!,
-        initialPosition: initialPosition,
+        initialPosition: targetPosition,
         initialIndex: 0,
       );
       _consecutiveErrors = 0;
 
+      await _updateEffectiveVolume();
+
       if (resumePlaying) {
-        await _player.play();
+        if (_audioSettings.smoothFades) {
+          try {
+            await _player.setVolume(0.0);
+          } catch (_) {}
+          await _player.play();
+          await _fadeVolume(from: 0.0, to: _currentVolumeMultiplier);
+        } else {
+          await _player.play();
+        }
       }
     } catch (e) {
       debugPrint('Failed to load sliding window: $e');
@@ -281,6 +352,96 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  Future<void> _fadeVolume({
+    required double from,
+    required double to,
+    Duration duration = const Duration(milliseconds: 200),
+  }) async {
+    const steps = 4;
+    final stepDuration = Duration(
+      milliseconds: duration.inMilliseconds ~/ steps,
+    );
+    final delta = (to - from) / steps;
+    var current = from;
+    for (var i = 0; i < steps; i++) {
+      current += delta;
+      try {
+        await _player.setVolume(current.clamp(0.0, 1.0));
+      } catch (_) {}
+      await Future<void>.delayed(stepDuration);
+    }
+    try {
+      await _player.setVolume(to.clamp(0.0, 1.0));
+    } catch (_) {}
+  }
+
+  /// Apply audio settings from user preferences
+  Future<void> applyAudioSettings(AudioSettings settings) async {
+    _audioSettings = settings;
+
+    // 1. Equalizer
+    if (equalizer != null) {
+      try {
+        await equalizer!.setEnabled(settings.equalizerEnabled);
+        if (settings.equalizerEnabled) {
+          final params = await equalizer!.parameters;
+          for (var i = 0; i < params.bands.length; i++) {
+            if (i < settings.bandGains.length) {
+              final gain = settings.bandGains[i].clamp(
+                params.minDecibels,
+                params.maxDecibels,
+              );
+              await params.bands[i].setGain(gain);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Equalizer apply skipped: $e');
+      }
+    }
+
+    // 2. Loudness Enhancer
+    if (loudnessEnhancer != null) {
+      try {
+        final shouldEnable = settings.loudnessGain > 0;
+        await loudnessEnhancer!.setEnabled(shouldEnable);
+        if (shouldEnable) {
+          await loudnessEnhancer!.setTargetGain(settings.loudnessGain);
+        }
+      } catch (e) {
+        debugPrint('LoudnessEnhancer apply skipped: $e');
+      }
+    }
+
+    // 3. Skip Silence
+    try {
+      await _player.setSkipSilenceEnabled(settings.skipSilence);
+    } catch (e) {
+      debugPrint('Skip silence skipped: $e');
+    }
+
+    // 4. ReplayGain & Volume
+    await _updateEffectiveVolume();
+  }
+
+  Future<void> _updateEffectiveVolume() async {
+    final current = queueManager.currentTrack;
+    final multiplier = ReplayGainCalculator.computeVolumeMultiplier(
+      trackGainDb: current?.replayGainTrackDb,
+      albumGainDb: current?.replayGainAlbumDb,
+      mode: _audioSettings.replayGainMode,
+      preAmpDb: _audioSettings.replayGainPreAmpDb,
+      preventClipping: _audioSettings.preventClipping,
+      isShuffle: queueManager.state.shuffleEnabled,
+    );
+    _currentVolumeMultiplier = multiplier;
+    if (_player.playing) {
+      try {
+        await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
+      } catch (_) {}
+    }
+  }
+
   @override
   Future<void> play() async {
     if (queueManager.currentTrack == null && queueManager.queue.isNotEmpty) {
@@ -292,12 +453,39 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       await _reloadSlidingWindow(resumePlaying: true);
       return;
     }
-    await _player.play();
+    if (_audioSettings.smoothFades) {
+      try {
+        await _player.setVolume(0.0);
+      } catch (_) {}
+      await _player.play();
+      await _fadeVolume(from: 0.0, to: _currentVolumeMultiplier);
+    } else {
+      await _player.play();
+    }
   }
 
   @override
   Future<void> pause() async {
-    await _player.pause();
+    final current = queueManager.currentTrack;
+    if (current != null &&
+        _audioSettings.longAudioPositionMemory &&
+        (longAudioService?.isLongAudio(current.durationMs) ?? false)) {
+      await longAudioService?.savePosition(
+        current.trackKey,
+        positionMs: _player.position.inMilliseconds,
+        speed: _player.speed,
+      );
+    }
+
+    if (_audioSettings.smoothFades && _player.playing) {
+      await _fadeVolume(from: _currentVolumeMultiplier, to: 0.0);
+      await _player.pause();
+      try {
+        await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
+      } catch (_) {}
+    } else {
+      await _player.pause();
+    }
   }
 
   @override

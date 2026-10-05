@@ -72,13 +72,14 @@ Status legend:
 - [x] Home shelves & local "Made for you" mixes (Daily Mixes, On Repeat, Rewind, Discover)
 - [x] Instant FTS5 search (case/diacritic insensitive, multi-script, grouped results, <100ms)
 
-### [ ] Phase 5: Audio Quality Features
-- [ ] Crossfade engine (0 to 12s configurable) & skip/pause gentle fades
-- [ ] Device equalizer integration with actual hardware band discovery, bass boost, and loudness
-- [ ] ReplayGain track/album normalization with configurable pre-amp
-- [ ] Skip silence (Android platform capability)
-- [ ] Mono downmixing and channel balance controls
-- [ ] Audio settings UI
+### [x] Phase 5: Audio Quality Features
+- [x] Crossfade engine (0 to 12s configurable) & skip/pause gentle fades (200ms volume ramp)
+- [x] Device equalizer integration with hardware effects (`AndroidEqualizer`), 5 bands, 9 presets, bass boost, and loudness enhancer (`AndroidLoudnessEnhancer`)
+- [x] ReplayGain track/album/smart normalization with configurable pre-amp (-12dB to +12dB) and clipping prevention clamp
+- [x] Skip silence (`player.setSkipSilenceEnabled`)
+- [x] Mono downmixing and stereo channel balance controls (-1.0 to +1.0)
+- [x] Long-audio position memory for tracks >= 20 minutes (podcasts, DJ sets)
+- [x] Dedicated Equalizer UI (`EqualizerScreen`) and Audio Settings UI (`AudioSettingsScreen`) linked from Settings and Now Playing
 
 ### [ ] Phase 6: Integrations and Library Tools
 - [ ] Android Home Screen widgets (small, medium, large)

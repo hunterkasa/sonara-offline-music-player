@@ -545,6 +545,28 @@ class AppDatabase extends _$AppDatabase {
     )..where((q) => q.id.equals(1))).getSingleOrNull();
   }
 
+  /// Get app setting by key
+  Future<String?> getSetting(String key) async {
+    final row = await (select(
+      appSettings,
+    )..where((s) => s.key.equals(key))).getSingleOrNull();
+    return row?.valueJson;
+  }
+
+  /// Save or update app setting by key
+  Future<void> setSetting(String key, String valueJson) async {
+    await into(appSettings).insertOnConflictUpdate(
+      AppSettingsCompanion(key: Value(key), valueJson: Value(valueJson)),
+    );
+  }
+
+  /// Watch app setting changes by key
+  Stream<String?> watchSetting(String key) {
+    return (select(appSettings)..where((s) => s.key.equals(key)))
+        .watchSingleOrNull()
+        .map((row) => row?.valueJson);
+  }
+
   /// Debug-only synthetic data seeder for 20,000 tracks
   Future<void> seedSyntheticData({int count = 20000}) async {
     await transaction(() async {

@@ -146,3 +146,24 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Decision:** Play count is credited to a track only after either: (1) 30 seconds of playback, or (2) 50% of track duration (whichever is shorter). A skip is recorded if playback switches or finishes before this threshold is reached.
 - **Rationale:** Follows standard audio telemetry conventions (e.g. Last.fm / Spotify), ensuring that brief accidental taps do not skew "On Repeat", "Your Top Artists", or smart playlist recommendations.
 
+---
+
+## 8. Phase 5 Architecture Decisions
+
+### ADR 5.1: Hybrid AudioPipeline with Test Environment Fallback
+- **Decision:** Built `AudioPipeline` with Android hardware effects (`AndroidEqualizer` and `AndroidLoudnessEnhancer`) guarded behind `!kIsWeb && Platform.isAndroid`. All hardware effect invocations are wrapped in defensive `try/catch` handlers that gracefully ignore platform exceptions in non-hardware environments (such as unit test fake audio platform drivers).
+- **Rationale:** Allows full hardware audio effect features on physical devices and emulators without breaking headless test harnesses or throw UnimplementedError in mock environments.
+
+### ADR 5.2: ReplayGain Volume Multiplier with Anti-Clipping Peak Limiter
+- **Decision:** ReplayGain volume multiplier uses standard EBU R128 logarithmic formula: `multiplier = 10 ^ ((gainDb + preAmpDb) / 20)`. When `preventClipping` is enabled (default), `multiplier` is strictly clamped to `1.0` maximum; when disabled, headroom up to `2.0` (+6 dB) is permitted.
+- **Rationale:** Prevents harsh digital clipping artifacts when applying positive pre-amp boosts or playing tracks with high mastering gains through 16/24-bit DACs.
+
+### ADR 5.3: 200ms Step Volume Ramps on State Transitions
+- **Decision:** Implemented `_fadeVolume` with 4 discrete interpolation steps over 200ms during manual `play()`, `pause()`, and track skipping.
+- **Rationale:** Completely eliminates audible DC-offset "pops" and DAC transient clicks during playback transitions while keeping transport controls perceptually instantaneous.
+
+### ADR 5.4: Long-Audio Position Memory Boundary (>= 20 Minutes)
+- **Decision:** Position and speed memory (`LongAudioService`) triggers strictly for tracks with duration >= 20 minutes (1,200,000 ms), auto-saving when position exceeds 10s and restoring seamlessly on reload.
+- **Rationale:** Distinguishes podcasts, DJ mixes, live sets, and audiobooks from standard songs (which should always start from 0:00). Prevents standard library tracks from perpetually opening at random mid-song timestamps.
+
+

@@ -67,6 +67,37 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.m,
+              vertical: AppSpacing.xs,
+            ),
+            child: Text(
+              'AUDIO QUALITY',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.equalizer_rounded),
+            title: const Text('Equalizer'),
+            subtitle: const Text('5-band EQ, presets, and sound enhancements'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/equalizer'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.tune_rounded),
+            title: const Text('Audio Settings & Effects'),
+            subtitle: const Text(
+              'ReplayGain, crossfade, smooth fades, and balance',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/audio-settings'),
+          ),
+          const Divider(),
 
           if (kDebugMode) ...[
             const Divider(),

@@ -76,6 +76,12 @@ flutter run -d emulator-5554
 - **Listening Statistics & Skip Detection (Phase 4):** Standard 30s / 50% threshold play logging, skip counter, and play history in Drift SQLite.
 - **Home Screen Dynamic Shelves (Phase 4):** "Good Morning/Afternoon/Evening" greeting, quick action cards, "Jump Back In", "On Repeat", and "Your Top Artists" horizontal shelves.
 - **Instant FTS5 Search (Phase 4):** SQLite FTS5 prefix search (<50ms) across tracks, artists, albums, playlists with filter chips ("All", "Songs", "Albums", "Artists", "Playlists"), Top Result hero card, and recent searches history.
+- **Hardware Equalizer & Presets (Phase 5):** 5-band hardware EQ (`AndroidEqualizer`), dynamic Catmull-Rom/cubic Bezier frequency curve, 9 presets (*Flat, Bass Boost, Treble Boost, Rock, Pop, Jazz, Electronic, Vocal/Acoustic, Classical*) plus Custom, bypass master switch.
+- **Bass Boost & Loudness Enhancer (Phase 5):** Hardware-accelerated bass boosting (0-100%) and loudness enhancer (`AndroidLoudnessEnhancer`) with target gain up to +10 dB.
+- **Crossfade & Smooth Volume Fades (Phase 5):** Configurable crossfade (0s to 12s, 0 = gapless) and 200ms volume ramp on pause/resume/skip eliminating DAC transient clicks.
+- **ReplayGain & Volume Normalization (Phase 5):** Smart (shuffle vs sequential), Track, and Album normalization with -12 dB to +12 dB pre-amp and peak limiter anti-clipping clamp.
+- **Platform Audio Engine Controls (Phase 5):** Hardware skip silence (`player.setSkipSilenceEnabled`), stereo channel balance slider (-1.0 Left to +1.0 Right), and mono downmix.
+- **Long-Audio Position Memory (Phase 5):** Auto-saves and restores exact seek position and playback speed for tracks >= 20 minutes (podcasts, DJ sets, audiobooks).
 - **Audio Synthesis Tool:** Run `dart tool/seed_music.dart` to synthesize real tagged test tracks (MP3, FLAC, M4A, OGG) with sidecar artwork and push them directly to Android devices via ADB.
 
 

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/data/db/app_database.dart';
+import 'package:sonara/domain/models/audio_settings.dart';
 import 'package:sonara/features/now_playing/now_playing_sheet.dart';
 import 'package:sonara/shared/mini_player/mini_player.dart';
 
@@ -226,6 +227,9 @@ class TestPlaybackController implements PlaybackController {
 
   @override
   Future<void> clearQueue() async {}
+
+  @override
+  Future<void> applyAudioSettings(AudioSettings settings) async {}
 }
 
 void main() {
