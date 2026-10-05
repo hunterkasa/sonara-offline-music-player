@@ -69,6 +69,13 @@ flutter run -d emulator-5554
 - **Track Audio Specifications (Phase 3):** Technical inspection sheet displaying format, codec, bitrate, sample rate, bit depth, channels, file size, duration, storage path, and quality badges.
 - **Track Context Menu & Row Gestures (Phase 3):** Long-press and 3-dot context sheets (Play Next, Add to Queue, Favorites, Details) and swipe-right "Play Next" row gesture with Undo snackbar.
 - **Haptic Engine (Phase 3):** Tactile feedback on playback controls, scrubbing, long-press, and sheet actions with user toggle in Settings.
+- **Playlists & Drag-and-Drop Reordering (Phase 4):** Create, rename, delete, duplicate playlists with custom track ordering (`ReorderableListView`). Quick-add from track context sheets and dedicated playlist detail view.
+- **Liked Songs & Instant Favorites (Phase 4):** Reactive heart toggles across all screens with pinned Liked Songs card in Library and quick-action cards on Home.
+- **M3U / M3U8 Import & Export (Phase 4):** `#EXTINF` parser with resilient 3-tier track matching (absolute path, filename/basename, title+artist) and UTF-8 export.
+- **Smart Playlist Rule Engine (Phase 4):** Dynamic rule groups (AND/OR, text, numeric, date, boolean operators) with built-in presets (Recently Added, Most Played, Top Rated, Forgotten Favorites).
+- **Listening Statistics & Skip Detection (Phase 4):** Standard 30s / 50% threshold play logging, skip counter, and play history in Drift SQLite.
+- **Home Screen Dynamic Shelves (Phase 4):** "Good Morning/Afternoon/Evening" greeting, quick action cards, "Jump Back In", "On Repeat", and "Your Top Artists" horizontal shelves.
+- **Instant FTS5 Search (Phase 4):** SQLite FTS5 prefix search (<50ms) across tracks, artists, albums, playlists with filter chips ("All", "Songs", "Albums", "Artists", "Playlists"), Top Result hero card, and recent searches history.
 - **Audio Synthesis Tool:** Run `dart tool/seed_music.dart` to synthesize real tagged test tracks (MP3, FLAC, M4A, OGG) with sidecar artwork and push them directly to Android devices via ADB.
 
 

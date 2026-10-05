@@ -126,3 +126,23 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Decision:** Sleep timer initiates a linear volume ramp-down from 1.0 to 0.0 over the final 20 seconds before pausing playback, with instant volume restoration if extended or cancelled.
 - **Rationale:** Avoids abrupt audio cutoffs that wake listeners while falling asleep, providing a smooth transition.
 
+---
+
+## 7. Phase 4 Architecture Decisions
+
+### ADR 4.1: Top-Level Riverpod Provider Families for Stream Queries
+- **Decision:** All reactive database streams (e.g. `playlistStreamProvider(id)`, `playlistTracksStreamProvider(id)`) must be declared as top-level `StreamProvider.family` definitions rather than instantiated dynamically inside `Widget.build()`.
+- **Rationale:** Creating providers inside `build()` instantiates new provider identities on every frame, resulting in subscriber churn, infinite rebuild loops, and test framework timeouts during `pumpAndSettle()`.
+
+### ADR 4.2: Resilient M3U/M3U8 Parser with Multi-Tier Track Matching
+- **Decision:** The `M3uService` supports `#EXTM3U`, `#EXTINF`, and raw URI playlist lines. Imported track entries are resolved against the local library using a 3-tier cascade: (1) exact path match, (2) filename / basename match, (3) normalized title and artist comparison.
+- **Rationale:** M3U files exported from desktop players (e.g. Foobar2000, iTunes) or other devices contain relative or foreign absolute file paths. Multi-tier matching guarantees high track recovery without requiring manual path editing by the user.
+
+### ADR 4.3: Local FTS5 Search with Result Categorization & Recent History
+- **Decision:** Search queries utilize SQLite FTS5 prefix match (`term*`) over `tracks_fts` table, returning categorized results (Top Result hero card, Songs, Albums, Artists, Playlists). Recent search queries are persisted in `AppSettings` (up to 10 queries, FIFO).
+- **Rationale:** Provides sub-50ms instant search across 20,000+ tracks completely offline with zero network lookups, while giving users intuitive search filtering and immediate recent query chips.
+
+### ADR 4.4: Threshold-Based Listening Statistics & Skip Detection
+- **Decision:** Play count is credited to a track only after either: (1) 30 seconds of playback, or (2) 50% of track duration (whichever is shorter). A skip is recorded if playback switches or finishes before this threshold is reached.
+- **Rationale:** Follows standard audio telemetry conventions (e.g. Last.fm / Spotify), ensuring that brief accidental taps do not skew "On Repeat", "Your Top Artists", or smart playlist recommendations.
+

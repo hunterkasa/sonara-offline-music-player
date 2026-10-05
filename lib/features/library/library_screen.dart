@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,11 +9,13 @@ import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/data/db/app_database.dart';
 import 'package:sonara/data/db/database_provider.dart';
 import 'package:sonara/domain/services/library_scanner.dart';
+import 'package:sonara/core/services/haptic_service.dart';
+import 'package:sonara/domain/services/playlist_service.dart';
 import 'package:sonara/shared/artwork/artwork_widget.dart';
 import 'package:sonara/shared/cards/media_card.dart';
 import 'package:sonara/shared/track_tile/track_tile.dart';
 
-enum LibraryTab { songs, albums, artists, genres, folders }
+enum LibraryTab { playlists, songs, albums, artists, genres, folders }
 
 enum SongSortOption {
   titleAsc('Title (A-Z)'),
@@ -216,6 +220,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
             child: Row(
               children: [
+                _buildFilterChip('Playlists', LibraryTab.playlists),
+                const SizedBox(width: AppSpacing.xs),
                 _buildFilterChip('Songs', LibraryTab.songs),
                 const SizedBox(width: AppSpacing.xs),
                 _buildFilterChip('Albums', LibraryTab.albums),
@@ -259,6 +265,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Widget _buildTabContent() {
     switch (_currentTab) {
+      case LibraryTab.playlists:
+        return _buildPlaylistsView();
       case LibraryTab.songs:
         return _buildSongsView();
       case LibraryTab.albums:
@@ -665,6 +673,181 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               subtitle: Text('${folder.value} tracks'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {},
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPlaylistsView() {
+    final db = ref.watch(databaseProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final haptics = ref.read(hapticServiceProvider);
+    final playlistService = ref.read(playlistServiceProvider);
+    final playback = ref.read(playbackControllerProvider);
+
+    return StreamBuilder<List<Track>>(
+      stream: db.watchLikedTracks(),
+      builder: (context, likedSnapshot) {
+        final likedTracks = likedSnapshot.data ?? [];
+
+        return StreamBuilder<List<Playlist>>(
+          stream: db.watchAllPlaylists(),
+          builder: (context, playlistSnapshot) {
+            final playlists = playlistSnapshot.data ?? [];
+
+            return ListView(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
+              children: [
+                // Pinned Liked Songs item
+                ListTile(
+                  leading: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.purple.shade400, Colors.pink.shade400],
+                      ),
+                      borderRadius: AppRadii.cardRadius,
+                    ),
+                    child: const Icon(
+                      Icons.favorite_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  title: const Text(
+                    'Liked Songs',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('${likedTracks.length} songs'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    haptics.selection();
+                    if (likedTracks.isNotEmpty) {
+                      final keys = likedTracks.map((t) => t.trackKey).toList();
+                      unawaited(playback.playQueue(keys, initialIndex: 0));
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'No liked songs yet. Tap heart to add tracks!',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const Divider(),
+
+                // Create new playlist button
+                ListTile(
+                  leading: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: AppRadii.cardRadius,
+                    ),
+                    child: Icon(
+                      Icons.add_rounded,
+                      color: colorScheme.primary,
+                      size: 28,
+                    ),
+                  ),
+                  title: const Text(
+                    'Create Playlist',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text('Add your favorite tracks'),
+                  onTap: () async {
+                    haptics.selection();
+                    final controller = TextEditingController();
+                    final name = await showDialog<String>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('New Playlist'),
+                        content: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Playlist name',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () =>
+                                Navigator.of(ctx).pop(controller.text.trim()),
+                            child: const Text('Create'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (name != null && name.isNotEmpty) {
+                      final id = await playlistService.createPlaylist(
+                        name: name,
+                      );
+                      if (context.mounted) {
+                        unawaited(context.push('/playlist/$id'));
+                      }
+                    }
+                  },
+                ),
+
+                if (playlists.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: Center(
+                      child: Text(
+                        'No playlists yet. Create your first playlist above!',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                else
+                  ...playlists.map((p) {
+                    return ListTile(
+                      leading: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: AppRadii.cardRadius,
+                        ),
+                        child: Icon(
+                          p.isSmart
+                              ? Icons.auto_awesome_rounded
+                              : Icons.queue_music_rounded,
+                          color: colorScheme.primary,
+                          size: 28,
+                        ),
+                      ),
+                      title: Text(
+                        p.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        p.isSmart ? 'Smart Playlist' : 'Custom Playlist',
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () {
+                        haptics.selection();
+                        context.push('/playlist/${p.id}');
+                      },
+                    );
+                  }),
+              ],
             );
           },
         );

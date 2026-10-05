@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
 import '../data/db/database_provider.dart';
+import '../domain/services/listening_stats_service.dart';
 import '../domain/services/queue_manager.dart';
 import 'sonara_audio_handler.dart';
 
@@ -185,12 +186,14 @@ class RealPlaybackController implements PlaybackController {
   RealPlaybackController({
     required SonaraAudioHandler audioHandler,
     required this.db,
+    this.statsService,
   }) : _handler = audioHandler {
     _initStreams();
   }
 
   final SonaraAudioHandler _handler;
   final AppDatabase db;
+  final ListeningStatsService? statsService;
   final _snapshotController = StreamController<PlaybackSnapshot>.broadcast();
   PlaybackSnapshot _currentSnapshot = const PlaybackSnapshot();
 
@@ -198,12 +201,26 @@ class RealPlaybackController implements PlaybackController {
 
   void _initStreams() {
     _subscriptions.add(_handler.playbackState.listen((_) => _updateSnapshot()));
-    _subscriptions.add(_handler.mediaItem.listen((_) => _updateSnapshot()));
+    _subscriptions.add(
+      _handler.mediaItem.listen((media) {
+        statsService?.onTrackChanged(
+          media?.id,
+          media?.duration?.inMilliseconds ?? 0,
+        );
+        _updateSnapshot();
+      }),
+    );
     _subscriptions.add(
       _handler.queueManager.stateStream.listen((_) => _updateSnapshot()),
     );
     _subscriptions.add(
-      _handler.player.positionStream.listen((_) => _updateSnapshot()),
+      _handler.player.positionStream.listen((pos) {
+        statsService?.onPositionUpdate(
+          pos.inMilliseconds,
+          _handler.player.playing,
+        );
+        _updateSnapshot();
+      }),
     );
     _updateSnapshot();
   }
@@ -375,7 +392,12 @@ final playbackControllerProvider = Provider<PlaybackController>((ref) {
   final audioHandler = ref.watch(audioHandlerProvider);
   if (audioHandler != null) {
     final db = ref.watch(databaseProvider);
-    return RealPlaybackController(audioHandler: audioHandler, db: db);
+    final stats = ref.watch(listeningStatsServiceProvider);
+    return RealPlaybackController(
+      audioHandler: audioHandler,
+      db: db,
+      statsService: stats,
+    );
   }
   return StubPlaybackController();
 });

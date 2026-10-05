@@ -63,14 +63,14 @@ Status legend:
 - [x] Haptic feedback engine (play/pause, scrub snap, long-press, undo) with Settings toggle
 - [x] Predictive back & gesture navigation support
 
-### [ ] Phase 4: Playlists, Favorites, and Personalization
-- [ ] Liked songs persistence & toggles
-- [ ] Playlist management: Create, rename, delete, duplicate, track reordering, mosaic artwork
-- [ ] M3U / M3U8 playlist import and export
-- [ ] Smart playlists (dynamic filter rule engine matching artist, genre, year, play count, etc.)
-- [ ] Local listening statistics and history (play counts, skip counts, listening duration)
-- [ ] Home shelves & local "Made for you" mixes (Daily Mixes, On Repeat, Rewind, Discover)
-- [ ] Instant FTS5 search (case/diacritic insensitive, multi-script, grouped results, <100ms)
+### [x] Phase 4: Playlists, Favorites, and Personalization
+- [x] Liked songs persistence & toggles
+- [x] Playlist management: Create, rename, delete, duplicate, track reordering, mosaic artwork
+- [x] M3U / M3U8 playlist import and export
+- [x] Smart playlists (dynamic filter rule engine matching artist, genre, year, play count, etc.)
+- [x] Local listening statistics and history (play counts, skip counts, listening duration)
+- [x] Home shelves & local "Made for you" mixes (Daily Mixes, On Repeat, Rewind, Discover)
+- [x] Instant FTS5 search (case/diacritic insensitive, multi-script, grouped results, <100ms)
 
 ### [ ] Phase 5: Audio Quality Features
 - [ ] Crossfade engine (0 to 12s configurable) & skip/pause gentle fades

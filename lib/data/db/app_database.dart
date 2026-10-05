@@ -90,6 +90,14 @@ class AppDatabase extends _$AppDatabase {
     return rows.map((row) => row.read<String>('track_key')).toList();
   }
 
+  /// Full-text search returning full Track entities
+  Future<List<Track>> searchTracksFts(String term, {int limit = 50}) async {
+    final keys = await searchTrackKeysFts(term);
+    if (keys.isEmpty) return [];
+    final targetKeys = keys.take(limit).toList();
+    return getTracksByKeys(targetKeys);
+  }
+
   /// Clear all track, album, and artist data from DB
   Future<void> clearAllData() async {
     await transaction(() async {
@@ -175,6 +183,337 @@ class AppDatabase extends _$AppDatabase {
     return (select(
       tracks,
     )..where((t) => t.trackKey.equals(trackKey))).watchSingleOrNull();
+  }
+
+  /// Watch all liked tracks reactively
+  Stream<List<Track>> watchLikedTracks() {
+    return (select(tracks)
+          ..where((t) => t.isFavorite.equals(true) & t.isHidden.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.dateAdded)]))
+        .watch();
+  }
+
+  /// Watch all playlists
+  Stream<List<Playlist>> watchAllPlaylists() {
+    return (select(
+      playlists,
+    )..orderBy([(p) => OrderingTerm.asc(p.name)])).watch();
+  }
+
+  /// Get playlist by ID
+  Future<Playlist?> getPlaylist(int id) {
+    return (select(playlists)..where((p) => p.id.equals(id))).getSingleOrNull();
+  }
+
+  /// Watch a single playlist
+  Stream<Playlist?> watchPlaylist(int id) {
+    return (select(
+      playlists,
+    )..where((p) => p.id.equals(id))).watchSingleOrNull();
+  }
+
+  /// Create a new playlist
+  Future<int> createPlaylist({
+    required String name,
+    String? description,
+    bool isSmart = false,
+    String? rulesJson,
+    String? coverUri,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    return into(playlists).insert(
+      PlaylistsCompanion.insert(
+        name: name,
+        description: Value(description),
+        isSmart: Value(isSmart),
+        rulesJson: Value(rulesJson),
+        coverUri: Value(coverUri),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  /// Rename an existing playlist
+  Future<void> renamePlaylist(int id, String newName) async {
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    await (update(playlists)..where((p) => p.id.equals(id))).write(
+      PlaylistsCompanion(name: Value(newName), updatedAt: Value(now)),
+    );
+  }
+
+  /// Delete a playlist and its associated track links
+  Future<void> deletePlaylist(int id) async {
+    await transaction(() async {
+      await (delete(
+        playlistTracks,
+      )..where((pt) => pt.playlistId.equals(id))).go();
+      await (delete(playlists)..where((p) => p.id.equals(id))).go();
+    });
+  }
+
+  /// Duplicate a playlist
+  Future<int> duplicatePlaylist(int id) async {
+    final source = await getPlaylist(id);
+    if (source == null) return -1;
+    final trackKeys = await getPlaylistTrackKeys(id);
+    final newId = await createPlaylist(
+      name: '${source.name} (Copy)',
+      description: source.description,
+      isSmart: source.isSmart,
+      rulesJson: source.rulesJson,
+      coverUri: source.coverUri,
+    );
+    if (trackKeys.isNotEmpty) {
+      await addTracksToPlaylist(newId, trackKeys);
+    }
+    return newId;
+  }
+
+  /// Watch tracks belonging to a playlist in order
+  Stream<List<Track>> watchPlaylistTracks(int playlistId) {
+    final query =
+        select(playlistTracks).join([
+            innerJoin(
+              tracks,
+              tracks.trackKey.equalsExp(playlistTracks.trackKey),
+            ),
+          ])
+          ..where(playlistTracks.playlistId.equals(playlistId))
+          ..orderBy([OrderingTerm.asc(playlistTracks.position)]);
+
+    return query.watch().map(
+      (rows) => rows.map((r) => r.readTable(tracks)).toList(),
+    );
+  }
+
+  /// Get track keys for a playlist in order
+  Future<List<String>> getPlaylistTrackKeys(int playlistId) async {
+    final rows =
+        await (select(playlistTracks)
+              ..where((pt) => pt.playlistId.equals(playlistId))
+              ..orderBy([(pt) => OrderingTerm.asc(pt.position)]))
+            .get();
+    return rows.map((r) => r.trackKey).toList();
+  }
+
+  /// Add tracks to a playlist
+  Future<void> addTracksToPlaylist(
+    int playlistId,
+    List<String> trackKeys,
+  ) async {
+    if (trackKeys.isEmpty) return;
+    await transaction(() async {
+      final currentMaxPosRow =
+          await (select(playlistTracks)
+                ..where((pt) => pt.playlistId.equals(playlistId))
+                ..orderBy([(pt) => OrderingTerm.desc(pt.position)])
+                ..limit(1))
+              .getSingleOrNull();
+      var nextPos = (currentMaxPosRow?.position ?? -1) + 1;
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      for (final key in trackKeys) {
+        await into(playlistTracks).insert(
+          PlaylistTracksCompanion.insert(
+            playlistId: playlistId,
+            trackKey: key,
+            position: nextPos++,
+            addedAt: now,
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+
+      await (update(playlists)..where((p) => p.id.equals(playlistId))).write(
+        PlaylistsCompanion(updatedAt: Value(now)),
+      );
+    });
+  }
+
+  /// Remove track from a playlist
+  Future<void> removeTrackFromPlaylist(int playlistId, String trackKey) async {
+    await transaction(() async {
+      await (delete(playlistTracks)..where(
+            (pt) =>
+                pt.playlistId.equals(playlistId) & pt.trackKey.equals(trackKey),
+          ))
+          .go();
+
+      // Compact positions
+      final remaining =
+          await (select(playlistTracks)
+                ..where((pt) => pt.playlistId.equals(playlistId))
+                ..orderBy([(pt) => OrderingTerm.asc(pt.position)]))
+              .get();
+      for (var i = 0; i < remaining.length; i++) {
+        if (remaining[i].position != i) {
+          await (update(playlistTracks)..where(
+                (pt) =>
+                    pt.playlistId.equals(playlistId) &
+                    pt.trackKey.equals(remaining[i].trackKey),
+              ))
+              .write(PlaylistTracksCompanion(position: Value(i)));
+        }
+      }
+
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await (update(playlists)..where((p) => p.id.equals(playlistId))).write(
+        PlaylistsCompanion(updatedAt: Value(now)),
+      );
+    });
+  }
+
+  /// Reorder tracks inside a playlist
+  Future<void> reorderPlaylistTracks(
+    int playlistId,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    await transaction(() async {
+      final list =
+          await (select(playlistTracks)
+                ..where((pt) => pt.playlistId.equals(playlistId))
+                ..orderBy([(pt) => OrderingTerm.asc(pt.position)]))
+              .get();
+
+      if (oldIndex < 0 ||
+          oldIndex >= list.length ||
+          newIndex < 0 ||
+          newIndex > list.length) {
+        return;
+      }
+
+      var targetIndex = newIndex;
+      if (oldIndex < targetIndex) {
+        targetIndex -= 1;
+      }
+      final item = list.removeAt(oldIndex);
+      list.insert(targetIndex, item);
+
+      for (var i = 0; i < list.length; i++) {
+        await (update(playlistTracks)..where(
+              (pt) =>
+                  pt.playlistId.equals(playlistId) &
+                  pt.trackKey.equals(list[i].trackKey),
+            ))
+            .write(PlaylistTracksCompanion(position: Value(i)));
+      }
+
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await (update(playlists)..where((p) => p.id.equals(playlistId))).write(
+        PlaylistsCompanion(updatedAt: Value(now)),
+      );
+    });
+  }
+
+  /// Record completed listen: increment playCount, update lastPlayedAt, insert history
+  Future<void> recordPlayCompleted(
+    String trackKey, {
+    int listenedMs = 0,
+    String? source,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    await transaction(() async {
+      final track = await getTrackByKey(trackKey);
+      if (track != null) {
+        await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
+          TracksCompanion(
+            playCount: Value(track.playCount + 1),
+            lastPlayedAt: Value(now),
+          ),
+        );
+      }
+      await into(playHistory).insert(
+        PlayHistoryCompanion.insert(
+          trackKey: trackKey,
+          startedAt: now - (listenedMs ~/ 1000),
+          listenedMs: listenedMs,
+          completed: const Value(true),
+          source: Value(source),
+        ),
+      );
+    });
+  }
+
+  /// Record track skipped early: increment skipCount
+  Future<void> recordSkip(String trackKey) async {
+    final track = await getTrackByKey(trackKey);
+    if (track != null) {
+      await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
+        TracksCompanion(skipCount: Value(track.skipCount + 1)),
+      );
+    }
+  }
+
+  /// Watch top tracks by play count
+  Stream<List<Track>> watchTopTracks({int limit = 15}) {
+    return (select(tracks)
+          ..where(
+            (t) => t.playCount.isBiggerThanValue(0) & t.isHidden.equals(false),
+          )
+          ..orderBy([(t) => OrderingTerm.desc(t.playCount)])
+          ..limit(limit))
+        .watch();
+  }
+
+  /// Watch recently played tracks
+  Stream<List<Track>> watchRecentlyPlayedTracks({int limit = 20}) {
+    return (select(tracks)
+          ..where((t) => t.lastPlayedAt.isNotNull() & t.isHidden.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.lastPlayedAt)])
+          ..limit(limit))
+        .watch();
+  }
+
+  /// Watch recently added tracks
+  Stream<List<Track>> watchRecentlyAddedTracks({int limit = 20}) {
+    return (select(tracks)
+          ..where((t) => t.isHidden.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.dateAdded)])
+          ..limit(limit))
+        .watch();
+  }
+
+  /// Watch top artists based on track play counts
+  Stream<List<Artist>> watchTopArtists({int limit = 10}) {
+    final query =
+        select(artists)
+            .join([innerJoin(tracks, tracks.artistId.equalsExp(artists.id))])
+          ..groupBy([artists.id])
+          ..orderBy([OrderingTerm.desc(tracks.playCount.sum())])
+          ..limit(limit);
+
+    return query.watch().map(
+      (rows) => rows.map((r) => r.readTable(artists)).toList(),
+    );
+  }
+
+  /// Search albums by query string
+  Future<List<Album>> searchAlbums(String query, {int limit = 20}) {
+    final pattern = '%${query.toLowerCase()}%';
+    return (select(albums)
+          ..where((a) => a.titleSort.like(pattern))
+          ..limit(limit))
+        .get();
+  }
+
+  /// Search artists by query string
+  Future<List<Artist>> searchArtists(String query, {int limit = 20}) {
+    final pattern = '%${query.toLowerCase()}%';
+    return (select(artists)
+          ..where((a) => a.nameSort.like(pattern))
+          ..limit(limit))
+        .get();
+  }
+
+  /// Search playlists by query string
+  Future<List<Playlist>> searchPlaylists(String query, {int limit = 20}) {
+    final pattern = '%${query.toLowerCase()}%';
+    return (select(playlists)
+          ..where((p) => p.name.lower().like(pattern))
+          ..limit(limit))
+        .get();
   }
 
   /// Persist current queue state

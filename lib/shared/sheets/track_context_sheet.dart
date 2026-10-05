@@ -7,6 +7,7 @@ import '../../audio/playback_controller.dart';
 import '../../core/services/haptic_service.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
+import '../../features/playlist/add_to_playlist_sheet.dart';
 import '../../features/track_info/track_info_sheet.dart';
 import '../artwork/artwork_widget.dart';
 
@@ -118,6 +119,21 @@ class TrackContextSheet extends ConsumerWidget {
                   content: Text('Added to queue: ${track.title}'),
                   duration: const Duration(seconds: 2),
                 ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.playlist_add_rounded),
+            title: const Text('Add to Playlist'),
+            onTap: () {
+              haptics.selection();
+              Navigator.of(context).pop();
+              showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                useSafeArea: true,
+                builder: (context) =>
+                    AddToPlaylistSheet(trackKeys: [track.trackKey]),
               );
             },
           ),
