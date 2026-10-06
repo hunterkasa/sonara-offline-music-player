@@ -205,8 +205,8 @@ Target feel: Spotify's queue model and home shelves, Apple Music's lyrics and li
 **Phase 9: Library Power-Tools, CUE & Lyrics Studio.** Integrated in-app tag and artwork editor (ID3v2, Vorbis, MP4) compliant with Android 11+ `MediaStore.createWriteRequest`; CUE sheet parser & virtual track splitting for lossless rip albums; interactive synchronized LRC lyrics editor (tap-to-stamp timestamp recording).
 *Exit:* tag edits persist on disk and update DB; CUE album displays separate tracks and seeks seamlessly; custom synced LRC saves and displays.
 
-**Phase 10: Smart Listening, Offline Wrapped & Ecosystem.** 100% offline "Wrapped" recap with shareable local canvas image cards; offline "Track Radio" (metadata clustering); smart sleep gestures (shake-to-extend, flip-to-pause); custom Now Playing skins (spinning vinyl, retro cassette); Android Auto dashboard browse integration (`MediaBrowserServiceCompat`).
-*Exit:* Wrapped card exports locally without network; radio queue clusters tracks; shake gesture extends sleep timer; Android Auto media tree browsable.
+**Phase 10: Smart Listening, Offline Wrapped & Ecosystem.** 100% offline "Wrapped" recap with shareable local canvas image cards; offline "Track Radio" (metadata clustering); smart sleep gestures (shake-to-extend, flip-to-pause); custom Now Playing skins (spinning vinyl, retro cassette); Android Auto dashboard browse integration (`MediaBrowserServiceCompat`); expanded Home Screen widget suite (large 4×2 album art controller, 2×1 minimalist pill, and scrollable favorites/recents shelf widget).
+*Exit:* Wrapped card exports locally without network; radio queue clusters tracks; shake gesture extends sleep timer; Android Auto media tree browsable; multiple widget styles render and control playback seamlessly.
 
 **Phase 11: iOS parity (only if I ask).** Document-picker import into the app sandbox (no MediaStore), AVAudioSession and background modes, Now Playing info and remote commands, documented platform differences (EQ and others).
 

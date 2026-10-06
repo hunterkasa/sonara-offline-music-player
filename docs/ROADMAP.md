@@ -116,6 +116,7 @@ Status legend:
 - [ ] Smart sleep gestures (shake-to-extend, flip-to-pause)
 - [ ] Custom Now Playing skins (spinning vinyl, retro cassette, minimalist OLED)
 - [ ] Android Auto dashboard integration (`MediaBrowserServiceCompat`)
+- [ ] Expanded Home Screen widget suite (4×2 large artwork widget, 2×1 minimalist pill, scrollable favorites/recents widget)
 
 ### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox
