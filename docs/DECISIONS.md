@@ -233,3 +233,20 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Decision:** Built `PitchCalculator` and integrated independent pitch control into `PlaybackController` and `SonaraAudioHandler` using the mathematical frequency multiplier formula $\text{multiplier} = 2^{S/12}$, allowing users to shift key across $\pm 12$ semitones (full octave up/down) independently of playback tempo ($0.5\times$ to $2.0\times$).
 - **Rationale:** Musician, vocal practice, and pitch training use cases require shifting the key of a song without altering the playback speed, and vice versa.
 
+---
+
+## 12. Phase 9 Architecture Decisions
+
+### ADR 9.1: Scoped Storage In-Place Tag & Artwork Writing via `MediaStore.createWriteRequest`
+- **Decision:** Built `TagWriter` supporting pure Dart in-place ID3v2.3 (MP3) and Vorbis Comment / FLAC PICTURE metadata writing with atomic file replacement. Paired with `ScopedStorageService` utilizing native Android 11+ `MediaStore.createWriteRequest` platform channel to present the official Android system permission dialog when modifying external files.
+- **Rationale:** Modern Android Scoped Storage forbids direct arbitrary write access to user media files without OS approval. Utilizing `MediaStore.createWriteRequest` adheres cleanly to Android 11–15 security guidelines without requesting deprecated broad storage permissions or root access.
+
+### ADR 9.2: Frame-Accurate CUE Sheet Virtual Splitting via `ClippingAudioSource`
+- **Decision:** Created `CueParser` providing 75fps CD-DA frame-accurate parsing (`MM:SS:FF`) for `.cue` sidecar files. Virtual tracks are persisted into Drift SQLite with `cueStartMs` and `cueEndMs` columns and track key hashes. Playback is handled seamlessly through `just_audio`'s `ClippingAudioSource` without requiring destructive audio re-encoding or file splitting.
+- **Rationale:** Audiophiles often maintain single-file monolithic album rips (`.flac` / `.ape` + `.cue`). Non-destructive virtual splitting preserves pristine lossless bitstreams while enabling full track-by-track indexing, shuffling, and searchability in Sonara.
+
+### ADR 9.3: Real-Time Tap-to-Stamp Synchronized LRC Lyrics Studio
+- **Decision:** Implemented `LyricsEditorSheet` and `LrcBuilder` enabling interactive lyrics synchronization. Users can play or pause audio at 0.75x slow-mo, navigate lines, and tap the tactile `STAMP` button to mark millisecond timestamps on the fly, with fine-grained $\pm 100\text{ms}$ adjustment buttons and sidecar `.lrc` file export.
+- **Rationale:** Allows offline music listeners to produce and curate synchronized lyrics for songs lacking timestamped metadata directly on device without needing external desktop utilities or internet access.
+
+

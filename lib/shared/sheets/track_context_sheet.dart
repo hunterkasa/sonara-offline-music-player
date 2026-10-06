@@ -7,7 +7,9 @@ import '../../audio/playback_controller.dart';
 import '../../core/services/haptic_service.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
+import '../../features/lyrics/lyrics_editor_sheet.dart';
 import '../../features/playlist/add_to_playlist_sheet.dart';
+import '../../features/tag_editor/tag_editor_sheet.dart';
 import '../../features/track_info/track_info_sheet.dart';
 import '../artwork/artwork_widget.dart';
 
@@ -182,6 +184,34 @@ class TrackContextSheet extends ConsumerWidget {
                 context.push('/library/artist/${track.artistId}');
               },
             ),
+          ListTile(
+            leading: const Icon(Icons.edit_note_rounded),
+            title: const Text('Edit Tags & Artwork'),
+            onTap: () {
+              haptics.selection();
+              Navigator.of(context).pop();
+              showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                useSafeArea: true,
+                builder: (context) => TagEditorSheet(track: track),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.lyrics_rounded),
+            title: const Text('Edit Lyrics (LRC Studio)'),
+            onTap: () {
+              haptics.selection();
+              Navigator.of(context).pop();
+              showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                useSafeArea: true,
+                builder: (context) => LyricsEditorSheet(track: track),
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.info_outline_rounded),
             title: const Text('Track Details'),

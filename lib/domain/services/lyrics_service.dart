@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
@@ -31,7 +32,7 @@ class LyricsService {
     // 2. Check embedded lyrics via TagReader
     try {
       final file = File(track.path);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         final meta = await TagReader.readFromFile(file);
         if (meta.lyrics != null && meta.lyrics!.trim().isNotEmpty) {
           final parsed = LrcParser.parse(meta.lyrics!);
@@ -52,19 +53,41 @@ class LyricsService {
       final withoutExt = p.withoutExtension(audioPath);
       final lrcPath = '$withoutExt.lrc';
       final lrcFile = File(lrcPath);
-      if (await lrcFile.exists()) {
-        return await lrcFile.readAsString();
+      if (lrcFile.existsSync()) {
+        return lrcFile.readAsStringSync();
       }
 
       // Check uppercase extension
       final upperLrcFile = File('$withoutExt.LRC');
-      if (await upperLrcFile.exists()) {
-        return await upperLrcFile.readAsString();
+      if (upperLrcFile.existsSync()) {
+        return upperLrcFile.readAsStringSync();
       }
     } catch (_) {
       // Ignore I/O errors
     }
     return null;
+  }
+
+  /// Saves lyrics to sidecar .lrc file, updates the database hasLyrics state, and refreshes the in-memory cache.
+  Future<bool> saveLyrics(Track track, String lrcContent) async {
+    try {
+      final withoutExt = p.withoutExtension(track.path);
+      final lrcFile = File('$withoutExt.lrc');
+      lrcFile.writeAsStringSync(lrcContent, flush: true);
+
+      // Parse and update in-memory cache
+      final parsed = LrcParser.parse(lrcContent);
+      _cache[track.trackKey] = parsed;
+
+      // Update database hasLyrics flag
+      await (db.update(db.tracks)
+            ..where((t) => t.trackKey.equals(track.trackKey)))
+          .write(const TracksCompanion(hasLyrics: Value(true)));
+
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void clearCache() {

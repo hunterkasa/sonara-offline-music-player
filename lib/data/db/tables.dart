@@ -42,6 +42,8 @@ class Tracks extends Table {
   BoolColumn get isHidden => boolean().withDefault(const Constant(false))();
   BoolColumn get isMissing => boolean().withDefault(const Constant(false))();
   IntColumn get rating => integer().withDefault(const Constant(0))();
+  IntColumn get cueStartMs => integer().nullable()();
+  IntColumn get cueEndMs => integer().nullable()();
 }
 
 class Artists extends Table {

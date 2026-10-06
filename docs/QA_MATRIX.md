@@ -47,15 +47,20 @@ This document provides a comprehensive traceability matrix connecting all P0 and
 | **REL-02**  | Release Build | APK size < 30MB per architecture | `flutter build apk --release --split-per-abi` | ARM64: 23.0MB, ARMv7: 20.7MB, x86_64: 24.4MB | **VERIFIED** |
 | **REL-03**  | System UI | Edge-to-edge transparent system bars (API 26-34+) | MainActivity.kt & SystemChrome | `android/app/src/main/kotlin/.../MainActivity.kt` | **VERIFIED** |
 
+| **TAG-01**  | Tag Editor | In-place ID3v2 & Vorbis comment editing with Scoped Storage approval | Tag writer & editor tests | `test/unit/tag_writer_test.dart`, `test/widget/tag_editor_test.dart` | **VERIFIED** |
+| **CUE-01**  | CUE Sheet | 75fps frame-accurate CUE parser & ClippingAudioSource virtual tracks | CUE parser & database import tests | `test/unit/cue_parser_test.dart`, `test/unit/cue_database_import_test.dart` | **VERIFIED** |
+| **LRC-01**  | Lyrics Studio | Interactive tap-to-stamp timestamp recorder & RFC LRC export | LRC builder & Lyrics editor tests | `test/unit/lrc_builder_test.dart`, `test/widget/lyrics_editor_test.dart` | **VERIFIED** |
+
 ---
 
 ## 2. Test Execution Summary
 
-- **Total Unit & Widget Tests Executed:** 189
+- **Total Unit & Widget Tests Executed:** 204
 - **Test Pass Rate:** 100% (0 failures, 0 errors, 0 skipped)
 - **Static Analysis:** `flutter analyze` 0 warnings, 0 errors, 0 infos.
-- **Code Formatting:** `dart format` 100% compliant across 133 project files.
+- **Code Formatting:** `dart format` 100% compliant across 145 project files.
 - **Binary Footprint:**
   - `app-arm64-v8a-release.apk`: **23.0 MB** (<30MB limit)
   - `app-armeabi-v7a-release.apk`: **20.7 MB** (<30MB limit)
   - `app-x86_64-release.apk`: **24.4 MB** (<30MB limit)
+

@@ -6,6 +6,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'tables.dart';
+import '../../core/utils/cue_parser.dart';
+import '../../core/utils/metadata_utils.dart';
+import '../../core/utils/track_key.dart';
 
 part 'app_database.g.dart';
 
@@ -28,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -43,6 +46,12 @@ class AppDatabase extends _$AppDatabase {
         'genre'
         ');',
       );
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(tracks, tracks.cueStartMs);
+        await m.addColumn(tracks, tracks.cueEndMs);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA journal_mode = WAL;');
@@ -691,5 +700,180 @@ class AppDatabase extends _$AppDatabase {
         });
       }
     });
+  }
+
+  /// Get or create artist by name
+  Future<int> getOrCreateArtist(String name) async {
+    final existing = await (select(
+      artists,
+    )..where((a) => a.name.equals(name))).getSingleOrNull();
+    if (existing != null) return existing.id;
+    return await into(artists).insert(
+      ArtistsCompanion(
+        name: Value(name),
+        nameSort: Value(MetadataUtils.normalizeSortName(name)),
+      ),
+    );
+  }
+
+  /// Get or create album by title and artist
+  Future<int> getOrCreateAlbum({
+    required String title,
+    required int artistId,
+    int? year,
+    String? artworkKey,
+  }) async {
+    final existing =
+        await (select(albums)..where(
+              (a) => a.title.equals(title) & a.albumArtistId.equals(artistId),
+            ))
+            .getSingleOrNull();
+    if (existing != null) return existing.id;
+    return await into(albums).insert(
+      AlbumsCompanion(
+        title: Value(title),
+        titleSort: Value(MetadataUtils.normalizeSortName(title)),
+        albumArtistId: Value(artistId),
+        year: Value(year),
+        artworkKey: Value(artworkKey),
+      ),
+    );
+  }
+
+  /// Get or create genre by name
+  Future<int> getOrCreateGenre(String name) async {
+    final existing = await (select(
+      genres,
+    )..where((g) => g.name.equals(name))).getSingleOrNull();
+    if (existing != null) return existing.id;
+    return await into(genres).insert(GenresCompanion(name: Value(name)));
+  }
+
+  /// Get list of genre names for a track
+  Future<List<String>> getTrackGenres(int trackId) async {
+    final query = select(trackGenres).join([
+      innerJoin(genres, genres.id.equalsExp(trackGenres.genreId)),
+    ])..where(trackGenres.trackId.equals(trackId));
+
+    final rows = await query.get();
+    return rows.map((r) => r.readTable(genres).name).toList();
+  }
+
+  /// Updates track metadata across tracks, artists, albums, and FTS5 index
+  Future<void> updateTrackMetadata({
+    required String trackKey,
+    required String title,
+    required String artist,
+    required String album,
+    int? year,
+    int? trackNo,
+    int? discNo,
+    String? genre,
+    String? artworkKey,
+  }) async {
+    await transaction(() async {
+      final currentTrack = await (select(
+        tracks,
+      )..where((t) => t.trackKey.equals(trackKey))).getSingleOrNull();
+      if (currentTrack == null) return;
+
+      final artistId = await getOrCreateArtist(artist);
+      final albumId = await getOrCreateAlbum(
+        title: album,
+        artistId: artistId,
+        year: year,
+        artworkKey: artworkKey ?? currentTrack.artworkKey,
+      );
+
+      await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
+        TracksCompanion(
+          title: Value(title),
+          titleSort: Value(MetadataUtils.normalizeSortName(title)),
+          artistId: Value(artistId),
+          albumId: Value(albumId),
+          albumArtistId: Value(artistId),
+          year: Value(year),
+          trackNo: Value(trackNo),
+          discNo: Value(discNo),
+          artworkKey: artworkKey != null
+              ? Value(artworkKey)
+              : const Value.absent(),
+        ),
+      );
+
+      if (genre != null && genre.trim().isNotEmpty) {
+        final genreId = await getOrCreateGenre(genre.trim());
+        await into(trackGenres).insertOnConflictUpdate(
+          TrackGenresCompanion(
+            trackId: Value(currentTrack.id),
+            genreId: Value(genreId),
+          ),
+        );
+      }
+
+      await customStatement(
+        'INSERT OR REPLACE INTO tracks_fts(track_key, title, artist, album, genre) VALUES (?, ?, ?, ?, ?)',
+        [trackKey, title, artist, album, genre ?? ''],
+      );
+    });
+  }
+
+  /// Imports virtual tracks parsed from a CUE sheet
+  Future<List<String>> importCueTracks({
+    required String audioPath,
+    required String contentUri,
+    required List<CueTrack> cueTracks,
+    String? artworkKey,
+    int? parentMediaStoreId,
+    int? parentFileSize,
+  }) async {
+    final importedKeys = <String>[];
+    await transaction(() async {
+      for (final ct in cueTracks) {
+        final artistId = await getOrCreateArtist(ct.artist);
+        final albumId = await getOrCreateAlbum(
+          title: ct.album,
+          artistId: artistId,
+          artworkKey: artworkKey,
+        );
+
+        final cueTrackKey = TrackKeyUtil.generate(
+          title: ct.title,
+          artist: ct.artist,
+          album: ct.album,
+          durationMs: ct.duration?.inMilliseconds ?? 0,
+          sizeBytes: parentFileSize ?? 0,
+        );
+
+        await into(tracks).insertOnConflictUpdate(
+          TracksCompanion(
+            trackKey: Value(cueTrackKey),
+            mediaStoreId: Value(parentMediaStoreId),
+            contentUri: Value(contentUri),
+            path: Value(audioPath),
+            relativeDir: Value(p.dirname(audioPath)),
+            title: Value(ct.title),
+            titleSort: Value(MetadataUtils.normalizeSortName(ct.title)),
+            artistId: Value(artistId),
+            albumId: Value(albumId),
+            albumArtistId: Value(artistId),
+            trackNo: Value(ct.trackNumber),
+            durationMs: Value(ct.duration?.inMilliseconds ?? 0),
+            sizeBytes: Value(parentFileSize ?? 0),
+            artworkKey: Value(artworkKey),
+            cueStartMs: Value(ct.startTime.inMilliseconds),
+            cueEndMs: Value(ct.endTime?.inMilliseconds),
+          ),
+        );
+
+        await customStatement(
+          'INSERT OR REPLACE INTO tracks_fts(track_key, title, artist, album, genre) VALUES (?, ?, ?, ?, ?)',
+          [cueTrackKey, ct.title, ct.artist, ct.album, ''],
+        );
+
+        importedKeys.add(cueTrackKey);
+      }
+    });
+    return importedKeys;
   }
 }

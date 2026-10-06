@@ -13,8 +13,8 @@ void main() {
   });
 
   group('AppDatabase Schema & Operations', () {
-    test('initializes schema v1 cleanly', () {
-      expect(db.schemaVersion, equals(1));
+    test('initializes schema v2 cleanly', () {
+      expect(db.schemaVersion, equals(2));
     });
 
     test('can insert a track and read it back reactively', () async {

@@ -105,10 +105,10 @@ Status legend:
 - [x] Real-time audio visualizer (60 FPS spectrum bars, analog VU meters, fluid wave) & waveform seekbar
 - [x] Independent musical pitch transposition (-12 to +12 semitones) and tempo controls
 
-### [ ] Phase 9: Library Power-Tools, CUE & Lyrics Studio
-- [ ] In-app tag and artwork editor (ID3v2, Vorbis, MP4) with Android 11+ `MediaStore.createWriteRequest`
-- [ ] CUE sheet parser & virtual multi-track album rip splitting
-- [ ] Interactive synchronized LRC lyrics editor (tap-to-stamp timestamp recorder)
+### [x] Phase 9: Library Power-Tools, CUE & Lyrics Studio
+- [x] In-app tag and artwork editor (ID3v2, Vorbis, MP4) with Android 11+ `MediaStore.createWriteRequest`
+- [x] CUE sheet parser & virtual multi-track album rip splitting
+- [x] Interactive synchronized LRC lyrics editor (tap-to-stamp timestamp recorder)
 
 ### [ ] Phase 10: Smart Listening, Offline Wrapped & Ecosystem
 - [ ] 100% offline "Wrapped" recap with shareable local Canvas image cards

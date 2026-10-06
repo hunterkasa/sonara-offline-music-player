@@ -1,5 +1,6 @@
 package com.example.sonara.sonara
 
+import android.app.Activity
 import android.content.ContentUris
 import android.content.Intent
 import android.database.ContentObserver
@@ -18,10 +19,12 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : AudioServiceActivity() {
     private val METHOD_CHANNEL = "com.example.sonara/mediastore"
     private val EVENT_CHANNEL = "com.example.sonara/mediastore_observer"
+    private val REQUEST_CODE_WRITE = 1001
 
     private var contentObserver: ContentObserver? = null
     private var eventSink: EventChannel.EventSink? = null
     private var initialAudioUri: String? = null
+    private var pendingWriteResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,6 +87,30 @@ class MainActivity : AudioServiceActivity() {
                     val isPlaying = call.argument<Boolean>("isPlaying") ?: false
                     SonaraWidgetProvider.updateWidgetState(applicationContext, title, artist, isPlaying)
                     result.success(true)
+                }
+                "requestWritePermission" -> {
+                    val uriString = call.argument<String>("uri")
+                    if (uriString == null) {
+                        result.success(false)
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        try {
+                            val uri = Uri.parse(uriString)
+                            val pendingIntent = MediaStore.createWriteRequest(contentResolver, listOf(uri))
+                            pendingWriteResult = result
+                            startIntentSenderForResult(
+                                pendingIntent.intentSender,
+                                REQUEST_CODE_WRITE,
+                                null,
+                                0,
+                                0,
+                                0
+                            )
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    } else {
+                        result.success(true)
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -230,6 +257,14 @@ class MainActivity : AudioServiceActivity() {
             }
         }
         return ids
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_WRITE) {
+            pendingWriteResult?.success(resultCode == Activity.RESULT_OK)
+            pendingWriteResult = null
+        }
     }
 
     override fun onDestroy() {

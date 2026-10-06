@@ -395,6 +395,28 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _cueStartMsMeta = const VerificationMeta(
+    'cueStartMs',
+  );
+  @override
+  late final GeneratedColumn<int> cueStartMs = GeneratedColumn<int>(
+    'cue_start_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cueEndMsMeta = const VerificationMeta(
+    'cueEndMs',
+  );
+  @override
+  late final GeneratedColumn<int> cueEndMs = GeneratedColumn<int>(
+    'cue_end_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -431,6 +453,8 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     isHidden,
     isMissing,
     rating,
+    cueStartMs,
+    cueEndMs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -680,6 +704,21 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
         rating.isAcceptableOrUnknown(data['rating']!, _ratingMeta),
       );
     }
+    if (data.containsKey('cue_start_ms')) {
+      context.handle(
+        _cueStartMsMeta,
+        cueStartMs.isAcceptableOrUnknown(
+          data['cue_start_ms']!,
+          _cueStartMsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cue_end_ms')) {
+      context.handle(
+        _cueEndMsMeta,
+        cueEndMs.isAcceptableOrUnknown(data['cue_end_ms']!, _cueEndMsMeta),
+      );
+    }
     return context;
   }
 
@@ -825,6 +864,14 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
         DriftSqlType.int,
         data['${effectivePrefix}rating'],
       )!,
+      cueStartMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cue_start_ms'],
+      ),
+      cueEndMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cue_end_ms'],
+      ),
     );
   }
 
@@ -869,6 +916,8 @@ class Track extends DataClass implements Insertable<Track> {
   final bool isHidden;
   final bool isMissing;
   final int rating;
+  final int? cueStartMs;
+  final int? cueEndMs;
   const Track({
     required this.id,
     required this.trackKey,
@@ -904,6 +953,8 @@ class Track extends DataClass implements Insertable<Track> {
     required this.isHidden,
     required this.isMissing,
     required this.rating,
+    this.cueStartMs,
+    this.cueEndMs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -978,6 +1029,12 @@ class Track extends DataClass implements Insertable<Track> {
     map['is_hidden'] = Variable<bool>(isHidden);
     map['is_missing'] = Variable<bool>(isMissing);
     map['rating'] = Variable<int>(rating);
+    if (!nullToAbsent || cueStartMs != null) {
+      map['cue_start_ms'] = Variable<int>(cueStartMs);
+    }
+    if (!nullToAbsent || cueEndMs != null) {
+      map['cue_end_ms'] = Variable<int>(cueEndMs);
+    }
     return map;
   }
 
@@ -1049,6 +1106,12 @@ class Track extends DataClass implements Insertable<Track> {
       isHidden: Value(isHidden),
       isMissing: Value(isMissing),
       rating: Value(rating),
+      cueStartMs: cueStartMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cueStartMs),
+      cueEndMs: cueEndMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cueEndMs),
     );
   }
 
@@ -1096,6 +1159,8 @@ class Track extends DataClass implements Insertable<Track> {
       isHidden: serializer.fromJson<bool>(json['isHidden']),
       isMissing: serializer.fromJson<bool>(json['isMissing']),
       rating: serializer.fromJson<int>(json['rating']),
+      cueStartMs: serializer.fromJson<int?>(json['cueStartMs']),
+      cueEndMs: serializer.fromJson<int?>(json['cueEndMs']),
     );
   }
   @override
@@ -1136,6 +1201,8 @@ class Track extends DataClass implements Insertable<Track> {
       'isHidden': serializer.toJson<bool>(isHidden),
       'isMissing': serializer.toJson<bool>(isMissing),
       'rating': serializer.toJson<int>(rating),
+      'cueStartMs': serializer.toJson<int?>(cueStartMs),
+      'cueEndMs': serializer.toJson<int?>(cueEndMs),
     };
   }
 
@@ -1174,6 +1241,8 @@ class Track extends DataClass implements Insertable<Track> {
     bool? isHidden,
     bool? isMissing,
     int? rating,
+    Value<int?> cueStartMs = const Value.absent(),
+    Value<int?> cueEndMs = const Value.absent(),
   }) => Track(
     id: id ?? this.id,
     trackKey: trackKey ?? this.trackKey,
@@ -1215,6 +1284,8 @@ class Track extends DataClass implements Insertable<Track> {
     isHidden: isHidden ?? this.isHidden,
     isMissing: isMissing ?? this.isMissing,
     rating: rating ?? this.rating,
+    cueStartMs: cueStartMs.present ? cueStartMs.value : this.cueStartMs,
+    cueEndMs: cueEndMs.present ? cueEndMs.value : this.cueEndMs,
   );
   Track copyWithCompanion(TracksCompanion data) {
     return Track(
@@ -1276,6 +1347,10 @@ class Track extends DataClass implements Insertable<Track> {
       isHidden: data.isHidden.present ? data.isHidden.value : this.isHidden,
       isMissing: data.isMissing.present ? data.isMissing.value : this.isMissing,
       rating: data.rating.present ? data.rating.value : this.rating,
+      cueStartMs: data.cueStartMs.present
+          ? data.cueStartMs.value
+          : this.cueStartMs,
+      cueEndMs: data.cueEndMs.present ? data.cueEndMs.value : this.cueEndMs,
     );
   }
 
@@ -1315,7 +1390,9 @@ class Track extends DataClass implements Insertable<Track> {
           ..write('isFavorite: $isFavorite, ')
           ..write('isHidden: $isHidden, ')
           ..write('isMissing: $isMissing, ')
-          ..write('rating: $rating')
+          ..write('rating: $rating, ')
+          ..write('cueStartMs: $cueStartMs, ')
+          ..write('cueEndMs: $cueEndMs')
           ..write(')'))
         .toString();
   }
@@ -1356,6 +1433,8 @@ class Track extends DataClass implements Insertable<Track> {
     isHidden,
     isMissing,
     rating,
+    cueStartMs,
+    cueEndMs,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1394,7 +1473,9 @@ class Track extends DataClass implements Insertable<Track> {
           other.isFavorite == this.isFavorite &&
           other.isHidden == this.isHidden &&
           other.isMissing == this.isMissing &&
-          other.rating == this.rating);
+          other.rating == this.rating &&
+          other.cueStartMs == this.cueStartMs &&
+          other.cueEndMs == this.cueEndMs);
 }
 
 class TracksCompanion extends UpdateCompanion<Track> {
@@ -1432,6 +1513,8 @@ class TracksCompanion extends UpdateCompanion<Track> {
   final Value<bool> isHidden;
   final Value<bool> isMissing;
   final Value<int> rating;
+  final Value<int?> cueStartMs;
+  final Value<int?> cueEndMs;
   const TracksCompanion({
     this.id = const Value.absent(),
     this.trackKey = const Value.absent(),
@@ -1467,6 +1550,8 @@ class TracksCompanion extends UpdateCompanion<Track> {
     this.isHidden = const Value.absent(),
     this.isMissing = const Value.absent(),
     this.rating = const Value.absent(),
+    this.cueStartMs = const Value.absent(),
+    this.cueEndMs = const Value.absent(),
   });
   TracksCompanion.insert({
     this.id = const Value.absent(),
@@ -1503,6 +1588,8 @@ class TracksCompanion extends UpdateCompanion<Track> {
     this.isHidden = const Value.absent(),
     this.isMissing = const Value.absent(),
     this.rating = const Value.absent(),
+    this.cueStartMs = const Value.absent(),
+    this.cueEndMs = const Value.absent(),
   }) : trackKey = Value(trackKey),
        contentUri = Value(contentUri),
        path = Value(path),
@@ -1545,6 +1632,8 @@ class TracksCompanion extends UpdateCompanion<Track> {
     Expression<bool>? isHidden,
     Expression<bool>? isMissing,
     Expression<int>? rating,
+    Expression<int>? cueStartMs,
+    Expression<int>? cueEndMs,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1581,6 +1670,8 @@ class TracksCompanion extends UpdateCompanion<Track> {
       if (isHidden != null) 'is_hidden': isHidden,
       if (isMissing != null) 'is_missing': isMissing,
       if (rating != null) 'rating': rating,
+      if (cueStartMs != null) 'cue_start_ms': cueStartMs,
+      if (cueEndMs != null) 'cue_end_ms': cueEndMs,
     });
   }
 
@@ -1619,6 +1710,8 @@ class TracksCompanion extends UpdateCompanion<Track> {
     Value<bool>? isHidden,
     Value<bool>? isMissing,
     Value<int>? rating,
+    Value<int?>? cueStartMs,
+    Value<int?>? cueEndMs,
   }) {
     return TracksCompanion(
       id: id ?? this.id,
@@ -1655,6 +1748,8 @@ class TracksCompanion extends UpdateCompanion<Track> {
       isHidden: isHidden ?? this.isHidden,
       isMissing: isMissing ?? this.isMissing,
       rating: rating ?? this.rating,
+      cueStartMs: cueStartMs ?? this.cueStartMs,
+      cueEndMs: cueEndMs ?? this.cueEndMs,
     );
   }
 
@@ -1763,6 +1858,12 @@ class TracksCompanion extends UpdateCompanion<Track> {
     if (rating.present) {
       map['rating'] = Variable<int>(rating.value);
     }
+    if (cueStartMs.present) {
+      map['cue_start_ms'] = Variable<int>(cueStartMs.value);
+    }
+    if (cueEndMs.present) {
+      map['cue_end_ms'] = Variable<int>(cueEndMs.value);
+    }
     return map;
   }
 
@@ -1802,7 +1903,9 @@ class TracksCompanion extends UpdateCompanion<Track> {
           ..write('isFavorite: $isFavorite, ')
           ..write('isHidden: $isHidden, ')
           ..write('isMissing: $isMissing, ')
-          ..write('rating: $rating')
+          ..write('rating: $rating, ')
+          ..write('cueStartMs: $cueStartMs, ')
+          ..write('cueEndMs: $cueEndMs')
           ..write(')'))
         .toString();
   }
@@ -5229,6 +5332,8 @@ typedef $$TracksTableCreateCompanionBuilder = TracksCompanion Function({
   Value<bool> isHidden,
   Value<bool> isMissing,
   Value<int> rating,
+  Value<int?> cueStartMs,
+  Value<int?> cueEndMs,
 });
 typedef $$TracksTableUpdateCompanionBuilder = TracksCompanion Function({
   Value<int> id,
@@ -5265,6 +5370,8 @@ typedef $$TracksTableUpdateCompanionBuilder = TracksCompanion Function({
   Value<bool> isHidden,
   Value<bool> isMissing,
   Value<int> rating,
+  Value<int?> cueStartMs,
+  Value<int?> cueEndMs,
 });
 
 class $$TracksTableFilterComposer
@@ -5443,6 +5550,16 @@ class $$TracksTableFilterComposer
 
   ColumnFilters<int> get rating => $composableBuilder(
     column: $table.rating,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cueStartMs => $composableBuilder(
+    column: $table.cueStartMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cueEndMs => $composableBuilder(
+    column: $table.cueEndMs,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5625,6 +5742,16 @@ class $$TracksTableOrderingComposer
     column: $table.rating,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get cueStartMs => $composableBuilder(
+    column: $table.cueStartMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cueEndMs => $composableBuilder(
+    column: $table.cueEndMs,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TracksTableAnnotationComposer
@@ -5761,6 +5888,14 @@ class $$TracksTableAnnotationComposer
 
   GeneratedColumn<int> get rating =>
       $composableBuilder(column: $table.rating, builder: (column) => column);
+
+  GeneratedColumn<int> get cueStartMs => $composableBuilder(
+    column: $table.cueStartMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get cueEndMs =>
+      $composableBuilder(column: $table.cueEndMs, builder: (column) => column);
 }
 
 class $$TracksTableTableManager
@@ -5825,6 +5960,8 @@ class $$TracksTableTableManager
                 Value<bool> isHidden = const Value.absent(),
                 Value<bool> isMissing = const Value.absent(),
                 Value<int> rating = const Value.absent(),
+                Value<int?> cueStartMs = const Value.absent(),
+                Value<int?> cueEndMs = const Value.absent(),
               }) => TracksCompanion(
                 id: id,
                 trackKey: trackKey,
@@ -5860,6 +5997,8 @@ class $$TracksTableTableManager
                 isHidden: isHidden,
                 isMissing: isMissing,
                 rating: rating,
+                cueStartMs: cueStartMs,
+                cueEndMs: cueEndMs,
               ),
           createCompanionCallback:
               ({
@@ -5897,6 +6036,8 @@ class $$TracksTableTableManager
                 Value<bool> isHidden = const Value.absent(),
                 Value<bool> isMissing = const Value.absent(),
                 Value<int> rating = const Value.absent(),
+                Value<int?> cueStartMs = const Value.absent(),
+                Value<int?> cueEndMs = const Value.absent(),
               }) => TracksCompanion.insert(
                 id: id,
                 trackKey: trackKey,
@@ -5932,6 +6073,8 @@ class $$TracksTableTableManager
                 isHidden: isHidden,
                 isMissing: isMissing,
                 rating: rating,
+                cueStartMs: cueStartMs,
+                cueEndMs: cueEndMs,
               ),
           withReferenceMapper: (p0) => p0
               .map(

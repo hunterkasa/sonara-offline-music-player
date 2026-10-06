@@ -97,6 +97,9 @@ flutter run -d emulator-5554
 - **Per-Output-Device Audio Profiles (Phase 8):** Dynamic hardware route detection (`audio_session.devicesChangedEventStream`) that automatically swaps EQ presets, crossfade, and loudness booster settings between Phone Speaker, Bluetooth headphones, Wired IEMs, and USB DACs.
 - **60 FPS Real-Time Audio Visualizer & Waveform Scrubber (Phase 8):** Hi-Fi animated visualizer with 3 styles (16-band Spectrum bars with peak holds, analog dual VU meters, fluid bezier waves) with 0-CPU paused decay, paired with an interactive `WaveformScrubber` amplitude peak seekbar.
 - **Musical Pitch Transposition & Key Controls (Phase 8):** Independent pitch shifting across $\pm 12$ semitones (full octave) using mathematical semitone multipliers ($2^{S/12}$) operating independently of playback tempo, with interval indicators and instant "Reset Key" control.
+- **In-App Tag & Artwork Editor (Phase 9):** In-place ID3v2.3 (MP3) and Vorbis Comment / PICTURE (FLAC) editing supporting Title, Artist, Album, Year, Track#, Disc#, Genre, and custom artwork replacement, compliant with Android 11+ Scoped Storage via `MediaStore.createWriteRequest`.
+- **CUE Sheet Parser & Virtual Track Splitting (Phase 9):** Non-destructive 75fps frame-accurate parsing of `.cue` sidecars for monolithic album rips, indexing tracks into Drift SQLite and playing seamlessly via `ClippingAudioSource`.
+- **Synchronized LRC Lyrics Studio (Phase 9):** Interactive tap-to-stamp timestamp recorder with 0.75x slow-mo playback, $\pm 100\text{ms}$ micro-adjustments, line navigation, and direct RFC-compliant sidecar `.lrc` file export.
 
 ### 5. Build Release APKs
 ```powershell

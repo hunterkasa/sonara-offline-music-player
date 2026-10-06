@@ -8,14 +8,16 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 class ArtworkService {
+  ArtworkService([this._cacheDir]);
+
   Directory? _cacheDir;
 
   Future<Directory> _getCacheDirectory() async {
     if (_cacheDir != null) return _cacheDir!;
     final tempDir = await getApplicationDocumentsDirectory();
     final artDir = Directory(p.join(tempDir.path, 'artwork_cache'));
-    if (!await artDir.exists()) {
-      await artDir.create(recursive: true);
+    if (!artDir.existsSync()) {
+      artDir.createSync(recursive: true);
     }
     _cacheDir = artDir;
     return artDir;
@@ -31,8 +33,8 @@ class ArtworkService {
     try {
       final dir = await _getCacheDirectory();
       final file = File(p.join(dir.path, 'art_$key.jpg'));
-      if (!await file.exists()) {
-        await file.writeAsBytes(bytes, flush: true);
+      if (!file.existsSync()) {
+        file.writeAsBytesSync(bytes, flush: true);
       }
       return file.path;
     } catch (_) {

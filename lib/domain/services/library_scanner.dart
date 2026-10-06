@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:sonara/core/services/permission_service.dart';
+import 'package:sonara/core/utils/cue_parser.dart';
 import 'package:sonara/core/utils/metadata_utils.dart';
 import 'package:sonara/core/utils/track_key.dart';
 import 'package:sonara/data/db/app_database.dart';
@@ -257,6 +258,39 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
         if (sidecar != null) {
           artworkKey = ArtworkService.generateArtworkKey(sidecar.path);
         }
+      }
+
+      // Check for sidecar CUE sheet
+      final withoutExt = p.withoutExtension(item.path);
+      File? cueFile = File('$withoutExt.cue');
+      if (!await cueFile.exists()) {
+        final upperCue = File('$withoutExt.CUE');
+        if (await upperCue.exists()) {
+          cueFile = upperCue;
+        } else {
+          cueFile = null;
+        }
+      }
+
+      if (cueFile != null) {
+        try {
+          final cueContent = await cueFile.readAsString();
+          final cueSheet = CueParser.parse(
+            cueContent,
+            parentDuration: Duration(milliseconds: duration),
+          );
+          if (cueSheet.tracks.isNotEmpty) {
+            await _db.importCueTracks(
+              audioPath: item.path,
+              contentUri: item.contentUri,
+              cueTracks: cueSheet.tracks,
+              artworkKey: artworkKey,
+              parentMediaStoreId: item.id,
+              parentFileSize: size,
+            );
+            continue; // Virtual sub-tracks imported, skip inserting monolith rip
+          }
+        } catch (_) {}
       }
 
       // Resolve or create Artist

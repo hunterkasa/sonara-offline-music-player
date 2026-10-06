@@ -43,17 +43,14 @@ class TagReader {
   static Future<ParsedMetadata> readFromFile(File file) async {
     final filePath = file.path;
     try {
-      if (!await file.exists()) {
+      if (!file.existsSync() || file.lengthSync() < 128) {
         return _fallbackMetadata(filePath);
       }
 
       final ext = filePath.split('.').last.toLowerCase();
       final raf = await file.open(mode: FileMode.read);
       try {
-        final length = await raf.length();
-        if (length < 128) {
-          return _fallbackMetadata(filePath);
-        }
+        final length = file.lengthSync();
 
         if (ext == 'mp3') {
           return await _parseMp3(raf, length, filePath);

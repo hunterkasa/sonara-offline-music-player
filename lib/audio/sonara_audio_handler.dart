@@ -296,18 +296,28 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     try {
       final children = <AudioSource>[];
       for (final track in window) {
-        final uri = Uri.parse(track.contentUri);
-        children.add(
-          AudioSource.uri(
-            uri,
-            tag: MediaItem(
-              id: track.trackKey,
-              title: track.title,
-              artist: 'Unknown Artist',
-              duration: Duration(milliseconds: track.durationMs),
-            ),
-          ),
+        final uri = Uri.parse(
+          track.contentUri.isNotEmpty ? track.contentUri : track.path,
         );
+        final mediaItem = MediaItem(
+          id: track.trackKey,
+          title: track.title,
+          artist: 'Unknown Artist',
+          duration: Duration(milliseconds: track.durationMs),
+        );
+
+        if (track.cueStartMs != null && track.cueEndMs != null) {
+          children.add(
+            ClippingAudioSource(
+              child: AudioSource.uri(uri),
+              start: Duration(milliseconds: track.cueStartMs!),
+              end: Duration(milliseconds: track.cueEndMs!),
+              tag: mediaItem,
+            ),
+          );
+        } else {
+          children.add(AudioSource.uri(uri, tag: mediaItem));
+        }
       }
 
       var targetPosition = initialPosition;

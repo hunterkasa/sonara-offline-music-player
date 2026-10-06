@@ -6,6 +6,7 @@ import '../../audio/playback_controller.dart';
 import '../../core/services/haptic_service.dart';
 import '../../data/db/app_database.dart';
 import '../../domain/services/lyrics_service.dart';
+import 'lyrics_editor_sheet.dart';
 
 class LyricsSheet extends ConsumerStatefulWidget {
   const LyricsSheet({super.key, required this.track});
@@ -116,6 +117,21 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                         }
                       },
                     ),
+                    if (widget.track != null)
+                      IconButton(
+                        icon: const Icon(Icons.edit_note_rounded, size: 22),
+                        tooltip: 'Sync in LRC Studio',
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          showModalBottomSheet<void>(
+                            context: context,
+                            isScrollControlled: true,
+                            useSafeArea: true,
+                            builder: (context) =>
+                                LyricsEditorSheet(track: widget.track!),
+                          );
+                        },
+                      ),
                   ],
                 ),
               ],
@@ -162,6 +178,23 @@ class _LyricsSheetState extends ConsumerState<LyricsSheet> {
                                 .withValues(alpha: 0.7),
                           ),
                         ),
+                        if (widget.track != null) ...[
+                          const SizedBox(height: AppSpacing.m),
+                          FilledButton.icon(
+                            icon: const Icon(Icons.edit_note_rounded),
+                            label: const Text('Create in LRC Studio'),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                useSafeArea: true,
+                                builder: (context) =>
+                                    LyricsEditorSheet(track: widget.track!),
+                              );
+                            },
+                          ),
+                        ],
                       ],
                     ),
                   );
