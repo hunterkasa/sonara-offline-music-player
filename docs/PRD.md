@@ -199,9 +199,16 @@ Target feel: Spotify's queue model and home shelves, Apple Music's lyrics and li
 **Phase 7: Hardening and release.** Profiling and jank pass; memory and battery review; edge-case matrix (corrupt files, missing SD card, permission revoked mid-play, low storage, process death); accessibility audit; localization pass; adaptive and themed icon, native splash, edge-to-edge; R8; release AAB; privacy check of the merged manifest; README and user guide; size report.
 *Exit:* every P0 and P1 requirement is traced to a test or manual check in `docs/QA_MATRIX.md`.
 
-**Phase 8: iOS parity (only if I ask).** Document-picker import into the app sandbox (no MediaStore), AVAudioSession and background modes, Now Playing info and remote commands, documented platform differences (EQ and others).
+**Phase 8: Audiophile & Sound Engine Standouts.** Per-output-device audio profiles (auto-switching EQ, volume, and crossfade based on Bluetooth vs wired vs speaker device); real-time audio visualizer (60 FPS spectrum, analog VU meters) & waveform seekbar; independent musical pitch transposition (-12 to +12 semitones) and tempo controls.
+*Exit:* audio profile switches automatically on device change; waveform seekbar and visualizer render at 60 FPS; pitch shifts without changing playback speed.
 
-P2 items live in ROADMAP.md under "Stretch" and are built only on request.
+**Phase 9: Library Power-Tools, CUE & Lyrics Studio.** Integrated in-app tag and artwork editor (ID3v2, Vorbis, MP4) compliant with Android 11+ `MediaStore.createWriteRequest`; CUE sheet parser & virtual track splitting for lossless rip albums; interactive synchronized LRC lyrics editor (tap-to-stamp timestamp recording).
+*Exit:* tag edits persist on disk and update DB; CUE album displays separate tracks and seeks seamlessly; custom synced LRC saves and displays.
+
+**Phase 10: Smart Listening, Offline Wrapped & Ecosystem.** 100% offline "Wrapped" recap with shareable local canvas image cards; offline "Track Radio" (metadata clustering); smart sleep gestures (shake-to-extend, flip-to-pause); custom Now Playing skins (spinning vinyl, retro cassette); Android Auto dashboard browse integration (`MediaBrowserServiceCompat`).
+*Exit:* Wrapped card exports locally without network; radio queue clusters tracks; shake gesture extends sleep timer; Android Auto media tree browsable.
+
+**Phase 11: iOS parity (only if I ask).** Document-picker import into the app sandbox (no MediaStore), AVAudioSession and background modes, Now Playing info and remote commands, documented platform differences (EQ and others).
 
 ## 12. Start
 

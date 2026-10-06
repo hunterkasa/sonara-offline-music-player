@@ -100,20 +100,26 @@ Status legend:
 - [x] R8 optimization & release APK/AAB build (<30MB)
 - [x] Traceability matrix in `docs/QA_MATRIX.md`
 
-### [ ] Phase 8: iOS Parity (On Request Only)
+### [ ] Phase 8: Audiophile & Sound Engine Standouts
+- [ ] Per-output-device audio profiles (auto-switch EQ, crossfade, and volume by Bluetooth/Wired/Speaker)
+- [ ] Real-time audio visualizer (60 FPS spectrum bars, analog VU meters) & waveform seekbar
+- [ ] Independent musical pitch transposition (-12 to +12 semitones) and tempo controls
+
+### [ ] Phase 9: Library Power-Tools, CUE & Lyrics Studio
+- [ ] In-app tag and artwork editor (ID3v2, Vorbis, MP4) with Android 11+ `MediaStore.createWriteRequest`
+- [ ] CUE sheet parser & virtual multi-track album rip splitting
+- [ ] Interactive synchronized LRC lyrics editor (tap-to-stamp timestamp recorder)
+
+### [ ] Phase 10: Smart Listening, Offline Wrapped & Ecosystem
+- [ ] 100% offline "Wrapped" recap with shareable local Canvas image cards
+- [ ] Offline "Track Radio" (metadata & acoustic clustering smart queue)
+- [ ] Smart sleep gestures (shake-to-extend, flip-to-pause)
+- [ ] Custom Now Playing skins (spinning vinyl, retro cassette, minimalist OLED)
+- [ ] Android Auto dashboard integration (`MediaBrowserServiceCompat`)
+
+### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox
 - [ ] AVAudioSession and background audio modes
 - [ ] MPNowPlayingInfoCenter & MPRemoteCommandCenter
 - [ ] iOS-specific equalizer and capability documentation
 
----
-
-## Stretch Items (P2 - Built only when requested)
-- [ ] Tag editor (single and batch, artwork replace; Android 11+ write-request flow)
-- [ ] CUE sheet splitting & playback
-- [ ] Android Auto media browse tree
-- [ ] Per-output-device EQ profiles (Bluetooth vs wired vs speaker)
-- [ ] Shake-to-extend sleep timer
-- [ ] Song/artist radio based on metadata clusters
-- [ ] Yearly "Wrapped"-style offline recap with shareable card generator
-- [ ] User 5-star or custom ratings
