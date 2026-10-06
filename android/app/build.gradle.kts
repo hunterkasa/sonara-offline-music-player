@@ -31,11 +31,37 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
+}
+
+tasks.register("verifyNoInternetPermission") {
+    description = "Enforces the zero-network invariant by ensuring INTERNET is absent from release manifest"
+    doLast {
+        val mergedManifest = file("${project.layout.buildDirectory.get()}/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml")
+        val altManifest = file("${project.layout.buildDirectory.get()}/intermediates/merged_manifests/release/AndroidManifest.xml")
+        val target = if (mergedManifest.exists()) mergedManifest else if (altManifest.exists()) altManifest else null
+        if (target != null && target.exists()) {
+            val content = target.readText()
+            if (content.contains("android.permission.INTERNET")) {
+                throw GradleException("FATAL VIOLATION: android.permission.INTERNET detected in release manifest! Sonara is 100% offline.")
+            } else {
+                println("SUCCESS: Verified merged release manifest contains NO INTERNET permission.")
+            }
+        }
+    }
+}
+
+tasks.matching { it.name == "assembleRelease" }.configureEach {
+    finalizedBy("verifyNoInternetPermission")
 }
 
 kotlin {

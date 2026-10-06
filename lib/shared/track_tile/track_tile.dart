@@ -56,8 +56,8 @@ class TrackTile extends StatelessWidget {
           );
         };
 
-    final tileContent = SizedBox(
-      height: 64.0,
+    final tileContent = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 64.0),
       child: Material(
         color: Colors.transparent,
         child: InkWell(

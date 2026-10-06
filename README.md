@@ -88,6 +88,19 @@ flutter run -d emulator-5554
 - **Library Backup & Restore (Phase 6):** Complete offline JSON backup and restore for playlists, favorites, listening stats, and user settings with 3-tier track relinking cascade (path, URI, metadata).
 - **Storage Inspector & Cache Management (Phase 6):** Storage breakdown displaying database size, track counts, and artwork cache footprint, featuring one-tap thumbnail eviction and SQLite `VACUUM`.
 - **Audio Synthesis Tool:** Run `dart tool/seed_music.dart` to synthesize real tagged test tracks (MP3, FLAC, M4A, OGG) with sidecar artwork and push them directly to Android devices via ADB.
+- **Hardening & High-Density Accessibility (Phase 7):** Minimum 48×48dp touch targets on all interactive controls, full semantics labeling, and zero `RenderFlex` overflows at 200% system font scaling.
+- **Internationalization & Multi-Script (Phase 7):** Full localization supporting English, Arabic (RTL directionality), Bengali, and Chinese (Simplified CJK).
+- **Edge-to-Edge System Bars (Phase 7):** Android 10+ edge-to-edge layout with transparent status and navigation overlays (`window.setDecorFitsSystemWindows(false)`).
+- **Pure Offline Diagnostic Logger (Phase 7):** Local rotating buffered sink log (`LocalLogger`) without remote analytics or network calls.
+- **Zero-Network Invariant Enforcement (Phase 7):** Custom Gradle task `verifyNoInternetPermission` strictly verifies the absence of `android.permission.INTERNET` from the merged release manifest.
+- **R8 ProGuard Minification & Binary Size (Phase 7):** Production build size is <25MB per architecture (`app-arm64-v8a-release.apk` 23.0MB, `app-armeabi-v7a-release.apk` 20.7MB).
+
+### 5. Build Release APKs
+```powershell
+# Build architecture-split release APKs (<25MB each)
+flutter build apk --release --split-per-abi
+```
+Release binaries are output to `build/app/outputs/flutter-apk/`.
 
 
 

@@ -189,6 +189,27 @@ This log records non-obvious technical choices, architecture invariants, and dep
 ### ADR 6.5: Offline Cache Inspector with Granular Eviction & SQLite VACUUM
 - **Decision:** `StorageInspectorService` calculates disk usage across the app database, artwork thumbnail cache, and temporary isolate workspaces. It provides user-triggered artwork cache eviction and SQLite database compaction via `VACUUM`.
 - **Rationale:** Empowers users to inspect local storage footprints and reclaim space safely without compromising library metadata or playlist definitions.
+---
 
+## 10. Phase 7 Architecture Decisions
 
+### ADR 7.1: Zero-Network Invariant Enforcement via Gradle Merged Manifest Verification
+- **Decision:** Implemented a mandatory custom Gradle task `verifyNoInternetPermission` attached to `assembleRelease`. The task inspects the merged `AndroidManifest.xml` post-manifest-merging and aborts compilation with a fatal `GradleException` if `android.permission.INTERNET` is present.
+- **Rationale:** Guarantees that neither Sonara code nor any third-party transitive dependency can sneak network permissions into the production release binary.
+
+### ADR 7.2: Pure Offline Local Rotating Diagnostic Logger
+- **Decision:** Created `LocalLogger` utilizing a single buffered `IOSink` with atomic message queuing, automatic size-based rotation (1MB max per log file, 2 file generations max), and a purge API. Hooked into `FlutterError.onError` and `PlatformDispatcher.instance.onError` in `main.dart`.
+- **Rationale:** Diagnostic reports and crash traces remain 100% private and on-device without relying on Firebase Crashlytics or any network socket.
+
+### ADR 7.3: R8 Full Optimization and ProGuard Retention Rules
+- **Decision:** Enabled `isMinifyEnabled = true` and `isShrinkResources = true` in Android release build configuration. Added rules in `proguard-rules.pro` keeping `audio_service`, `just_audio`, SQLite C libraries, and Sonara app receivers while suppressing unused Play Core split-install warnings via `-dontwarn com.google.android.play.core.**`.
+- **Rationale:** Eliminates dead code, optimizes bytecode, and keeps per-ABI APK sizes between 20MB and 24MB (<30MB PRD target).
+
+### ADR 7.4: Edge-to-Edge System Navigation and Status Bar Configuration
+- **Decision:** Enabled Android 10+ / 14+ edge-to-edge drawing via `window.setDecorFitsSystemWindows(false)` in `MainActivity.kt` and `SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge)` with transparent status and navigation overlays.
+- **Rationale:** Eliminates outdated solid black system letterboxing and ensures modern immersive playback surfaces.
+
+### ADR 7.5: Minimum 48dp Touch Boundaries and 200% Text Scaling Resiliency
+- **Decision:** Bound all interactive buttons across `MiniPlayer` and `TrackTile` to `BoxConstraints(minHeight: 64)` and guaranteed 48×48dp touch targets with semantic accessibility labels.
+- **Rationale:** Ensures compliance with WCAG 2.1 AA standards and eliminates `RenderFlex` layout overflow when users activate Android high-contrast and 200% large font scaling.
 

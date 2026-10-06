@@ -1,0 +1,15 @@
+{
+  "@@locale": "ar",
+  "appTitle": "سونارا",
+  "navHome": "الرئيسية",
+  "navSearch": "البحث",
+  "navLibrary": "المكتبة",
+  "nowPlaying": "قيد التشغيل الآن",
+  "noTrackPlaying": "لا يوجد مسار قيد التشغيل",
+  "settingsTitle": "الإعدادات",
+  "themeMode": "وضع المظهر",
+  "themeLight": "فاتح",
+  "themeDark": "داكن",
+  "themeAmoled": "داكن AMOLED",
+  "themeSystem": "افتراضي النظام"
+}

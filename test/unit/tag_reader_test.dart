@@ -59,5 +59,74 @@ void main() {
         }
       }
     });
+
+    test('parses ID3v2 metadata frames correctly', () async {
+      final tempFile = File('${Directory.systemTemp.path}/test_id3v2.mp3');
+
+      // Helper to build a text frame
+      List<int> makeTextFrame(String frameId, String text) {
+        final textBytes = [0, ...text.codeUnits]; // 0 = ISO-8859-1
+        final size = textBytes.length;
+        return [
+          ...frameId.codeUnits,
+          (size >> 24) & 0xFF,
+          (size >> 16) & 0xFF,
+          (size >> 8) & 0xFF,
+          size & 0xFF,
+          0x00,
+          0x00, // flags
+          ...textBytes,
+        ];
+      }
+
+      final frame1 = makeTextFrame('TIT2', 'ID3v2 Title');
+      final frame2 = makeTextFrame('TPE1', 'ID3v2 Artist');
+      final frame3 = makeTextFrame('TALB', 'ID3v2 Album');
+      final allFrames = [...frame1, ...frame2, ...frame3];
+
+      final tagSize = allFrames.length;
+      final header = [
+        0x49, 0x44, 0x33, // 'ID3'
+        0x03, 0x00, // v2.3.0
+        0x00, // flags
+        (tagSize >> 21) & 0x7F,
+        (tagSize >> 14) & 0x7F,
+        (tagSize >> 7) & 0x7F,
+        tagSize & 0x7F,
+      ];
+
+      // Pad to >= 128 bytes for minimum file size check
+      final fullBytes = [...header, ...allFrames];
+      while (fullBytes.length < 150) {
+        fullBytes.add(0);
+      }
+
+      await tempFile.writeAsBytes(fullBytes);
+      try {
+        final meta = await TagReader.readFromFile(tempFile);
+        expect(meta.title, 'ID3v2 Title');
+        expect(meta.artist, 'ID3v2 Artist');
+        expect(meta.album, 'ID3v2 Album');
+        expect(meta.codec, 'MP3');
+      } finally {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      }
+    });
+
+    test('parses FLAC file with invalid header safely', () async {
+      final tempFile = File('${Directory.systemTemp.path}/test_corrupt.flac');
+      await tempFile.writeAsBytes(List<int>.filled(140, 0));
+      try {
+        final meta = await TagReader.readFromFile(tempFile);
+        expect(meta.title, 'test_corrupt');
+        expect(meta.artist, 'Unknown Artist');
+      } finally {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      }
+    });
   });
 }

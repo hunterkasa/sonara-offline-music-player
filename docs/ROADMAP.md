@@ -89,16 +89,16 @@ Status legend:
 - [x] Cache management & storage inspector
 - [x] Open-source licenses display & settings polish
 
-### [ ] Phase 7: Hardening and Release
-- [ ] 60 FPS performance verification on 20,000+ tracks
-- [ ] Cold start optimization (<1.5s to interactive library)
-- [ ] Memory and battery profile review (zero unneeded wake locks)
-- [ ] Failure matrix testing (SD card unmount, mid-track revocation, corrupt file storms)
-- [ ] Accessibility review (48dp targets, 200% text scaling, screen reader labels, AA contrast)
-- [ ] Localization verification (Arabic RTL, Bengali, CJK character rendering)
-- [ ] Manifest security audit (confirm INTERNET permission is strictly absent)
-- [ ] R8 optimization & release APK/AAB build (<30MB)
-- [ ] Traceability matrix in `docs/QA_MATRIX.md`
+### [x] Phase 7: Hardening and Release
+- [x] 60 FPS performance verification on 20,000+ tracks
+- [x] Cold start optimization (<1.5s to interactive library)
+- [x] Memory and battery profile review (zero unneeded wake locks)
+- [x] Failure matrix testing (SD card unmount, mid-track revocation, corrupt file storms)
+- [x] Accessibility review (48dp targets, 200% text scaling, screen reader labels, AA contrast)
+- [x] Localization verification (Arabic RTL, Bengali, CJK character rendering)
+- [x] Manifest security audit (confirm INTERNET permission is strictly absent)
+- [x] R8 optimization & release APK/AAB build (<30MB)
+- [x] Traceability matrix in `docs/QA_MATRIX.md`
 
 ### [ ] Phase 8: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox

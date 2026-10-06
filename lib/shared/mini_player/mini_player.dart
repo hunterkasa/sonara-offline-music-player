@@ -56,7 +56,7 @@ class MiniPlayer extends ConsumerWidget {
           }
         },
         child: Container(
-          height: 64,
+          constraints: const BoxConstraints(minHeight: 64),
           margin: const EdgeInsets.symmetric(
             horizontal: AppSpacing.xs,
             vertical: AppSpacing.xxs,
@@ -74,6 +74,7 @@ class MiniPlayer extends ConsumerWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Hairline progress bar
               LinearProgressIndicator(
@@ -84,92 +85,103 @@ class MiniPlayer extends ConsumerWidget {
                   theme.colorScheme.primary,
                 ),
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s),
-                  child: Row(
-                    children: [
-                      // Artwork thumbnail with RepaintBoundary
-                      RepaintBoundary(
-                        child: snapshot.currentTrackKey != null
-                            ? FutureBuilder<Track?>(
-                                future: db.getTrackByKey(
-                                  snapshot.currentTrackKey!,
-                                ),
-                                builder: (context, trackSnap) {
-                                  final track = trackSnap.data;
-                                  return ArtworkWidget(
-                                    artworkKey: track?.artworkKey,
-                                    filePath: track?.path,
-                                    title: snapshot.title,
-                                    size: 44,
-                                    borderRadius: 8.0,
-                                  );
-                                },
-                              )
-                            : ArtworkWidget(
-                                title: snapshot.title,
-                                size: 44,
-                                borderRadius: 8.0,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s,
+                  vertical: AppSpacing.xxs,
+                ),
+                child: Row(
+                  children: [
+                    // Artwork thumbnail with RepaintBoundary
+                    RepaintBoundary(
+                      child: snapshot.currentTrackKey != null
+                          ? FutureBuilder<Track?>(
+                              future: db.getTrackByKey(
+                                snapshot.currentTrackKey!,
                               ),
-                      ),
-                      const SizedBox(width: AppSpacing.s),
-                      // Title & Artist
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              snapshot.title.isEmpty
-                                  ? 'No track playing'
-                                  : snapshot.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              builder: (context, trackSnap) {
+                                final track = trackSnap.data;
+                                return ArtworkWidget(
+                                  artworkKey: track?.artworkKey,
+                                  filePath: track?.path,
+                                  title: snapshot.title,
+                                  size: 44,
+                                  borderRadius: 8.0,
+                                );
+                              },
+                            )
+                          : ArtworkWidget(
+                              title: snapshot.title,
+                              size: 44,
+                              borderRadius: 8.0,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              snapshot.artist.isEmpty
-                                  ? 'Sonara Music'
-                                  : snapshot.artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
+                    ),
+                    const SizedBox(width: AppSpacing.s),
+                    // Title & Artist
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            snapshot.title.isEmpty
+                                ? 'No track playing'
+                                : snapshot.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            snapshot.artist.isEmpty
+                                ? 'Sonara Music'
+                                : snapshot.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                      // Play / Pause button
-                      IconButton(
-                        icon: Icon(
-                          snapshot.isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                        ),
-                        iconSize: 30,
-                        tooltip: snapshot.isPlaying ? 'Pause' : 'Play',
-                        onPressed: () {
-                          haptics.medium();
-                          playback.togglePlayPause();
-                        },
+                    ),
+                    // Play / Pause button
+                    IconButton(
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
                       ),
-                      // Skip to next button
-                      IconButton(
-                        icon: const Icon(Icons.skip_next_rounded),
-                        iconSize: 26,
-                        tooltip: 'Next Track',
-                        onPressed: () {
-                          haptics.selection();
-                          playback.skipToNext();
-                        },
+                      padding: const EdgeInsets.all(8),
+                      icon: Icon(
+                        snapshot.isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                       ),
-                    ],
-                  ),
+                      iconSize: 30,
+                      tooltip: snapshot.isPlaying ? 'Pause' : 'Play',
+                      onPressed: () {
+                        haptics.medium();
+                        playback.togglePlayPause();
+                      },
+                    ),
+                    // Skip to next button
+                    IconButton(
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      icon: const Icon(Icons.skip_next_rounded),
+                      iconSize: 26,
+                      tooltip: 'Next Track',
+                      onPressed: () {
+                        haptics.selection();
+                        playback.skipToNext();
+                      },
+                    ),
+                  ],
                 ),
               ),
             ],

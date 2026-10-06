@@ -1,0 +1,15 @@
+{
+  "@@locale": "bn",
+  "appTitle": "সোনারা",
+  "navHome": "হোম",
+  "navSearch": "অনুসন্ধান",
+  "navLibrary": "লাইব্রেরি",
+  "nowPlaying": "এখন বাজছে",
+  "noTrackPlaying": "কোন গান বাজছে না",
+  "settingsTitle": "সেটিংস",
+  "themeMode": "থিম মোড",
+  "themeLight": "লাইট",
+  "themeDark": "ডার্ক",
+  "themeAmoled": "অ্যামোলেড ডার্ক",
+  "themeSystem": "সিস্টেম ডিফল্ট"
+}

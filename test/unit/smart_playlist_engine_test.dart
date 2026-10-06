@@ -172,6 +172,59 @@ void main() {
         SmartPlaylistEngine.forgottenFavoritesPreset(),
       );
       expect(forgotten.length, equals(2));
+
+      // 4. Recently Added preset
+      final recentAdded = await engine.evaluate(
+        SmartPlaylistEngine.recentlyAddedPreset(),
+      );
+      expect(recentAdded.length, equals(3));
+    });
+
+    test('serializes and deserializes SmartRuleGroup and SmartRule', () {
+      const group = SmartRuleGroup(
+        matchAll: false,
+        limit: 25,
+        sortBy: SmartField.duration,
+        sortAscending: false,
+        rules: [
+          SmartRule(
+            field: SmartField.duration,
+            operator: SmartOperator.lessThan,
+            value: 250,
+          ),
+          SmartRule(
+            field: SmartField.isFavorite,
+            operator: SmartOperator.isFalse,
+          ),
+        ],
+      );
+
+      final json = group.toJson();
+      final restored = SmartRuleGroup.fromJson(json);
+
+      expect(restored.matchAll, isFalse);
+      expect(restored.limit, equals(25));
+      expect(restored.sortBy, equals(SmartField.duration));
+      expect(restored.sortAscending, isFalse);
+      expect(restored.rules.length, equals(2));
+      expect(restored.rules[0].field, equals(SmartField.duration));
+      expect(restored.rules[0].operator, equals(SmartOperator.lessThan));
+      expect(restored.rules[0].value, equals(250));
+      expect(restored.rules[1].operator, equals(SmartOperator.isFalse));
+    });
+
+    test('sorts by duration, dateAdded, and applies limits', () async {
+      const group = SmartRuleGroup(
+        rules: [], // Empty rules match all tracks
+        sortBy: SmartField.duration,
+        sortAscending: true,
+        limit: 2,
+      );
+
+      final results = await engine.evaluate(group);
+      expect(results.length, equals(2));
+      expect(results[0].trackKey, equals('track_2')); // 180s
+      expect(results[1].trackKey, equals('track_1')); // 200s
     });
   });
 }

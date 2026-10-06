@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +13,7 @@ import 'app/theme/app_theme.dart';
 import 'app/theme/theme_provider.dart';
 import 'audio/playback_controller.dart';
 import 'audio/sonara_audio_handler.dart';
+import 'core/logging/local_logger.dart';
 import 'core/services/audio_intent_service.dart';
 import 'core/services/widget_service.dart';
 import 'data/db/app_database.dart';
@@ -19,6 +22,37 @@ import 'domain/services/queue_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Android 10+ and Android 15 edge-to-edge system chrome configuration
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+    ),
+  );
+
+  // Local rotating file logger (100% offline)
+  await LocalLogger.instance.init();
+
+  FlutterError.onError = (details) {
+    LocalLogger.instance.error(
+      'FlutterError: ${details.exceptionAsString()}',
+      details.exception,
+      details.stack,
+    );
+    FlutterError.presentError(details);
+  };
+
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    LocalLogger.instance.error(
+      'PlatformDispatcher Unhandled Error',
+      error,
+      stack,
+    );
+    return true;
+  };
 
   final database = AppDatabase();
   final queueManager = QueueManager(db: database);

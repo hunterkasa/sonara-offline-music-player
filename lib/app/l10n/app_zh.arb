@@ -1,0 +1,15 @@
+{
+  "@@locale": "zh",
+  "appTitle": "Sonara",
+  "navHome": "首页",
+  "navSearch": "搜索",
+  "navLibrary": "媒体库",
+  "nowPlaying": "正在播放",
+  "noTrackPlaying": "暂无播放曲目",
+  "settingsTitle": "设置",
+  "themeMode": "主题模式",
+  "themeLight": "浅色",
+  "themeDark": "深色",
+  "themeAmoled": "纯黑 AMOLED",
+  "themeSystem": "跟随系统"
+}
