@@ -75,6 +75,13 @@ class MainActivity : AudioServiceActivity() {
                         result.error("QUERY_ERROR", e.message, null)
                     }
                 }
+                "updateWidget" -> {
+                    val title = call.argument<String>("title") ?: ""
+                    val artist = call.argument<String>("artist") ?: ""
+                    val isPlaying = call.argument<Boolean>("isPlaying") ?: false
+                    SonaraWidgetProvider.updateWidgetState(applicationContext, title, artist, isPlaying)
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }

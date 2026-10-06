@@ -63,8 +63,13 @@ class AppDatabase extends _$AppDatabase {
     return AppDatabase(NativeDatabase.memory());
   }
 
-  /// Observe all non-hidden tracks reactive stream
-  Stream<List<Track>> watchAllTracks() {
+  /// Observe tracks reactive stream
+  Stream<List<Track>> watchAllTracks({bool includeHidden = false}) {
+    if (includeHidden) {
+      return (select(
+        tracks,
+      )..orderBy([(t) => OrderingTerm.asc(t.titleSort)])).watch();
+    }
     return (select(tracks)
           ..where((t) => t.isHidden.equals(false))
           ..orderBy([(t) => OrderingTerm.asc(t.titleSort)]))
@@ -565,6 +570,59 @@ class AppDatabase extends _$AppDatabase {
     return (select(appSettings)..where((s) => s.key.equals(key)))
         .watchSingleOrNull()
         .map((row) => row?.valueJson);
+  }
+
+  /// Set track hidden state
+  Future<void> setTrackHidden(String trackKey, bool isHidden) async {
+    await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
+      TracksCompanion(isHidden: Value(isHidden)),
+    );
+  }
+
+  /// Delete track completely from database
+  Future<void> deleteTrack(String trackKey) async {
+    await transaction(() async {
+      await (delete(
+        playlistTracks,
+      )..where((pt) => pt.trackKey.equals(trackKey))).go();
+      await (delete(tracks)..where((t) => t.trackKey.equals(trackKey))).go();
+      await customStatement('DELETE FROM tracks_fts WHERE track_key = ?;', [
+        trackKey,
+      ]);
+    });
+  }
+
+  /// Get all active (or all) tracks for duplicates & backup
+  Future<List<Track>> getAllTracks({bool includeHidden = false}) {
+    if (includeHidden) {
+      return (select(
+        tracks,
+      )..orderBy([(t) => OrderingTerm.asc(t.titleSort)])).get();
+    }
+    return (select(tracks)
+          ..where((t) => t.isHidden.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.titleSort)]))
+        .get();
+  }
+
+  /// Get all playlists for backup
+  Future<List<Playlist>> getAllPlaylists() {
+    return select(playlists).get();
+  }
+
+  /// Get all playlist track entries for backup
+  Future<List<PlaylistTrack>> getAllPlaylistTracks() {
+    return select(playlistTracks).get();
+  }
+
+  /// Get all play history entries for backup
+  Future<List<PlayHistoryData>> getAllPlayHistory() {
+    return select(playHistory).get();
+  }
+
+  /// Get all app settings for backup
+  Future<List<AppSetting>> getAllSettings() {
+    return select(appSettings).get();
   }
 
   /// Debug-only synthetic data seeder for 20,000 tracks

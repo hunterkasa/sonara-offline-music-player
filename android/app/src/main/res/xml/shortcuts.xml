@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shuffle"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_shuffle"
+        android:shortcutShortLabel="@string/shortcut_shuffle_short"
+        android:shortcutLongLabel="@string/shortcut_shuffle_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.sonara.sonara"
+            android:targetClass="com.example.sonara.sonara.MainActivity"
+            android:data="sonara://shuffle" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="favorites"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_liked"
+        android:shortcutShortLabel="@string/shortcut_liked_short"
+        android:shortcutLongLabel="@string/shortcut_liked_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.sonara.sonara"
+            android:targetClass="com.example.sonara.sonara.MainActivity"
+            android:data="sonara://favorites" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="recent"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_recent"
+        android:shortcutShortLabel="@string/shortcut_recent_short"
+        android:shortcutLongLabel="@string/shortcut_recent_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.sonara.sonara"
+            android:targetClass="com.example.sonara.sonara.MainActivity"
+            android:data="sonara://recent" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="search"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_search"
+        android:shortcutShortLabel="@string/shortcut_search_short"
+        android:shortcutLongLabel="@string/shortcut_search_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.sonara.sonara"
+            android:targetClass="com.example.sonara.sonara.MainActivity"
+            android:data="sonara://search" />
+    </shortcut>
+</shortcuts>

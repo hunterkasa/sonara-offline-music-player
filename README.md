@@ -82,6 +82,12 @@ flutter run -d emulator-5554
 - **ReplayGain & Volume Normalization (Phase 5):** Smart (shuffle vs sequential), Track, and Album normalization with -12 dB to +12 dB pre-amp and peak limiter anti-clipping clamp.
 - **Platform Audio Engine Controls (Phase 5):** Hardware skip silence (`player.setSkipSilenceEnabled`), stereo channel balance slider (-1.0 Left to +1.0 Right), and mono downmix.
 - **Long-Audio Position Memory (Phase 5):** Auto-saves and restores exact seek position and playback speed for tracks >= 20 minutes (podcasts, DJ sets, audiobooks).
+- **Home Screen Widgets (Phase 6):** Native Android app widget (`SonaraWidgetProvider`) showing active track title, artist, play/pause status, and direct `MediaButtonReceiver` transport controls (Play/Pause, Next, Previous).
+- **Dynamic App Shortcuts (Phase 6):** Launcher dynamic shortcuts for quick actions (*Shuffle all*, *Liked*, *Recently played*, and *Search*) routed via `sonara://` deep links.
+- **Duplicate Audio Finder (Phase 6):** Detection engine grouping tracks by title, artist, and duration (±2s) with options to hide duplicates from library or delete with confirmation.
+- **Library Backup & Restore (Phase 6):** Complete offline JSON backup and restore for playlists, favorites, listening stats, and user settings with 3-tier track relinking cascade (path, URI, metadata).
+- **Storage Inspector & Cache Management (Phase 6):** Storage breakdown displaying database size, track counts, and artwork cache footprint, featuring one-tap thumbnail eviction and SQLite `VACUUM`.
 - **Audio Synthesis Tool:** Run `dart tool/seed_music.dart` to synthesize real tagged test tracks (MP3, FLAC, M4A, OGG) with sidecar artwork and push them directly to Android devices via ADB.
+
 
 

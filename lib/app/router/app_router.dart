@@ -8,6 +8,9 @@ import '../../features/audio_settings/audio_settings_screen.dart';
 import '../../features/audio_settings/equalizer_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/library/library_screen.dart';
+import '../../features/library_tools/backup_restore_screen.dart';
+import '../../features/library_tools/duplicate_finder_screen.dart';
+import '../../features/library_tools/storage_inspector_screen.dart';
 import '../../features/onboarding/permission_screen.dart';
 import '../../features/playlist/playlist_detail_screen.dart';
 import '../../features/search/search_screen.dart';
@@ -22,6 +25,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/home',
+    redirect: (context, state) {
+      final uri = state.uri;
+      if (uri.scheme == 'sonara') {
+        final host = uri.host.toLowerCase();
+        switch (host) {
+          case 'search':
+            return '/search';
+          case 'favorites':
+          case 'liked':
+            return '/library';
+          case 'duplicates':
+            return '/duplicates';
+          case 'backup-restore':
+            return '/backup-restore';
+          case 'storage-inspector':
+            return '/storage-inspector';
+          default:
+            return '/home';
+        }
+      }
+      return null;
+    },
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -97,6 +122,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/audio-settings',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AudioSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/duplicates',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const DuplicateFinderScreen(),
+      ),
+      GoRoute(
+        path: '/backup-restore',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const BackupRestoreScreen(),
+      ),
+      GoRoute(
+        path: '/storage-inspector',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const StorageInspectorScreen(),
       ),
     ],
   );

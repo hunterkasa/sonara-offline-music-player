@@ -98,6 +98,46 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push('/audio-settings'),
           ),
           const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.m,
+              vertical: AppSpacing.xs,
+            ),
+            child: Text(
+              'LIBRARY TOOLS',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.content_copy_rounded),
+            title: const Text('Duplicate Audio Finder'),
+            subtitle: const Text(
+              'Find and manage duplicate tracks by size & metadata',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/duplicates'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.backup_rounded),
+            title: const Text('Backup & Restore'),
+            subtitle: const Text(
+              'Export and restore playlists, favorites, and settings',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/backup-restore'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.pie_chart_outline_rounded),
+            title: const Text('Storage Inspector & Cache'),
+            subtitle: const Text('Inspect database and thumbnail cache usage'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/storage-inspector'),
+          ),
+          const Divider(),
 
           if (kDebugMode) ...[
             const Divider(),

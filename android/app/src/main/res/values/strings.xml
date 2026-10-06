@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sonara</string>
+    <string name="shortcut_shuffle_short">Shuffle</string>
+    <string name="shortcut_shuffle_long">Shuffle all songs</string>
+    <string name="shortcut_liked_short">Liked</string>
+    <string name="shortcut_liked_long">Liked songs</string>
+    <string name="shortcut_recent_short">Recent</string>
+    <string name="shortcut_recent_long">Recently played</string>
+    <string name="shortcut_search_short">Search</string>
+    <string name="shortcut_search_long">Search music</string>
+    <string name="widget_name">Sonara Player</string>
+    <string name="widget_no_track">No music playing</string>
+    <string name="widget_tap_to_open">Tap to open Sonara</string>
+</resources>

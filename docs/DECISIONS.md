@@ -166,4 +166,29 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Decision:** Position and speed memory (`LongAudioService`) triggers strictly for tracks with duration >= 20 minutes (1,200,000 ms), auto-saving when position exceeds 10s and restoring seamlessly on reload.
 - **Rationale:** Distinguishes podcasts, DJ mixes, live sets, and audiobooks from standard songs (which should always start from 0:00). Prevents standard library tracks from perpetually opening at random mid-song timestamps.
 
+---
+
+## 9. Phase 6 Architecture Decisions
+
+### ADR 6.1: Native Android AppWidget with Direct MediaButtonReceiver IPC
+- **Decision:** The Home Screen widget (`SonaraWidgetProvider`) communicates transport actions (Play/Pause, Next, Previous) directly by dispatching key events to `com.ryanheise.audioservice.MediaButtonReceiver`. Widget metadata (track title, artist, playback state) is pushed from Flutter through a lightweight platform channel `com.example.sonara/mediastore` (`updateWidget`) and cached in `SharedPreferences`.
+- **Rationale:** Eliminates redundant IPC relays and Flutter engine wakes for basic transport actions while ensuring immediate UI synchronization across process lifecycles.
+
+### ADR 6.2: Static XML App Shortcuts with Deep Link Routing Scheme
+- **Decision:** App launcher shortcuts (*Shuffle all*, *Liked*, *Recently played*, *Search*) are declared via Android standard `shortcuts.xml` with `sonara://` URI schemes handled by `AudioIntentService` and routed seamlessly through GoRouter.
+- **Rationale:** Supported natively across all Android versions (API 25+) without requiring third-party plugins, operating completely offline with zero overhead.
+
+### ADR 6.3: Two-Tier Duplicate Track Detection (Metadata Clusters & Hash / Size)
+- **Decision:** `DuplicateFinderService` identifies duplicate audio tracks using a two-tier strategy: (1) metadata fuzzy matching on normalized title, artist, and duration within a ±2 second tolerance, and (2) secondary disambiguation via file size and path. Actions allow hiding tracks in Drift SQLite (`isHidden = true`) or permanent removal with confirmation dialogs.
+- **Rationale:** Provides accurate duplicate grouping for varying file formats (e.g. FLAC vs MP3 version of the same song) while preserving user safety and avoiding accidental file loss.
+
+### ADR 6.4: Standalone Self-Contained Backup & Restore Schema with Multi-Tier Relinking
+- **Decision:** `BackupService` serializes all user-created data (playlists, track ordering, liked songs, play counts, skip stats, history, and app settings) into a single versioned JSON file (`v1`). Upon restore on a new install or altered filesystem, tracks are relinked using a fallback cascade: (1) exact file path, (2) content URI, and (3) normalized title + artist metadata matching.
+- **Rationale:** Ensures complete user personalization survival even if SD card mount paths change, device models change, or library folders are relocated.
+
+### ADR 6.5: Offline Cache Inspector with Granular Eviction & SQLite VACUUM
+- **Decision:** `StorageInspectorService` calculates disk usage across the app database, artwork thumbnail cache, and temporary isolate workspaces. It provides user-triggered artwork cache eviction and SQLite database compaction via `VACUUM`.
+- **Rationale:** Empowers users to inspect local storage footprints and reclaim space safely without compromising library metadata or playlist definitions.
+
+
 

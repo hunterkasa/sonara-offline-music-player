@@ -12,6 +12,7 @@ import 'app/theme/theme_provider.dart';
 import 'audio/playback_controller.dart';
 import 'audio/sonara_audio_handler.dart';
 import 'core/services/audio_intent_service.dart';
+import 'core/services/widget_service.dart';
 import 'data/db/app_database.dart';
 import 'data/db/database_provider.dart';
 import 'domain/services/queue_manager.dart';
@@ -55,13 +56,17 @@ Future<void> main() async {
 
   try {
     final controller = container.read(playbackControllerProvider);
+    final router = container.read(appRouterProvider);
     final intentService = AudioIntentService(
       playbackController: controller,
       db: database,
+      onNavigate: (route) => router.go(route),
     );
     await intentService.init();
+    // Initialize widget sync
+    container.read(widgetServiceProvider);
   } catch (e) {
-    debugPrint('AudioIntentService init skipped: $e');
+    debugPrint('AudioIntentService / WidgetService init skipped: $e');
   }
 
   runApp(

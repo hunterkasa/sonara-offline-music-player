@@ -36,6 +36,12 @@ void main() {
 
       expect(find.text('AMOLED Dark (Pure Black)'), findsOneWidget);
 
+      // Verify library tools section
+      final storageTile = find.text('Storage Inspector & Cache');
+      await tester.scrollUntilVisible(storageTile, 100);
+      expect(storageTile, findsOneWidget);
+      expect(find.text('Backup & Restore'), findsOneWidget);
+
       // Tap Seed Synthetic Tracks
       final seedButton = find.text('Seed 20,000 Synthetic DB Tracks');
       await tester.scrollUntilVisible(seedButton, 200);

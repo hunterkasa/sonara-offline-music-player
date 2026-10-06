@@ -81,13 +81,13 @@ Status legend:
 - [x] Long-audio position memory for tracks >= 20 minutes (podcasts, DJ sets)
 - [x] Dedicated Equalizer UI (`EqualizerScreen`) and Audio Settings UI (`AudioSettingsScreen`) linked from Settings and Now Playing
 
-### [ ] Phase 6: Integrations and Library Tools
-- [ ] Android Home Screen widgets (small, medium, large)
-- [ ] App launcher dynamic shortcuts (Shuffle all, Liked, Recently played, Search)
-- [ ] Audio duplicate finder (hash / metadata diffs) & safe hide/delete flow
-- [ ] Full library backup and restore (JSON bundle with path & tag relinking)
-- [ ] Cache management & storage inspector
-- [ ] Open-source licenses display & settings polish
+### [x] Phase 6: Integrations and Library Tools
+- [x] Android Home Screen widgets (small, medium, large)
+- [x] App launcher dynamic shortcuts (Shuffle all, Liked, Recently played, Search)
+- [x] Audio duplicate finder (hash / metadata diffs) & safe hide/delete flow
+- [x] Full library backup and restore (JSON bundle with path & tag relinking)
+- [x] Cache management & storage inspector
+- [x] Open-source licenses display & settings polish
 
 ### [ ] Phase 7: Hardening and Release
 - [ ] 60 FPS performance verification on 20,000+ tracks
