@@ -94,6 +94,9 @@ flutter run -d emulator-5554
 - **Pure Offline Diagnostic Logger (Phase 7):** Local rotating buffered sink log (`LocalLogger`) without remote analytics or network calls.
 - **Zero-Network Invariant Enforcement (Phase 7):** Custom Gradle task `verifyNoInternetPermission` strictly verifies the absence of `android.permission.INTERNET` from the merged release manifest.
 - **R8 ProGuard Minification & Binary Size (Phase 7):** Production build size is <25MB per architecture (`app-arm64-v8a-release.apk` 23.0MB, `app-armeabi-v7a-release.apk` 20.7MB).
+- **Per-Output-Device Audio Profiles (Phase 8):** Dynamic hardware route detection (`audio_session.devicesChangedEventStream`) that automatically swaps EQ presets, crossfade, and loudness booster settings between Phone Speaker, Bluetooth headphones, Wired IEMs, and USB DACs.
+- **60 FPS Real-Time Audio Visualizer & Waveform Scrubber (Phase 8):** Hi-Fi animated visualizer with 3 styles (16-band Spectrum bars with peak holds, analog dual VU meters, fluid bezier waves) with 0-CPU paused decay, paired with an interactive `WaveformScrubber` amplitude peak seekbar.
+- **Musical Pitch Transposition & Key Controls (Phase 8):** Independent pitch shifting across $\pm 12$ semitones (full octave) using mathematical semitone multipliers ($2^{S/12}$) operating independently of playback tempo, with interval indicators and instant "Reset Key" control.
 
 ### 5. Build Release APKs
 ```powershell

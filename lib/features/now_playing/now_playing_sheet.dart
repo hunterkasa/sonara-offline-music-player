@@ -8,9 +8,11 @@ import '../../app/theme/theme_tokens.dart';
 import '../../audio/playback_controller.dart';
 import '../../audio/sleep_timer.dart';
 import '../../core/services/haptic_service.dart';
+import '../../core/utils/pitch_calculator.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
 import '../../data/sources/palette_service.dart';
+import '../../domain/services/audio_settings_service.dart';
 import '../../features/lyrics/lyrics_sheet.dart';
 import '../../features/queue/queue_sheet.dart';
 import '../../features/sleep_timer/sleep_timer_sheet.dart';
@@ -18,6 +20,8 @@ import '../../features/speed/speed_sheet.dart';
 import '../../features/track_info/track_info_sheet.dart';
 import '../../shared/artwork/artwork_widget.dart';
 import '../../shared/sheets/track_context_sheet.dart';
+import '../../shared/visualizer/audio_visualizer.dart';
+import '../../shared/waveform/waveform_scrubber.dart';
 
 class NowPlayingSheet extends ConsumerWidget {
   const NowPlayingSheet({super.key, required this.onCollapse});
@@ -35,6 +39,8 @@ class NowPlayingSheet extends ConsumerWidget {
     final haptics = ref.read(hapticServiceProvider);
     final timerState = ref.watch(sleepTimerProvider);
     final db = ref.watch(databaseProvider);
+    final audioSettings = ref.watch(audioSettingsProvider);
+    final visualizerMode = audioSettings.visualizerMode;
 
     final trackKey = snapshot.currentTrackKey;
     final trackAsync = ref.watch(trackStreamProvider(trackKey));
@@ -97,6 +103,29 @@ class NowPlayingSheet extends ConsumerWidget {
             centerTitle: true,
             actions: [
               IconButton(
+                icon: Icon(
+                  visualizerMode == 'off'
+                      ? Icons.graphic_eq_outlined
+                      : Icons.graphic_eq_rounded,
+                  color: visualizerMode != 'off'
+                      ? theme.colorScheme.primary
+                      : null,
+                ),
+                tooltip: 'Visualizer',
+                onPressed: () {
+                  haptics.selection();
+                  final nextMode = switch (visualizerMode) {
+                    'off' => 'spectrum',
+                    'spectrum' => 'vuMeter',
+                    'vuMeter' => 'fluidWave',
+                    _ => 'off',
+                  };
+                  ref
+                      .read(audioSettingsProvider.notifier)
+                      .setVisualizerMode(nextMode);
+                },
+              ),
+              IconButton(
                 icon: const Icon(Icons.equalizer_rounded),
                 tooltip: 'Equalizer',
                 onPressed: () {
@@ -152,6 +181,18 @@ class NowPlayingSheet extends ConsumerWidget {
                             onCollapse();
                           }
                         },
+                        onTap: () {
+                          haptics.light();
+                          final nextMode = switch (visualizerMode) {
+                            'off' => 'spectrum',
+                            'spectrum' => 'vuMeter',
+                            'vuMeter' => 'fluidWave',
+                            _ => 'off',
+                          };
+                          ref
+                              .read(audioSettingsProvider.notifier)
+                              .setVisualizerMode(nextMode);
+                        },
                         child: AnimatedScale(
                           scale: snapshot.isPlaying ? 1.0 : 0.88,
                           duration: const Duration(milliseconds: 300),
@@ -173,13 +214,70 @@ class NowPlayingSheet extends ConsumerWidget {
                                   ],
                                 ),
                                 clipBehavior: Clip.antiAlias,
-                                child: ArtworkWidget(
-                                  artworkKey: track?.artworkKey,
-                                  filePath: track?.path,
-                                  title: track?.title ?? snapshot.title,
-                                  size: double.infinity,
-                                  borderRadius: 16.0,
-                                ),
+                                child: visualizerMode == 'off'
+                                    ? ArtworkWidget(
+                                        artworkKey: track?.artworkKey,
+                                        filePath: track?.path,
+                                        title: track?.title ?? snapshot.title,
+                                        size: double.infinity,
+                                        borderRadius: 16.0,
+                                      )
+                                    : Stack(
+                                        children: [
+                                          Container(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.88,
+                                            ),
+                                            padding: const EdgeInsets.all(16),
+                                            alignment: Alignment.center,
+                                            child: AudioVisualizer(
+                                              isPlaying: snapshot.isPlaying,
+                                              style: switch (visualizerMode) {
+                                                'vuMeter' =>
+                                                  VisualizerStyle.vuMeter,
+                                                'fluidWave' =>
+                                                  VisualizerStyle.fluidWave,
+                                                _ => VisualizerStyle.spectrum,
+                                              },
+                                              accentColor: dominantColor,
+                                              height: double.infinity,
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 12,
+                                            right: 12,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black54,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                switch (visualizerMode) {
+                                                  'vuMeter' => 'VU METER',
+                                                  'fluidWave' => 'FLUID WAVE',
+                                                  _ => 'SPECTRUM',
+                                                },
+                                                style: theme
+                                                    .textTheme
+                                                    .labelSmall
+                                                    ?.copyWith(
+                                                      color: dominantColor,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 10,
+                                                      letterSpacing: 1.1,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               ),
                             ),
                           ),
@@ -244,20 +342,39 @@ class NowPlayingSheet extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.m),
 
+                  // Waveform Scrubber
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                    ),
+                    child: WaveformScrubber(
+                      trackKey: trackKey ?? 'default_track',
+                      position: snapshot.position,
+                      duration: snapshot.duration,
+                      accentColor: dominantColor,
+                      height: 38,
+                      onSeek: (pos) {
+                        haptics.selection();
+                        playback.seek(pos);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+
                   // Seek Bar
                   SliderTheme(
                     data: SliderTheme.of(context).copyWith(
-                      trackHeight: 4,
+                      trackHeight: 3,
                       thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 6,
+                        enabledThumbRadius: 5,
                       ),
                       overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 14,
+                        overlayRadius: 12,
                       ),
-                      activeTrackColor: theme.colorScheme.primary,
+                      activeTrackColor: dominantColor,
                       inactiveTrackColor: theme.colorScheme.onSurfaceVariant
                           .withValues(alpha: 0.25),
-                      thumbColor: theme.colorScheme.primary,
+                      thumbColor: dominantColor,
                     ),
                     child: Slider(
                       value: progressRatio,
@@ -450,14 +567,34 @@ class NowPlayingSheet extends ConsumerWidget {
                         },
                       ),
                       IconButton(
-                        icon: snapshot.speed != 1.0
-                            ? Text(
-                                '${snapshot.speed}x',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.primary,
-                                  fontSize: 12,
-                                ),
+                        icon:
+                            (snapshot.speed != 1.0 ||
+                                snapshot.pitchSemitones != 0)
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (snapshot.pitchSemitones != 0)
+                                    Text(
+                                      PitchCalculator.formatKeyTranspose(
+                                        snapshot.pitchSemitones,
+                                      ),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                        fontSize: 9,
+                                      ),
+                                    ),
+                                  Text(
+                                    '${snapshot.speed}x',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                      fontSize: snapshot.pitchSemitones != 0
+                                          ? 9
+                                          : 12,
+                                    ),
+                                  ),
+                                ],
                               )
                             : const Icon(Icons.speed_rounded),
                         tooltip: 'Playback Speed',

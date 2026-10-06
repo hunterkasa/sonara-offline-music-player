@@ -215,6 +215,25 @@ class TestPlaybackController implements PlaybackController {
         shuffleEnabled: _snapshot.shuffleEnabled,
         repeatMode: _snapshot.repeatMode,
         speed: speed,
+        pitchSemitones: _snapshot.pitchSemitones,
+      ),
+    );
+  }
+
+  @override
+  Future<void> setPitchSemitones(int semitones) async {
+    _emit(
+      PlaybackSnapshot(
+        currentTrackKey: _snapshot.currentTrackKey,
+        title: _snapshot.title,
+        artist: _snapshot.artist,
+        state: _snapshot.state,
+        position: _snapshot.position,
+        duration: _snapshot.duration,
+        shuffleEnabled: _snapshot.shuffleEnabled,
+        repeatMode: _snapshot.repeatMode,
+        speed: _snapshot.speed,
+        pitchSemitones: semitones,
       ),
     );
   }

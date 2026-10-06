@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme/theme_tokens.dart';
 import '../../core/services/haptic_service.dart';
+import '../../domain/models/audio_device_profile.dart';
 import '../../domain/models/audio_settings.dart';
+import '../../domain/models/equalizer_preset.dart';
 import '../../domain/services/audio_settings_service.dart';
+import '../../domain/services/device_profile_service.dart';
 
 class AudioSettingsScreen extends ConsumerWidget {
   const AudioSettingsScreen({super.key});
@@ -16,6 +19,10 @@ class AudioSettingsScreen extends ConsumerWidget {
     final settings = ref.watch(audioSettingsProvider);
     final notifier = ref.read(audioSettingsProvider.notifier);
     final haptics = ref.read(hapticServiceProvider);
+    final profileService = ref.watch(deviceProfileServiceProvider);
+    final activeCategoryAsync = ref.watch(activeOutputCategoryProvider);
+    final activeCategory =
+        activeCategoryAsync.value ?? profileService.currentCategory;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Audio Settings')),
@@ -253,9 +260,197 @@ class AudioSettingsScreen extends ConsumerWidget {
               notifier.setLongAudioPositionMemory(val);
             },
           ),
+          const Divider(),
+
+          // PER-OUTPUT-DEVICE PROFILES SECTION
+          _buildSectionHeader(context, 'PER-OUTPUT AUDIO PROFILES'),
+          SwitchListTile(
+            secondary: const Icon(Icons.devices_rounded),
+            title: const Text('Auto-Switch Output Profiles'),
+            subtitle: const Text(
+              'Remember distinct EQ presets, crossfade, and sound tweaks per output device and auto-apply when connected',
+            ),
+            value: settings.deviceProfilesEnabled,
+            onChanged: (val) {
+              haptics.selection();
+              notifier.setDeviceProfilesEnabled(val);
+            },
+          ),
+          if (settings.deviceProfilesEnabled) ...[
+            for (final category in AudioOutputCategory.values)
+              _buildCategoryTile(
+                context,
+                category,
+                profileService,
+                category == activeCategory,
+                haptics,
+              ),
+          ],
           const SizedBox(height: AppSpacing.xl),
         ],
       ),
+    );
+  }
+
+  Widget _buildCategoryTile(
+    BuildContext context,
+    AudioOutputCategory category,
+    DeviceProfileService service,
+    bool isCurrent,
+    HapticService haptics,
+  ) {
+    final theme = Theme.of(context);
+    final profile = service.getProfile(category);
+    final icon = switch (category) {
+      AudioOutputCategory.speaker => Icons.volume_up_rounded,
+      AudioOutputCategory.bluetooth => Icons.bluetooth_audio_rounded,
+      AudioOutputCategory.wired => Icons.headphones_rounded,
+      AudioOutputCategory.usb => Icons.usb_rounded,
+    };
+
+    return ListTile(
+      leading: Icon(icon, color: isCurrent ? theme.colorScheme.primary : null),
+      title: Row(
+        children: [
+          Text(profile.name),
+          if (isCurrent) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'CONNECTED',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      subtitle: Text(
+        'Preset: ${profile.equalizerPreset.toUpperCase()} · Crossfade: ${profile.crossfadeSeconds}s',
+      ),
+      trailing: const Icon(Icons.tune_rounded, size: 20),
+      onTap: () {
+        haptics.light();
+        _showProfileDialog(context, service, profile);
+      },
+    );
+  }
+
+  void _showProfileDialog(
+    BuildContext context,
+    DeviceProfileService service,
+    AudioDeviceProfile profile,
+  ) {
+    var selectedPreset = profile.equalizerPreset;
+    var crossfadeSeconds = profile.crossfadeSeconds;
+    var bassBoost = profile.bassBoost;
+    var monoDownmix = profile.monoDownmix;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('${profile.name} Profile'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Equalizer Preset',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButton<String>(
+                      value: selectedPreset,
+                      isExpanded: true,
+                      items: EqualizerPreset.defaultPresets.map((p) {
+                        return DropdownMenuItem<String>(
+                          value: p.id,
+                          child: Text(p.name),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => selectedPreset = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Crossfade: ${crossfadeSeconds}s',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Slider(
+                      value: crossfadeSeconds.toDouble(),
+                      min: 0,
+                      max: 12,
+                      divisions: 12,
+                      label: '${crossfadeSeconds}s',
+                      onChanged: (v) {
+                        setState(() => crossfadeSeconds = v.round());
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Bass Boost: ${(bassBoost * 100).round()}%',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Slider(
+                      value: bassBoost,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 10,
+                      label: '${(bassBoost * 100).round()}%',
+                      onChanged: (v) {
+                        setState(() => bassBoost = v);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Mono Downmix'),
+                      value: monoDownmix,
+                      onChanged: (v) {
+                        setState(() => monoDownmix = v);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final updated = profile.copyWith(
+                      equalizerPreset: selectedPreset,
+                      crossfadeSeconds: crossfadeSeconds,
+                      bassBoost: bassBoost,
+                      monoDownmix: monoDownmix,
+                    );
+                    await service.saveProfile(updated);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

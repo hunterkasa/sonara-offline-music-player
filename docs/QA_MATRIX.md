@@ -24,6 +24,9 @@ This document provides a comprehensive traceability matrix connecting all P0 and
 | **AUDIO-07**| Audio Quality | Long-audio position memory (>=20min tracks) | Long audio service test | `test/unit/domain/long_audio_service_test.dart` | **VERIFIED** |
 | **AUDIO-08**| Playback Core | Sleep timer with fade-out | Sleep timer controller unit test | `test/unit/sleep_timer_test.dart` | **VERIFIED** |
 | **AUDIO-09**| Playback Core | Synced & unsynced LRC lyrics parser | LRC parser unit test suite | `test/unit/lrc_parser_test.dart` | **VERIFIED** |
+| **AUDIO-10**| Audio Profiles | Per-output-device audio profiles (Bluetooth/Wired/Speaker auto-switch) | Device profile service test | `test/unit/device_profile_service_test.dart` | **VERIFIED** |
+| **AUDIO-11**| Audio Engine | Musical pitch transposition (-12 to +12 semitones, 2^(s/12) formula) | Pitch calculator & sheet tests | `test/unit/pitch_calculator_test.dart`, `test/widget/pitch_speed_sheet_test.dart` | **VERIFIED** |
+| **AUDIO-12**| UI / Hi-Fi | 60 FPS visualizers (Spectrum, VU, Wave) & WaveformScrubber | Waveform & Visualizer tests | `test/unit/waveform_generator_test.dart`, `test/widget/visualizer_and_waveform_test.dart` | **VERIFIED** |
 | **DATA-01** | Data & Library | MediaStore isolate scanning & incremental ContentObserver | Library scanner unit test suite | `test/unit/library_scanner_test.dart` | **VERIFIED** |
 | **DATA-02** | Data & Library | Resilient ID3v1/ID3v2/FLAC/MP4 tag extraction & fallbacks | Tag reader unit test suite | `test/unit/tag_reader_test.dart` | **VERIFIED** |
 | **DATA-03** | Data & Library | Stable track key hashing (SHA-256) | TrackKey unit test | `test/unit/track_key_test.dart` | **VERIFIED** |
@@ -48,10 +51,10 @@ This document provides a comprehensive traceability matrix connecting all P0 and
 
 ## 2. Test Execution Summary
 
-- **Total Unit & Widget Tests Executed:** 163
+- **Total Unit & Widget Tests Executed:** 189
 - **Test Pass Rate:** 100% (0 failures, 0 errors, 0 skipped)
 - **Static Analysis:** `flutter analyze` 0 warnings, 0 errors, 0 infos.
-- **Code Formatting:** `dart format` 100% compliant across 121 project files.
+- **Code Formatting:** `dart format` 100% compliant across 133 project files.
 - **Binary Footprint:**
   - `app-arm64-v8a-release.apk`: **23.0 MB** (<30MB limit)
   - `app-armeabi-v7a-release.apk`: **20.7 MB** (<30MB limit)

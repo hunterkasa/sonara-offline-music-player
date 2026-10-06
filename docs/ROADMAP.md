@@ -100,10 +100,10 @@ Status legend:
 - [x] R8 optimization & release APK/AAB build (<30MB)
 - [x] Traceability matrix in `docs/QA_MATRIX.md`
 
-### [ ] Phase 8: Audiophile & Sound Engine Standouts
-- [ ] Per-output-device audio profiles (auto-switch EQ, crossfade, and volume by Bluetooth/Wired/Speaker)
-- [ ] Real-time audio visualizer (60 FPS spectrum bars, analog VU meters) & waveform seekbar
-- [ ] Independent musical pitch transposition (-12 to +12 semitones) and tempo controls
+### [x] Phase 8: Audiophile & Sound Engine Standouts
+- [x] Per-output-device audio profiles (auto-switch EQ, crossfade, and volume by Bluetooth/Wired/Speaker)
+- [x] Real-time audio visualizer (60 FPS spectrum bars, analog VU meters, fluid wave) & waveform seekbar
+- [x] Independent musical pitch transposition (-12 to +12 semitones) and tempo controls
 
 ### [ ] Phase 9: Library Power-Tools, CUE & Lyrics Studio
 - [ ] In-app tag and artwork editor (ID3v2, Vorbis, MP4) with Android 11+ `MediaStore.createWriteRequest`

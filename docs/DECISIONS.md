@@ -213,3 +213,23 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Decision:** Bound all interactive buttons across `MiniPlayer` and `TrackTile` to `BoxConstraints(minHeight: 64)` and guaranteed 48×48dp touch targets with semantic accessibility labels.
 - **Rationale:** Ensures compliance with WCAG 2.1 AA standards and eliminates `RenderFlex` layout overflow when users activate Android high-contrast and 200% large font scaling.
 
+---
+
+## 11. Phase 8 Architecture Decisions
+
+### ADR 8.1: Per-Output-Device Audio Profiles with Reactive Route Detection
+- **Decision:** Implemented `DeviceProfileService` leveraging `audio_session.devicesChangedEventStream` to dynamically classify output routes (`speaker`, `bluetooth`, `wired`, `usb`) and automatically swap active EQ presets, crossfade duration, and loudness booster levels without requiring manual user intervention. Profiles are stored in the database's `appSettings` JSON kv-store.
+- **Rationale:** Audiophiles and general users require different equalization and audio enhancements depending on listening hardware (e.g., Bass Boost for Bluetooth headphones, Flat EQ for wired studio IEMs, Loudness Enhancement for phone speakers or car Bluetooth).
+
+### ADR 8.2: 60 FPS Audio Visualizer Engine with Zero-CPU Idle Decay & Waveform Scrubber
+- **Decision:** Created `AudioVisualizer` with 3 rendering styles:
+  1. `VisualizerStyle.spectrum`: 16 multi-band bars with responsive physics and floating peak-hold caps.
+  2. `VisualizerStyle.vuMeter`: Dual-channel (L/R) analog needle meters with decibel markings (-20dB to +3dB).
+  3. `VisualizerStyle.fluidWave`: Multi-harmonic bezier particle wave simulation.
+  The visualizer monitors playback state and immediately halts the internal 60 FPS animation ticker when playback is paused or completed, decaying smoothly to zero and consuming 0% idle CPU and battery. In addition, `WaveformScrubber` replaces the traditional flat seek slider with an interactive amplitude-bar custom painter with smooth scrubbing and haptic feedback.
+- **Rationale:** Delivers a tactile, high-end Hi-Fi aesthetic while strictly respecting battery life invariants and avoiding unnecessary draw cycles when idle.
+
+### ADR 8.3: Independent Pitch Transposition via Semitone Multiplier ($2^{S/12}$)
+- **Decision:** Built `PitchCalculator` and integrated independent pitch control into `PlaybackController` and `SonaraAudioHandler` using the mathematical frequency multiplier formula $\text{multiplier} = 2^{S/12}$, allowing users to shift key across $\pm 12$ semitones (full octave up/down) independently of playback tempo ($0.5\times$ to $2.0\times$).
+- **Rationale:** Musician, vocal practice, and pitch training use cases require shifting the key of a song without altering the playback speed, and vice versa.
+

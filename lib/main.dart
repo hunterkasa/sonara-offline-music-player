@@ -18,6 +18,8 @@ import 'core/services/audio_intent_service.dart';
 import 'core/services/widget_service.dart';
 import 'data/db/app_database.dart';
 import 'data/db/database_provider.dart';
+import 'domain/services/audio_settings_service.dart';
+import 'domain/services/device_profile_service.dart';
 import 'domain/services/queue_manager.dart';
 
 Future<void> main() async {
@@ -59,9 +61,17 @@ Future<void> main() async {
 
   SonaraAudioHandler? audioHandler;
   try {
+    final settingsNotifier = AudioSettingsNotifier(database);
+    final profileService = DeviceProfileService(
+      db: database,
+      settingsNotifier: settingsNotifier,
+    );
     audioHandler = await AudioService.init(
-      builder: () =>
-          SonaraAudioHandler(queueManager: queueManager, db: database),
+      builder: () => SonaraAudioHandler(
+        queueManager: queueManager,
+        db: database,
+        deviceProfileService: profileService,
+      ),
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.example.sonara.playback',
         androidNotificationChannelName: 'Sonara Music Playback',

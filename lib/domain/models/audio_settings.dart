@@ -17,6 +17,10 @@ class AudioSettings {
   final double stereoBalance; // -1.0 (Left) to +1.0 (Right), 0.0 (Center)
   final bool monoDownmix;
   final bool longAudioPositionMemory; // resume podcasts/long audio >= 20m
+  final int pitchSemitones; // -12 to +12 musical semitones key transposition
+  final bool deviceProfilesEnabled; // auto-switch profile on audio route change
+  final String? activeDeviceProfileId; // currently active profile ID
+  final String visualizerMode; // 'off', 'spectrum', 'vu', 'fluid'
 
   const AudioSettings({
     this.equalizerEnabled = false,
@@ -33,6 +37,10 @@ class AudioSettings {
     this.stereoBalance = 0.0,
     this.monoDownmix = false,
     this.longAudioPositionMemory = true,
+    this.pitchSemitones = 0,
+    this.deviceProfilesEnabled = true,
+    this.activeDeviceProfileId,
+    this.visualizerMode = 'off',
   });
 
   AudioSettings copyWith({
@@ -50,6 +58,10 @@ class AudioSettings {
     double? stereoBalance,
     bool? monoDownmix,
     bool? longAudioPositionMemory,
+    int? pitchSemitones,
+    bool? deviceProfilesEnabled,
+    String? activeDeviceProfileId,
+    String? visualizerMode,
   }) {
     return AudioSettings(
       equalizerEnabled: equalizerEnabled ?? this.equalizerEnabled,
@@ -68,6 +80,12 @@ class AudioSettings {
       monoDownmix: monoDownmix ?? this.monoDownmix,
       longAudioPositionMemory:
           longAudioPositionMemory ?? this.longAudioPositionMemory,
+      pitchSemitones: pitchSemitones ?? this.pitchSemitones,
+      deviceProfilesEnabled:
+          deviceProfilesEnabled ?? this.deviceProfilesEnabled,
+      activeDeviceProfileId:
+          activeDeviceProfileId ?? this.activeDeviceProfileId,
+      visualizerMode: visualizerMode ?? this.visualizerMode,
     );
   }
 
@@ -87,6 +105,10 @@ class AudioSettings {
       'stereoBalance': stereoBalance,
       'monoDownmix': monoDownmix,
       'longAudioPositionMemory': longAudioPositionMemory,
+      'pitchSemitones': pitchSemitones,
+      'deviceProfilesEnabled': deviceProfilesEnabled,
+      'activeDeviceProfileId': activeDeviceProfileId,
+      'visualizerMode': visualizerMode,
     };
   }
 
@@ -114,6 +136,10 @@ class AudioSettings {
       stereoBalance: (map['stereoBalance'] as num?)?.toDouble() ?? 0.0,
       monoDownmix: map['monoDownmix'] as bool? ?? false,
       longAudioPositionMemory: map['longAudioPositionMemory'] as bool? ?? true,
+      pitchSemitones: map['pitchSemitones'] as int? ?? 0,
+      deviceProfilesEnabled: map['deviceProfilesEnabled'] as bool? ?? true,
+      activeDeviceProfileId: map['activeDeviceProfileId'] as String?,
+      visualizerMode: map['visualizerMode'] as String? ?? 'off',
     );
   }
 

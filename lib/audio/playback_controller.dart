@@ -25,6 +25,7 @@ class PlaybackSnapshot {
     this.shuffleEnabled = false,
     this.repeatMode = 0,
     this.speed = 1.0,
+    this.pitchSemitones = 0,
   });
 
   final String? currentTrackKey;
@@ -37,6 +38,7 @@ class PlaybackSnapshot {
   final bool shuffleEnabled;
   final int repeatMode;
   final double speed;
+  final int pitchSemitones;
 
   bool get isPlaying => state == PlaybackState.playing;
 }
@@ -64,6 +66,7 @@ abstract class PlaybackController {
   Future<void> setShuffle(bool enabled);
   Future<void> setRepeatMode(int mode);
   Future<void> setSpeed(double speed);
+  Future<void> setPitchSemitones(int semitones);
   Future<void> reorderQueue(int oldIndex, int newIndex);
   Future<void> removeFromQueue(int index);
   Future<void> clearQueue();
@@ -172,6 +175,24 @@ class StubPlaybackController implements PlaybackController {
       shuffleEnabled: _snapshot.shuffleEnabled,
       repeatMode: _snapshot.repeatMode,
       speed: speed,
+      pitchSemitones: _snapshot.pitchSemitones,
+    );
+  }
+
+  @override
+  Future<void> setPitchSemitones(int semitones) async {
+    _snapshot = PlaybackSnapshot(
+      currentTrackKey: _snapshot.currentTrackKey,
+      title: _snapshot.title,
+      artist: _snapshot.artist,
+      artworkUri: _snapshot.artworkUri,
+      state: _snapshot.state,
+      position: _snapshot.position,
+      duration: _snapshot.duration,
+      shuffleEnabled: _snapshot.shuffleEnabled,
+      repeatMode: _snapshot.repeatMode,
+      speed: _snapshot.speed,
+      pitchSemitones: semitones,
     );
   }
 
@@ -263,6 +284,7 @@ class RealPlaybackController implements PlaybackController {
       shuffleEnabled: queueState.shuffleEnabled,
       repeatMode: queueState.repeatMode.index,
       speed: state.speed,
+      pitchSemitones: _handler.pitchSemitones,
     );
 
     _snapshotController.add(_currentSnapshot);
@@ -366,6 +388,12 @@ class RealPlaybackController implements PlaybackController {
   @override
   Future<void> setSpeed(double speed) async {
     await _handler.setSpeed(speed);
+  }
+
+  @override
+  Future<void> setPitchSemitones(int semitones) async {
+    await _handler.setPitchSemitones(semitones);
+    _updateSnapshot();
   }
 
   @override

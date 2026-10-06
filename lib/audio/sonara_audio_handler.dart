@@ -6,8 +6,10 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../core/utils/pitch_calculator.dart';
 import '../data/db/app_database.dart';
 import '../domain/models/audio_settings.dart';
+import '../domain/services/device_profile_service.dart';
 import '../domain/services/long_audio_service.dart';
 import '../domain/services/queue_manager.dart';
 import '../domain/services/replay_gain_calculator.dart';
@@ -19,6 +21,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     required this.queueManager,
     this.db,
     this.longAudioService,
+    this.deviceProfileService,
     AudioPlayer? player,
     AndroidEqualizer? equalizer,
     AndroidLoudnessEnhancer? loudnessEnhancer,
@@ -54,11 +57,14 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   final QueueManager queueManager;
   final AppDatabase? db;
   final LongAudioService? longAudioService;
+  final DeviceProfileService? deviceProfileService;
   final AndroidEqualizer? equalizer;
   final AndroidLoudnessEnhancer? loudnessEnhancer;
   final AudioPlayer _player;
 
   AudioSettings _audioSettings = const AudioSettings();
+  int _pitchSemitones = 0;
+  int get pitchSemitones => _pitchSemitones;
   double _currentVolumeMultiplier = 1.0;
   Timer? _persistTimer;
   bool _wasPlayingBeforeInterruption = false;
@@ -106,6 +112,20 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
         // Unplugged / Bluetooth disconnected
         pause();
       });
+
+      session.devicesChangedEventStream.listen((event) async {
+        try {
+          final devices = await session.getDevices();
+          await deviceProfileService?.handleDevicesChanged(devices);
+        } catch (e) {
+          debugPrint('Devices changed listener skipped: $e');
+        }
+      });
+
+      try {
+        final initialDevices = await session.getDevices();
+        await deviceProfileService?.handleDevicesChanged(initialDevices);
+      } catch (_) {}
     } catch (e) {
       debugPrint('AudioSession setup skipped: $e');
     }
@@ -422,6 +442,21 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
 
     // 4. ReplayGain & Volume
     await _updateEffectiveVolume();
+
+    // 5. Musical Pitch Transposition
+    if (settings.pitchSemitones != _pitchSemitones) {
+      await setPitchSemitones(settings.pitchSemitones);
+    }
+  }
+
+  Future<void> setPitchSemitones(int semitones) async {
+    _pitchSemitones = semitones.clamp(-12, 12);
+    final multiplier = PitchCalculator.semitonesToMultiplier(_pitchSemitones);
+    try {
+      await _player.setPitch(multiplier);
+    } catch (e) {
+      debugPrint('Error setting player pitch: $e');
+    }
   }
 
   Future<void> _updateEffectiveVolume() async {

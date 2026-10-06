@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
+import '../models/audio_device_profile.dart';
 import '../models/audio_settings.dart';
 import '../models/equalizer_preset.dart';
 
@@ -13,6 +14,8 @@ class AudioSettingsNotifier extends StateNotifier<AudioSettings> {
   }
 
   static const String _settingsKey = 'audio_settings';
+
+  AudioSettings get currentSettings => state;
 
   Future<void> _loadSettings() async {
     final raw = await db.getSetting(_settingsKey);
@@ -107,6 +110,35 @@ class AudioSettingsNotifier extends StateNotifier<AudioSettings> {
 
   Future<void> setLongAudioPositionMemory(bool enabled) async {
     await _saveSettings(state.copyWith(longAudioPositionMemory: enabled));
+  }
+
+  Future<void> setPitchSemitones(int semitones) async {
+    await _saveSettings(
+      state.copyWith(pitchSemitones: semitones.clamp(-12, 12)),
+    );
+  }
+
+  Future<void> setDeviceProfilesEnabled(bool enabled) async {
+    await _saveSettings(state.copyWith(deviceProfilesEnabled: enabled));
+  }
+
+  Future<void> setVisualizerMode(String mode) async {
+    await _saveSettings(state.copyWith(visualizerMode: mode));
+  }
+
+  Future<void> applyDeviceProfile(AudioDeviceProfile profile) async {
+    await _saveSettings(
+      state.copyWith(
+        activeDeviceProfileId: profile.id,
+        equalizerPreset: profile.equalizerPreset,
+        bandGains: List<double>.from(profile.bandGains),
+        bassBoost: profile.bassBoost,
+        loudnessGain: profile.loudnessGain,
+        crossfadeDurationSeconds: profile.crossfadeSeconds,
+        stereoBalance: profile.stereoBalance,
+        monoDownmix: profile.monoDownmix,
+      ),
+    );
   }
 }
 
