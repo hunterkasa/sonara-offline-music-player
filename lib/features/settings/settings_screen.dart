@@ -283,7 +283,7 @@ class SettingsScreen extends ConsumerWidget {
       case AppThemeMode.system:
         return 'System Default';
       case AppThemeMode.light:
-        return 'Light';
+        return 'Light (White Mode)';
       case AppThemeMode.dark:
         return 'Dark';
       case AppThemeMode.amoled:
@@ -306,10 +306,43 @@ class SettingsScreen extends ConsumerWidget {
               onPressed: () {
                 ref
                     .read(themeModeProvider.notifier)
+                    .setThemeMode(AppThemeMode.light);
+                Navigator.pop(ctx);
+              },
+              child: Row(
+                children: [
+                  const Icon(Icons.light_mode_rounded, size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(child: Text('Light (White Mode)')),
+                  if (current == AppThemeMode.light)
+                    Icon(
+                      Icons.check_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                ],
+              ),
+            ),
+            SimpleDialogOption(
+              onPressed: () {
+                ref
+                    .read(themeModeProvider.notifier)
                     .setThemeMode(AppThemeMode.dark);
                 Navigator.pop(ctx);
               },
-              child: const Text('Dark (Default)'),
+              child: Row(
+                children: [
+                  const Icon(Icons.dark_mode_rounded, size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(child: Text('Dark (Default)')),
+                  if (current == AppThemeMode.dark)
+                    Icon(
+                      Icons.check_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                ],
+              ),
             ),
             SimpleDialogOption(
               onPressed: () {
@@ -318,16 +351,19 @@ class SettingsScreen extends ConsumerWidget {
                     .setThemeMode(AppThemeMode.amoled);
                 Navigator.pop(ctx);
               },
-              child: const Text('AMOLED Dark (Pure Black)'),
-            ),
-            SimpleDialogOption(
-              onPressed: () {
-                ref
-                    .read(themeModeProvider.notifier)
-                    .setThemeMode(AppThemeMode.light);
-                Navigator.pop(ctx);
-              },
-              child: const Text('Light'),
+              child: Row(
+                children: [
+                  const Icon(Icons.contrast_rounded, size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(child: Text('AMOLED Dark (Pure Black)')),
+                  if (current == AppThemeMode.amoled)
+                    Icon(
+                      Icons.check_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                ],
+              ),
             ),
             SimpleDialogOption(
               onPressed: () {
@@ -336,7 +372,19 @@ class SettingsScreen extends ConsumerWidget {
                     .setThemeMode(AppThemeMode.system);
                 Navigator.pop(ctx);
               },
-              child: const Text('System Default'),
+              child: Row(
+                children: [
+                  const Icon(Icons.brightness_auto_rounded, size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(child: Text('System Default')),
+                  if (current == AppThemeMode.system)
+                    Icon(
+                      Icons.check_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                ],
+              ),
             ),
           ],
         );

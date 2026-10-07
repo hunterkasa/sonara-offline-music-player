@@ -54,6 +54,18 @@ void main() {
 
       expect(find.byType(SnackBar), findsWidgets);
 
+      // Open theme selection dialog again and switch to Light (White Mode)
+      await tester.scrollUntilVisible(find.text('Theme Mode'), -100);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Theme Mode'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Light (White Mode)'), findsOneWidget);
+      await tester.tap(find.text('Light (White Mode)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Light (White Mode)'), findsOneWidget);
+
       await inMemoryDb.close();
     },
   );

@@ -35,6 +35,7 @@ class MiniPlayer extends ConsumerWidget {
     final isOled =
         theme.scaffoldBackgroundColor == Colors.black ||
         audioSettings.nowPlayingSkin == NowPlayingSkin.minimalistOled;
+    final isWhite = theme.brightness == Brightness.light && !isOled;
 
     return Semantics(
       label: 'Mini Player: ${snapshot.title} by ${snapshot.artist}',
@@ -71,15 +72,21 @@ class MiniPlayer extends ConsumerWidget {
           decoration: BoxDecoration(
             color: isOled
                 ? const Color(0xFF0D0D0D)
-                : theme.colorScheme.surfaceContainerHigh,
+                : (isWhite
+                      ? Colors.white
+                      : theme.colorScheme.surfaceContainerHigh),
             borderRadius: AppRadii.cardRadius,
             border: isOled
                 ? Border.all(color: Colors.white24, width: 1.0)
-                : null,
+                : (isWhite
+                      ? Border.all(color: const Color(0xFFE0E0E0), width: 1.0)
+                      : null),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isOled ? 0.4 : 0.18),
-                blurRadius: 8,
+                color: Colors.black.withValues(
+                  alpha: isOled ? 0.4 : (isWhite ? 0.08 : 0.18),
+                ),
+                blurRadius: isWhite ? 10 : 8,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -92,7 +99,9 @@ class MiniPlayer extends ConsumerWidget {
               LinearProgressIndicator(
                 value: progressRatio,
                 minHeight: 2.5,
-                backgroundColor: Colors.transparent,
+                backgroundColor: isWhite
+                    ? const Color(0xFFF1F3F5)
+                    : Colors.transparent,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   isOled ? Colors.white : theme.colorScheme.primary,
                 ),

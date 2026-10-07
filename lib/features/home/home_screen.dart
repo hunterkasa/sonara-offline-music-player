@@ -2,6 +2,8 @@ import 'package:drift/drift.dart' as d;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sonara/app/theme/app_theme.dart';
+import 'package:sonara/app/theme/theme_provider.dart';
 import 'package:sonara/app/theme/theme_tokens.dart';
 import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/core/services/haptic_service.dart';
@@ -31,6 +33,7 @@ class HomeScreen extends ConsumerWidget {
     final playback = ref.watch(playbackControllerProvider);
     final haptics = ref.read(hapticServiceProvider);
     final playlistsAsync = ref.watch(allPlaylistsStreamProvider);
+    final currentThemeMode = ref.watch(themeModeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -47,6 +50,19 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(
+            icon: Icon(switch (currentThemeMode) {
+              AppThemeMode.light => Icons.light_mode_rounded,
+              AppThemeMode.dark => Icons.dark_mode_rounded,
+              AppThemeMode.amoled => Icons.contrast_rounded,
+              AppThemeMode.system => Icons.brightness_auto_rounded,
+            }),
+            tooltip: 'Theme: ${_themeModeLabel(currentThemeMode)}',
+            onPressed: () {
+              haptics.selection();
+              _showThemePicker(context, ref, currentThemeMode);
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.auto_awesome_rounded),
             tooltip: 'Sonara Wrapped',
@@ -535,6 +551,128 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  String _themeModeLabel(AppThemeMode mode) {
+    switch (mode) {
+      case AppThemeMode.system:
+        return 'System Default';
+      case AppThemeMode.light:
+        return 'Light (White Mode)';
+      case AppThemeMode.dark:
+        return 'Dark (Default)';
+      case AppThemeMode.amoled:
+        return 'AMOLED Dark (Pure Black)';
+    }
+  }
+
+  void _showThemePicker(
+    BuildContext context,
+    WidgetRef ref,
+    AppThemeMode current,
+  ) {
+    final theme = Theme.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.m),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.l,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: Text(
+                    'Appearance & Theme',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.light_mode_rounded),
+                  title: const Text('Light (White Mode)'),
+                  subtitle: const Text(
+                    'Crisp pure white surfaces & high contrast',
+                  ),
+                  trailing: current == AppThemeMode.light
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(AppThemeMode.light);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.dark_mode_rounded),
+                  title: const Text('Dark (Default)'),
+                  subtitle: const Text('Balanced dark surfaces'),
+                  trailing: current == AppThemeMode.dark
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(AppThemeMode.dark);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.contrast_rounded),
+                  title: const Text('AMOLED Dark (Pure Black)'),
+                  subtitle: const Text(
+                    'True black for OLED displays & battery saving',
+                  ),
+                  trailing: current == AppThemeMode.amoled
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(AppThemeMode.amoled);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.brightness_auto_rounded),
+                  title: const Text('System Default'),
+                  subtitle: const Text('Follows system appearance setting'),
+                  trailing: current == AppThemeMode.system
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(AppThemeMode.system);
+                    Navigator.pop(ctx);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -282,6 +282,9 @@ This log records non-obvious technical choices, architecture invariants, and dep
   5. *Audio Visualizers & Background Playback:* Overhauled `AudioVisualizer` with authentic backlit dual analog VU meters (scale arcs, dB markings, red overload LED), 24-band spectrum with gravity peak caps, and layered fluid harmonic waves. Added `backgroundPlayback` setting with Android lifecycle pause triggers.
 - **Rationale:** Resolves user-reported audio delays, missing visual feedback, navigation inconsistencies, and playlist management limitations while maintaining strict offline invariants.
 
-
-
-
+### ADR 10.7: Pristine High-Contrast White Mode and Dynamic Navigation Adaptation
+- **Decision:**
+  1. *White Mode Theme:* Added pure white `#FFFFFF` theme with neutral grey containers (`#F8F9FA`, `#F1F3F5`, `#E9ECEF`), high-contrast dark typography (`#191C1E`), zero muddy Material 3 surface tints (`surfaceTintColor: Colors.transparent`), and clean `#E8E8E8` dividers.
+  2. *Quick Appearance Selector:* Added a 1-tap Theme selector button on the Home screen AppBar and expanded the Settings Theme dialog to directly switch between Light (White Mode), Dark (Default), AMOLED Dark (Pure Black), and System Default.
+  3. *Navigation & MiniPlayer Dynamic Adaptation:* Configured `AppShell` bottom navigation bar and floating `MiniPlayer` card to dynamically render in pure white with subtle borders and shadows in White Mode, and pitch black with hairline borders in Minimalist OLED mode.
+- **Rationale:** Delivers maximum daytime sunlight readability, high contrast, and clean modern aesthetics alongside the existing battery-saving pure black OLED and dark themes.

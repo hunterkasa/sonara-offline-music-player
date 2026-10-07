@@ -110,12 +110,15 @@ class _AppShellState extends ConsumerState<AppShell>
         themeMode == AppThemeMode.amoled ||
         audioSettings.nowPlayingSkin == NowPlayingSkin.minimalistOled ||
         theme.scaffoldBackgroundColor == Colors.black;
+    final isWhite = theme.brightness == Brightness.light && !isOled;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) => _handlePop(didPop),
       child: Scaffold(
-        backgroundColor: isOled ? Colors.black : theme.scaffoldBackgroundColor,
+        backgroundColor: isOled
+            ? Colors.black
+            : (isWhite ? Colors.white : theme.scaffoldBackgroundColor),
         body: Stack(
           children: [
             Column(
@@ -134,19 +137,33 @@ class _AppShellState extends ConsumerState<AppShell>
           decoration: BoxDecoration(
             color: isOled
                 ? Colors.black
-                : theme.navigationBarTheme.backgroundColor,
+                : (isWhite
+                      ? Colors.white
+                      : theme.navigationBarTheme.backgroundColor),
             border: isOled
                 ? const Border(
                     top: BorderSide(color: Colors.white12, width: 0.8),
                   )
-                : null,
+                : (isWhite
+                      ? const Border(
+                          top: BorderSide(color: Color(0xFFE8E8E8), width: 0.8),
+                        )
+                      : null),
           ),
           child: NavigationBar(
             selectedIndex: currentIndex,
             elevation: 0,
-            backgroundColor: isOled ? Colors.black : null,
+            backgroundColor: isOled
+                ? Colors.black
+                : (isWhite ? Colors.white : null),
             surfaceTintColor: Colors.transparent,
-            indicatorColor: isOled ? Colors.white12 : null,
+            indicatorColor: isOled
+                ? Colors.white12
+                : (isWhite
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.45,
+                        )
+                      : null),
             onDestinationSelected: (index) {
               if (index != currentIndex) {
                 _tabHistory.add(index);
