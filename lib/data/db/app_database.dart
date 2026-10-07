@@ -839,6 +839,20 @@ class AppDatabase extends _$AppDatabase {
     return rows.map((r) => r.readTable(genres).name).toList();
   }
 
+  /// Get a map of track ID to list of genre names for all tracks
+  Future<Map<int, List<String>>> getAllTrackGenresMap() async {
+    final query = select(trackGenres)
+        .join([innerJoin(genres, genres.id.equalsExp(trackGenres.genreId))]);
+    final rows = await query.get();
+    final map = <int, List<String>>{};
+    for (final r in rows) {
+      final trackId = r.readTable(trackGenres).trackId;
+      final genreName = r.readTable(genres).name;
+      map.putIfAbsent(trackId, () => []).add(genreName);
+    }
+    return map;
+  }
+
   /// Updates track metadata across tracks, artists, albums, and FTS5 index
   Future<void> updateTrackMetadata({
     required String trackKey,

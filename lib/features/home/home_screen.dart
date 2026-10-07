@@ -9,10 +9,13 @@ import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/core/services/haptic_service.dart';
 import 'package:sonara/data/db/app_database.dart';
 import 'package:sonara/data/db/database_provider.dart';
+import 'package:sonara/domain/services/daily_mix_service.dart';
 import 'package:sonara/domain/services/library_scanner.dart';
 import 'package:sonara/domain/services/playlist_service.dart';
 import 'package:sonara/shared/artwork/sonara_brand_logo.dart';
+import 'package:sonara/shared/cards/daily_mix_card.dart';
 import 'package:sonara/shared/cards/media_card.dart';
+import 'package:sonara/shared/cards/todays_pick_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -34,6 +37,8 @@ class HomeScreen extends ConsumerWidget {
     final haptics = ref.read(hapticServiceProvider);
     final playlistsAsync = ref.watch(allPlaylistsStreamProvider);
     final currentThemeMode = ref.watch(themeModeProvider);
+    final todaysPickAsync = ref.watch(todaysPickProvider);
+    final dailyMixesAsync = ref.watch(dailyMixesStreamProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -209,6 +214,55 @@ class HomeScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.l),
+
+          // Today's Pick Section
+          todaysPickAsync.when(
+            data: (pick) {
+              if (pick == null) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TodaysPickCard(pick: pick),
+                  const SizedBox(height: AppSpacing.l),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+          ),
+
+          // Daily Mixes Shelf (Spotify-style)
+          dailyMixesAsync.when(
+            data: (mixes) {
+              if (mixes.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildShelfHeader(
+                    context,
+                    'Your Daily Mixes',
+                    subtitle: 'Tuned to your tastes, updated daily',
+                  ),
+                  const SizedBox(height: AppSpacing.s),
+                  SizedBox(
+                    height: 220.0,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: mixes.length,
+                      separatorBuilder: (_, index) =>
+                          const SizedBox(width: AppSpacing.xs),
+                      itemBuilder: (context, index) {
+                        return DailyMixCard(mix: mixes[index]);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.l),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+          ),
 
           // Jump back in (Albums Shelf)
           _buildShelfHeader(context, 'Jump Back In'),
@@ -469,11 +523,38 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildShelfHeader(BuildContext context, String title) {
+  Widget _buildShelfHeader(
+    BuildContext context,
+    String title, {
+    String? subtitle,
+  }) {
     final theme = Theme.of(context);
-    return Text(
-      title,
-      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    final colorScheme = theme.colorScheme;
+    if (subtitle == null) {
+      return Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 2.0),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 

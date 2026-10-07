@@ -4,11 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sonara/data/db/app_database.dart';
 import 'package:sonara/data/db/database_provider.dart';
-import 'package:sonara/domain/services/smart_playlist_engine.dart';
+
+import 'daily_mix_service.dart';
+import 'smart_playlist_engine.dart';
 
 final playlistServiceProvider = Provider<PlaylistService>((ref) {
   final db = ref.watch(databaseProvider);
-  return PlaylistService(db);
+  final dailyMix = ref.watch(dailyMixServiceProvider);
+  return PlaylistService(db, dailyMix);
 });
 
 final allPlaylistsStreamProvider = StreamProvider<List<Playlist>>((ref) {
@@ -34,12 +37,13 @@ final playlistStreamProvider = StreamProvider.family<Playlist?, int>((
 
 class PlaylistService {
   final AppDatabase _db;
+  final DailyMixService? _dailyMixService;
 
-  PlaylistService(this._db);
+  PlaylistService(this._db, [this._dailyMixService]);
 
   Stream<List<Playlist>> watchPlaylists() => _db.watchAllPlaylists();
 
-  Future<Playlist?> getPlaylist(int id) {
+  Future<Playlist?> getPlaylist(int id) async {
     if (id == -1) {
       return Future.value(
         Playlist(
@@ -74,6 +78,30 @@ class PlaylistService {
           createdAt: DateTime.now().millisecondsSinceEpoch,
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ),
+      );
+    }
+    if (id <= -101 && id >= -110) {
+      if (_dailyMixService != null) {
+        final mix = await _dailyMixService.getDailyMixById(id);
+        if (mix != null) {
+          return Playlist(
+            id: mix.id,
+            name: mix.title,
+            description: mix.description,
+            isSmart: true,
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          );
+        }
+      }
+      final index = (-id) - 100;
+      return Playlist(
+        id: id,
+        name: 'Daily Mix $index',
+        description: 'Personalized mix for you',
+        isSmart: true,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
     }
     return _db.getPlaylist(id);
@@ -116,6 +144,31 @@ class PlaylistService {
         ),
       );
     }
+    if (id <= -101 && id >= -110) {
+      if (_dailyMixService != null) {
+        return _dailyMixService.watchDailyMixById(id).map((mix) {
+          if (mix == null) {
+            final index = (-id) - 100;
+            return Playlist(
+              id: id,
+              name: 'Daily Mix $index',
+              description: 'Personalized mix for you',
+              isSmart: true,
+              createdAt: DateTime.now().millisecondsSinceEpoch,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            );
+          }
+          return Playlist(
+            id: mix.id,
+            name: mix.title,
+            description: mix.description,
+            isSmart: true,
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          );
+        });
+      }
+    }
     return _db.watchPlaylist(id);
   }
 
@@ -131,6 +184,12 @@ class PlaylistService {
     if (playlistId == -3) {
       yield* _db.watchTopTracks(limit: 50);
       return;
+    }
+    if (playlistId <= -101 && playlistId >= -110) {
+      if (_dailyMixService != null) {
+        yield* _dailyMixService.watchDailyMixTracks(playlistId);
+        return;
+      }
     }
 
     final playlist = await _db.getPlaylist(playlistId);
@@ -162,6 +221,12 @@ class PlaylistService {
     if (playlistId == -3) {
       final top = await _db.watchTopTracks(limit: 50).first;
       return top.map((t) => t.trackKey).toList();
+    }
+    if (playlistId <= -101 && playlistId >= -110) {
+      if (_dailyMixService != null) {
+        final tracks = await _dailyMixService.getDailyMixTracks(playlistId);
+        return tracks.map((t) => t.trackKey).toList();
+      }
     }
     final playlist = await _db.getPlaylist(playlistId);
     if (playlist != null && playlist.isSmart && playlist.rulesJson != null) {

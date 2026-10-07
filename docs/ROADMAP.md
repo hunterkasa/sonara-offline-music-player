@@ -113,6 +113,8 @@ Status legend:
 ### [x] Phase 10: Smart Listening, Offline Wrapped & Ecosystem
 - [x] 100% offline "Wrapped" recap with shareable local Canvas image cards
 - [x] Offline "Track Radio" (metadata & acoustic clustering smart queue)
+- [x] Offline "Today's Pick" daily spotlight & similarity radio queue
+- [x] Spotify-style "Daily Mix" playlists (1–6 personalized mixes clustered by genre/artist with vibrant gradient covers & virtual playlist integration)
 - [x] Smart sleep gestures (shake-to-extend, flip-to-pause)
 - [x] Custom Now Playing skins (spinning vinyl, retro cassette, minimalist OLED)
 - [x] Android Auto dashboard integration (`MediaBrowserServiceCompat`)

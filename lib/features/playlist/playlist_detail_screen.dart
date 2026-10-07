@@ -8,6 +8,7 @@ import 'package:sonara/app/theme/theme_tokens.dart';
 import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/core/services/haptic_service.dart';
 import 'package:sonara/data/db/app_database.dart';
+import 'package:sonara/domain/services/daily_mix_service.dart';
 import 'package:sonara/domain/services/m3u_service.dart';
 import 'package:sonara/domain/services/playlist_service.dart';
 import 'package:sonara/features/playlist/playlist_track_picker_sheet.dart';
@@ -53,6 +54,12 @@ class PlaylistDetailScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isLikedSongs = playlistId == -1;
+    final isDailyMix = playlistId <= -101 && playlistId >= -110;
+    final mixIndex = isDailyMix ? ((-playlistId) - 101) : 0;
+    final mixGradient = isDailyMix
+        ? DailyMixService.mixGradients[mixIndex %
+              DailyMixService.mixGradients.length]
+        : null;
 
     final playlistAsync = ref.watch(playlistStreamProvider(playlistId));
     final tracksAsync = ref.watch(playlistTracksStreamProvider(playlistId));
@@ -68,7 +75,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
         body: Center(child: Text('Error: $err')),
       ),
       data: (playlist) {
-        if (playlist == null && !isLikedSongs) {
+        if (playlist == null && !isLikedSongs && !isDailyMix) {
           return Scaffold(
             appBar: AppBar(),
             body: const Center(child: Text('Playlist not found')),
@@ -78,7 +85,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
         final title = isLikedSongs
             ? 'Liked Songs'
             : (playlist?.name ?? 'Playlist');
-        final isSmart = isLikedSongs || (playlist?.isSmart ?? false);
+        final isSmart =
+            isLikedSongs || isDailyMix || (playlist?.isSmart ?? false);
         final tracks = tracksAsync.value ?? [];
 
         return Scaffold(
@@ -99,7 +107,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
                         _openTrackPicker(context, playlistId, tracks);
                       },
                     ),
-                  if (!isLikedSongs && playlist != null) ...[
+                  if (!isLikedSongs &&
+                      !isDailyMix &&
+                      playlist != null &&
+                      playlist.id > 0) ...[
                     IconButton(
                       icon: const Icon(Icons.file_upload_outlined),
                       tooltip: 'Export to M3U8',
@@ -184,6 +195,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                   ? Colors.purple.shade900.withValues(
                                       alpha: 0.6,
                                     )
+                                  : isDailyMix
+                                  ? mixGradient!.$1.withValues(alpha: 0.7)
                                   : colorScheme.primaryContainer.withValues(
                                       alpha: 0.6,
                                     ),
@@ -201,7 +214,16 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             decoration: BoxDecoration(
                               color: isLikedSongs
                                   ? Colors.purple.shade600
+                                  : isDailyMix
+                                  ? mixGradient!.$1
                                   : colorScheme.surfaceContainerHighest,
+                              gradient: isDailyMix
+                                  ? LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [mixGradient!.$1, mixGradient.$2],
+                                    )
+                                  : null,
                               borderRadius: AppRadii.cardRadius,
                               boxShadow: [
                                 BoxShadow(
@@ -211,17 +233,56 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              isLikedSongs
-                                  ? Icons.favorite_rounded
-                                  : (isSmart
-                                        ? Icons.auto_awesome_rounded
-                                        : Icons.queue_music_rounded),
-                              size: 54,
-                              color: isLikedSongs
-                                  ? Colors.white
-                                  : colorScheme.primary,
-                            ),
+                            child: isDailyMix
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'DAILY',
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.8,
+                                              ),
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 2.0,
+                                              fontSize: 10,
+                                            ),
+                                      ),
+                                      Text(
+                                        '${mixIndex + 1}',
+                                        style: theme.textTheme.displayMedium
+                                            ?.copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900,
+                                              height: 1.0,
+                                            ),
+                                      ),
+                                      Text(
+                                        'MIX',
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.8,
+                                              ),
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 2.0,
+                                              fontSize: 10,
+                                            ),
+                                      ),
+                                    ],
+                                  )
+                                : Icon(
+                                    isLikedSongs
+                                        ? Icons.favorite_rounded
+                                        : (isSmart
+                                              ? Icons.auto_awesome_rounded
+                                              : Icons.queue_music_rounded),
+                                    size: 54,
+                                    color: isLikedSongs
+                                        ? Colors.white
+                                        : colorScheme.primary,
+                                  ),
                           ),
                         ),
                       ),
@@ -249,7 +310,28 @@ class PlaylistDetailScreen extends ConsumerWidget {
                               color: colorScheme.onSurfaceVariant,
                             ),
                           ),
-                          if (isSmart && !isLikedSongs)
+                          if (isDailyMix)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [mixGradient!.$1, mixGradient.$2],
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'DAILY MIX',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            )
+                          else if (isSmart && !isLikedSongs)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -270,6 +352,16 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             ),
                         ],
                       ),
+                      if (playlist?.description != null &&
+                          playlist!.description!.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          playlist.description!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.s),
                       Row(
                         children: [
