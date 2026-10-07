@@ -311,6 +311,57 @@ class AppDatabase extends _$AppDatabase {
     return rows.map((r) => r.trackKey).toList();
   }
 
+  /// Get tracks for a playlist
+  Future<List<Track>> getPlaylistTracks(int playlistId) async {
+    final query =
+        select(playlistTracks).join([
+            innerJoin(
+              tracks,
+              tracks.trackKey.equalsExp(playlistTracks.trackKey),
+            ),
+          ])
+          ..where(playlistTracks.playlistId.equals(playlistId))
+          ..orderBy([OrderingTerm.asc(playlistTracks.position)]);
+    final rows = await query.get();
+    return rows.map((r) => r.readTable(tracks)).toList();
+  }
+
+  /// Get tracks for an album
+  Future<List<Track>> getTracksForAlbum(int albumId) async {
+    return (select(tracks)
+          ..where((t) => t.albumId.equals(albumId) & t.isHidden.equals(false))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.trackNo),
+            (t) => OrderingTerm.asc(t.title),
+          ]))
+        .get();
+  }
+
+  /// Get tracks for an artist
+  Future<List<Track>> getTracksForArtist(int artistId) async {
+    return (select(tracks)
+          ..where((t) => t.artistId.equals(artistId) & t.isHidden.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.title)]))
+        .get();
+  }
+
+  /// Get liked tracks
+  Future<List<Track>> getLikedTracks() async {
+    return (select(tracks)
+          ..where((t) => t.isFavorite.equals(true) & t.isHidden.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.dateAdded)]))
+        .get();
+  }
+
+  /// Get recently played tracks
+  Future<List<Track>> getRecentlyPlayedTracks({int limit = 25}) async {
+    return (select(tracks)
+          ..where((t) => t.lastPlayedAt.isNotNull() & t.isHidden.equals(false))
+          ..orderBy([(t) => OrderingTerm.desc(t.lastPlayedAt)])
+          ..limit(limit))
+        .get();
+  }
+
   /// Add tracks to a playlist
   Future<void> addTracksToPlaylist(
     int playlistId,
@@ -471,6 +522,21 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  /// Get all play history items within an optional epoch timestamp range
+  Future<List<PlayHistoryData>> getPlayHistoryInRange({
+    int? startEpochSeconds,
+    int? endEpochSeconds,
+  }) {
+    final query = select(playHistory);
+    if (startEpochSeconds != null) {
+      query.where((ph) => ph.startedAt.isBiggerOrEqualValue(startEpochSeconds));
+    }
+    if (endEpochSeconds != null) {
+      query.where((ph) => ph.startedAt.isSmallerOrEqualValue(endEpochSeconds));
+    }
+    return (query..orderBy([(ph) => OrderingTerm.desc(ph.startedAt)])).get();
+  }
+
   /// Watch recently played tracks
   Stream<List<Track>> watchRecentlyPlayedTracks({int limit = 20}) {
     return (select(tracks)
@@ -519,6 +585,20 @@ class AppDatabase extends _$AppDatabase {
           ..where((a) => a.nameSort.like(pattern))
           ..limit(limit))
         .get();
+  }
+
+  /// Get all artists
+  Future<List<Artist>> getAllArtists() {
+    return (select(
+      artists,
+    )..orderBy([(a) => OrderingTerm.asc(a.nameSort)])).get();
+  }
+
+  /// Get all albums
+  Future<List<Album>> getAllAlbums() {
+    return (select(
+      albums,
+    )..orderBy([(a) => OrderingTerm.asc(a.titleSort)])).get();
   }
 
   /// Search playlists by query string

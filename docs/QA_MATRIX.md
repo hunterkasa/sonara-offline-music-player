@@ -50,15 +50,21 @@ This document provides a comprehensive traceability matrix connecting all P0 and
 | **TAG-01**  | Tag Editor | In-place ID3v2 & Vorbis comment editing with Scoped Storage approval | Tag writer & editor tests | `test/unit/tag_writer_test.dart`, `test/widget/tag_editor_test.dart` | **VERIFIED** |
 | **CUE-01**  | CUE Sheet | 75fps frame-accurate CUE parser & ClippingAudioSource virtual tracks | CUE parser & database import tests | `test/unit/cue_parser_test.dart`, `test/unit/cue_database_import_test.dart` | **VERIFIED** |
 | **LRC-01**  | Lyrics Studio | Interactive tap-to-stamp timestamp recorder & RFC LRC export | LRC builder & Lyrics editor tests | `test/unit/lrc_builder_test.dart`, `test/widget/lyrics_editor_test.dart` | **VERIFIED** |
+| **WRAP-01** | Offline Wrapped | 100% offline recap cards & RenderRepaintBoundary shareable image export | Wrapped service & screen tests | `test/unit/wrapped_service_test.dart`, `test/widget/wrapped_screen_test.dart` | **VERIFIED** |
+| **RADIO-01**| Track Radio | Multi-factor metadata & acoustic similarity queue generator | Track radio service test | `test/unit/track_radio_service_test.dart` | **VERIFIED** |
+| **GEST-01** | Smart Gestures | Shake-to-extend (+15m) & flip-to-pause with zero idle accelerometer drain | Gesture sensor service test | `test/unit/gesture_sensor_service_test.dart` | **VERIFIED** |
+| **SKIN-01** | Player Skins | Tactile Now Playing skins (Vinyl Turntable, Retro 90s Cassette, Minimalist OLED) | Now playing skins widget test | `test/widget/now_playing_skins_test.dart` | **VERIFIED** |
+| **AUTO-01** | Android Auto | MediaBrowserServiceCompat car dashboard browsing hierarchy | Android Auto tree unit test | `test/unit/android_auto_tree_test.dart` | **VERIFIED** |
+| **WIDG-01** | Android Widgets | Multi-form-factor home screen widgets (2×1 pill, 4×1 standard, 4×2 large) | Widget providers & layout XML | `android/app/src/main/kotlin/.../widget/` | **VERIFIED** |
 
 ---
 
 ## 2. Test Execution Summary
 
-- **Total Unit & Widget Tests Executed:** 204
+- **Total Unit & Widget Tests Executed:** 223
 - **Test Pass Rate:** 100% (0 failures, 0 errors, 0 skipped)
 - **Static Analysis:** `flutter analyze` 0 warnings, 0 errors, 0 infos.
-- **Code Formatting:** `dart format` 100% compliant across 145 project files.
+- **Code Formatting:** `dart format` 100% compliant across 159 project files.
 - **Binary Footprint:**
   - `app-arm64-v8a-release.apk`: **23.0 MB** (<30MB limit)
   - `app-armeabi-v7a-release.apk`: **20.7 MB** (<30MB limit)

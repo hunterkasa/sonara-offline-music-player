@@ -2,6 +2,13 @@ import 'dart:convert';
 
 enum ReplayGainMode { off, track, album, smart }
 
+enum NowPlayingSkin {
+  defaultModern,
+  spinningVinyl,
+  retroCassette,
+  minimalistOled,
+}
+
 class AudioSettings {
   final bool equalizerEnabled;
   final String equalizerPreset;
@@ -21,6 +28,7 @@ class AudioSettings {
   final bool deviceProfilesEnabled; // auto-switch profile on audio route change
   final String? activeDeviceProfileId; // currently active profile ID
   final String visualizerMode; // 'off', 'spectrum', 'vu', 'fluid'
+  final NowPlayingSkin nowPlayingSkin;
 
   const AudioSettings({
     this.equalizerEnabled = false,
@@ -41,6 +49,7 @@ class AudioSettings {
     this.deviceProfilesEnabled = true,
     this.activeDeviceProfileId,
     this.visualizerMode = 'off',
+    this.nowPlayingSkin = NowPlayingSkin.defaultModern,
   });
 
   AudioSettings copyWith({
@@ -62,6 +71,7 @@ class AudioSettings {
     bool? deviceProfilesEnabled,
     String? activeDeviceProfileId,
     String? visualizerMode,
+    NowPlayingSkin? nowPlayingSkin,
   }) {
     return AudioSettings(
       equalizerEnabled: equalizerEnabled ?? this.equalizerEnabled,
@@ -86,6 +96,7 @@ class AudioSettings {
       activeDeviceProfileId:
           activeDeviceProfileId ?? this.activeDeviceProfileId,
       visualizerMode: visualizerMode ?? this.visualizerMode,
+      nowPlayingSkin: nowPlayingSkin ?? this.nowPlayingSkin,
     );
   }
 
@@ -109,6 +120,7 @@ class AudioSettings {
       'deviceProfilesEnabled': deviceProfilesEnabled,
       'activeDeviceProfileId': activeDeviceProfileId,
       'visualizerMode': visualizerMode,
+      'nowPlayingSkin': nowPlayingSkin.name,
     };
   }
 
@@ -140,6 +152,10 @@ class AudioSettings {
       deviceProfilesEnabled: map['deviceProfilesEnabled'] as bool? ?? true,
       activeDeviceProfileId: map['activeDeviceProfileId'] as String?,
       visualizerMode: map['visualizerMode'] as String? ?? 'off',
+      nowPlayingSkin: NowPlayingSkin.values.firstWhere(
+        (e) => e.name == map['nowPlayingSkin'],
+        orElse: () => NowPlayingSkin.defaultModern,
+      ),
     );
   }
 

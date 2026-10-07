@@ -50,7 +50,12 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- Home Screen Widget Provider -->
+        <!-- Android Auto Application Metadata -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+        <!-- Home Screen Widget Providers (Standard, Pill, Large) -->
         <receiver
             android:name=".SonaraWidgetProvider"
             android:exported="true">
@@ -63,6 +68,32 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/sonara_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".SonaraPillWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.sonara.widget.PLAY_PAUSE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sonara_widget_pill_info" />
+        </receiver>
+
+        <receiver
+            android:name=".SonaraLargeWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.sonara.widget.PLAY_PAUSE" />
+                <action android:name="com.example.sonara.widget.NEXT" />
+                <action android:name="com.example.sonara.widget.PREV" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sonara_widget_large_info" />
         </receiver>
 
         <service android:name="com.ryanheise.audioservice.AudioService"

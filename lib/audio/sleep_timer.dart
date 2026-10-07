@@ -50,6 +50,12 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
   StreamSubscription<dynamic>? _trackEndSubscription;
   String? _initialTrackKey;
 
+  /// Returns whether the sleep timer is currently running.
+  bool get isActive => state.isActive;
+
+  /// Returns the current state of the sleep timer.
+  SleepTimerState get currentState => state;
+
   /// Starts a duration-based timer with gentle fade-out in the last 20 seconds.
   void startTimer(Duration duration) {
     cancelTimer();

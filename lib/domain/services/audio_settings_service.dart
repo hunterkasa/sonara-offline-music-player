@@ -126,6 +126,10 @@ class AudioSettingsNotifier extends StateNotifier<AudioSettings> {
     await _saveSettings(state.copyWith(visualizerMode: mode));
   }
 
+  Future<void> setNowPlayingSkin(NowPlayingSkin skin) async {
+    await _saveSettings(state.copyWith(nowPlayingSkin: skin));
+  }
+
   Future<void> applyDeviceProfile(AudioDeviceProfile profile) async {
     await _saveSettings(
       state.copyWith(

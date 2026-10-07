@@ -15,6 +15,7 @@ import '../../features/onboarding/permission_screen.dart';
 import '../../features/playlist/playlist_detail_screen.dart';
 import '../../features/search/search_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/wrapped/wrapped_screen.dart';
 import '../shell/app_shell.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -137,6 +138,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/storage-inspector',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const StorageInspectorScreen(),
+      ),
+      GoRoute(
+        path: '/wrapped',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const WrappedScreen(),
       ),
     ],
   );

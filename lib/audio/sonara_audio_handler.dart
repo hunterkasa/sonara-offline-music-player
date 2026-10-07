@@ -622,6 +622,224 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  // ==========================================
+  // ANDROID AUTO & MEDIABROWSERSERVICE SUPPORT
+  // ==========================================
+
+  @override
+  Future<List<MediaItem>> getChildren(
+    String parentMediaId, [
+    Map<String, dynamic>? options,
+  ]) async {
+    final database = db;
+    if (database == null) return [];
+
+    if (parentMediaId == AudioService.browsableRootId ||
+        parentMediaId == 'root') {
+      return const [
+        MediaItem(id: 'root_playlists', title: 'Playlists', playable: false),
+        MediaItem(id: 'root_liked', title: 'Liked Songs', playable: false),
+        MediaItem(id: 'root_artists', title: 'Artists', playable: false),
+        MediaItem(id: 'root_albums', title: 'Albums', playable: false),
+        MediaItem(
+          id: 'root_recents',
+          title: 'Recently Played',
+          playable: false,
+        ),
+      ];
+    }
+
+    if (parentMediaId == 'root_playlists') {
+      final playlists = await database.getAllPlaylists();
+      return playlists
+          .map(
+            (p) => MediaItem(
+              id: 'playlist_${p.id}',
+              title: p.name,
+              playable: false,
+            ),
+          )
+          .toList();
+    }
+
+    if (parentMediaId.startsWith('playlist_')) {
+      final id = int.tryParse(parentMediaId.replaceFirst('playlist_', ''));
+      if (id != null) {
+        final tracks = await database.getPlaylistTracks(id);
+        return _tracksToMediaItems(tracks);
+      }
+    }
+
+    if (parentMediaId == 'root_liked') {
+      final tracks = await database.getLikedTracks();
+      return _tracksToMediaItems(tracks);
+    }
+
+    if (parentMediaId == 'root_artists') {
+      final artists = await database.getAllArtists();
+      return artists
+          .map(
+            (a) =>
+                MediaItem(id: 'artist_${a.id}', title: a.name, playable: false),
+          )
+          .toList();
+    }
+
+    if (parentMediaId.startsWith('artist_')) {
+      final id = int.tryParse(parentMediaId.replaceFirst('artist_', ''));
+      if (id != null) {
+        final tracks = await database.getTracksForArtist(id);
+        return _tracksToMediaItems(tracks);
+      }
+    }
+
+    if (parentMediaId == 'root_albums') {
+      final albums = await database.getAllAlbums();
+      return albums
+          .map(
+            (alb) => MediaItem(
+              id: 'album_${alb.id}',
+              title: alb.title,
+              playable: false,
+            ),
+          )
+          .toList();
+    }
+
+    if (parentMediaId.startsWith('album_')) {
+      final id = int.tryParse(parentMediaId.replaceFirst('album_', ''));
+      if (id != null) {
+        final tracks = await database.getTracksForAlbum(id);
+        return _tracksToMediaItems(tracks);
+      }
+    }
+
+    if (parentMediaId == 'root_recents') {
+      final tracks = await database.getRecentlyPlayedTracks();
+      return _tracksToMediaItems(tracks);
+    }
+
+    return [];
+  }
+
+  Future<MediaItem?> getItem(String mediaId) async {
+    final database = db;
+    if (database == null) return null;
+    final track = await database.getTrackByKey(mediaId);
+    if (track == null) return null;
+    final artistName = await database.getArtistName(track.artistId);
+    final albumTitle = await database.getAlbumTitle(track.albumId);
+    return _trackToMediaItem(track, artistName, albumTitle);
+  }
+
+  @override
+  Future<void> playFromMediaId(
+    String mediaId, [
+    Map<String, dynamic>? extras,
+  ]) async {
+    final database = db;
+    if (database == null) return;
+
+    if (mediaId.startsWith('playlist_')) {
+      final id = int.tryParse(mediaId.replaceFirst('playlist_', ''));
+      if (id != null) {
+        final tracks = await database.getPlaylistTracks(id);
+        if (tracks.isNotEmpty) {
+          await playQueue(tracks);
+        }
+      }
+      return;
+    }
+
+    if (mediaId.startsWith('artist_')) {
+      final id = int.tryParse(mediaId.replaceFirst('artist_', ''));
+      if (id != null) {
+        final tracks = await database.getTracksForArtist(id);
+        if (tracks.isNotEmpty) {
+          await playQueue(tracks);
+        }
+      }
+      return;
+    }
+
+    if (mediaId.startsWith('album_')) {
+      final id = int.tryParse(mediaId.replaceFirst('album_', ''));
+      if (id != null) {
+        final tracks = await database.getTracksForAlbum(id);
+        if (tracks.isNotEmpty) {
+          await playQueue(tracks);
+        }
+      }
+      return;
+    }
+
+    if (mediaId == 'root_liked') {
+      final tracks = await database.getLikedTracks();
+      if (tracks.isNotEmpty) {
+        await playQueue(tracks);
+      }
+      return;
+    }
+
+    // Play specific track
+    final track = await database.getTrackByKey(mediaId);
+    if (track != null) {
+      final allTracks = await database.getAllTracks();
+      final idx = allTracks.indexWhere((t) => t.trackKey == track.trackKey);
+      if (idx >= 0) {
+        await playQueue(allTracks, initialIndex: idx);
+      } else {
+        await playTrack(track);
+      }
+    }
+  }
+
+  @override
+  Future<List<MediaItem>> search(
+    String query, [
+    Map<String, dynamic>? extras,
+  ]) async {
+    final database = db;
+    if (database == null) return [];
+    final results = await database.searchTracksFts(query);
+    return _tracksToMediaItems(results);
+  }
+
+  Future<List<MediaItem>> _tracksToMediaItems(List<Track> tracks) async {
+    final database = db;
+    final items = <MediaItem>[];
+    for (final t in tracks) {
+      final artistName = database != null
+          ? await database.getArtistName(t.artistId)
+          : null;
+      final albumTitle = database != null
+          ? await database.getAlbumTitle(t.albumId)
+          : null;
+      items.add(_trackToMediaItem(t, artistName, albumTitle));
+    }
+    return items;
+  }
+
+  MediaItem _trackToMediaItem(
+    Track t, [
+    String? artistName,
+    String? albumTitle,
+  ]) {
+    return MediaItem(
+      id: t.trackKey,
+      title: t.title,
+      artist: artistName ?? 'Unknown Artist',
+      album: albumTitle ?? 'Unknown Album',
+      duration: Duration(milliseconds: t.durationMs),
+      artUri: t.artworkKey != null
+          ? Uri.parse(
+              'content://media/external/audio/albumart/${t.albumId ?? 0}',
+            )
+          : null,
+      playable: true,
+    );
+  }
+
   Future<void> dispose() async {
     _persistTimer?.cancel();
     await _player.dispose();

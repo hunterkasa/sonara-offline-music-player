@@ -7,6 +7,7 @@ import '../../audio/playback_controller.dart';
 import '../../core/services/haptic_service.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
+import '../../domain/services/track_radio_service.dart';
 import '../../features/lyrics/lyrics_editor_sheet.dart';
 import '../../features/playlist/add_to_playlist_sheet.dart';
 import '../../features/tag_editor/tag_editor_sheet.dart';
@@ -94,6 +95,27 @@ class TrackContextSheet extends ConsumerWidget {
           ),
           const Divider(height: 1),
 
+          ListTile(
+            leading: const Icon(Icons.radio_rounded, color: Colors.amber),
+            title: const Text('Start Track Radio'),
+            subtitle: const Text('Queue similar genres, era & artist tracks'),
+            onTap: () async {
+              haptics.medium();
+              Navigator.of(context).pop();
+              final radioService = ref.read(trackRadioServiceProvider);
+              final radioQueue = await radioService.startRadio(track);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Started Radio for "${track.title}" (${radioQueue.length} tracks)',
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.playlist_play_rounded),
             title: const Text('Play Next'),

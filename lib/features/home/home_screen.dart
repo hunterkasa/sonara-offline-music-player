@@ -41,6 +41,14 @@ class HomeScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.auto_awesome_rounded),
+            tooltip: 'Sonara Wrapped',
+            onPressed: () {
+              haptics.selection();
+              context.push('/wrapped');
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.sync_rounded),
             tooltip: 'Rescan Library',
             onPressed: () {

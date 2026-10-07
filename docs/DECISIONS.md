@@ -249,4 +249,29 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Decision:** Implemented `LyricsEditorSheet` and `LrcBuilder` enabling interactive lyrics synchronization. Users can play or pause audio at 0.75x slow-mo, navigate lines, and tap the tactile `STAMP` button to mark millisecond timestamps on the fly, with fine-grained $\pm 100\text{ms}$ adjustment buttons and sidecar `.lrc` file export.
 - **Rationale:** Allows offline music listeners to produce and curate synchronized lyrics for songs lacking timestamped metadata directly on device without needing external desktop utilities or internet access.
 
+---
+
+## 13. Phase 10 Architecture Decisions
+
+### ADR 10.1: 100% Offline "Wrapped" Recap with Local Canvas Card Export
+- **Decision:** Built `WrappedService` and `WrappedScreen` to compute comprehensive listening recaps (Top Tracks, Top Artists, Genre Breakdown, Peak Listening Hour, Listener Persona, and Skip Rate) exclusively from local Drift SQLite playback statistics. Shareable graphic story cards are rendered natively using Flutter widgets and exported directly to PNG via `RenderRepaintBoundary.toImage()` and Android `ACTION_SEND` without sending telemetry or data packets over the network.
+- **Rationale:** Brings the viral, engaging "Yearly / Monthly Wrapped" experience to offline, privacy-conscious local music collections with guaranteed zero external cloud dependencies.
+
+### ADR 10.2: Multi-Factor Acoustic & Metadata Track Radio Clustering
+- **Decision:** Built `TrackRadioService` which dynamically constructs a smart queue from a seed track using multi-factor scoring: Genre matching (40%), Era/Decade proximity (25%), Artist or Album affiliation (20%), and Duration similarity (15%). Selected candidates are sampled using a randomized temperature factor to ensure natural, cohesive playlists with high replay value.
+- **Rationale:** Delivers instant streaming-style "Radio" autoplay queues purely from offline ID3 tag metadata and acoustic attributes without machine-learning model bloat.
+
+### ADR 10.3: Zero-Battery-Overhead Smart Sleep Gestures (Shake & Flip)
+- **Decision:** Created native Android accelerometer event streaming in `MainActivity.kt` mapped to `GestureSensorService`. To preserve battery life and prevent phantom wake locks, the native sensor listener is registered strictly during the active sleep timer fadeout window or when armed in `SleepTimerSheet`, and immediately unregistered upon timer expiration or cancellation. Shake gestures extend sleep time (+15m) and flip-to-pause stops audio when placed face-down.
+- **Rationale:** Ensures effortless bedside interaction in the dark while eliminating idle sensor polling and background battery drain.
+
+### ADR 10.4: Custom Tactile Now Playing Skins with Dynamic Theme Adaptation
+- **Decision:** Implemented `NowPlayingSkin` supporting 4 distinct player interfaces: `defaultModern`, `spinningVinyl` (turntable with animated tone arm and grooved record), `retroCassette` (90s tape deck with spinning spools, tape counter, and vintage labeling), and `minimalistOled` (true `#000000` pitch black with high-contrast battery saving typography).
+- **Rationale:** Elevates the Now Playing experience into a nostalgic, high-fidelity tactile music player with diverse aesthetic options.
+
+### ADR 10.5: Native Android Auto Browsing via MediaBrowserServiceCompat Hierarchy
+- **Decision:** Configured `SonaraAudioHandler` as an Android Auto compatible `MediaBrowserServiceCompat` with root categories (`playlists`, `artists`, `albums`, `liked`, `recent`) declared in `@xml/automotive_app_desc.xml`. Tracks and containers use deterministic URI-style Media IDs for fast, steering-wheel friendly car touchscreen navigation.
+- **Rationale:** Enables drivers to safely access and play their offline music library on vehicle infotainment displays without touching their smartphone.
+
+
 

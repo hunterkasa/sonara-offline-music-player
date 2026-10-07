@@ -12,4 +12,6 @@
     <string name="widget_name">Sonara Player</string>
     <string name="widget_no_track">No music playing</string>
     <string name="widget_tap_to_open">Tap to open Sonara</string>
+    <string name="widget_pill_description">Minimalist 2x1 playback pill</string>
+    <string name="widget_large_description">Large 4x2 artwork and controls card</string>
 </resources>

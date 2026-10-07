@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme_tokens.dart';
 import '../../audio/sleep_timer.dart';
+import '../../core/services/gesture_sensor_service.dart';
 import '../../core/services/haptic_service.dart';
 
 class SleepTimerSheet extends ConsumerStatefulWidget {
@@ -18,6 +19,7 @@ class _SleepTimerSheetState extends ConsumerState<SleepTimerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(gestureSensorServiceProvider);
     final theme = Theme.of(context);
     final timerState = ref.watch(sleepTimerProvider);
     final timerController = ref.read(sleepTimerProvider.notifier);
@@ -173,6 +175,35 @@ class _SleepTimerSheetState extends ConsumerState<SleepTimerSheet> {
               onChanged: (val) {
                 setState(() => _customMinutes = val);
               },
+            ),
+            Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.m),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.35,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.vibration_rounded,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Smart Gestures: Shake phone to add +15 min • Flip face-down to pause',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             FilledButton(
               onPressed: () {

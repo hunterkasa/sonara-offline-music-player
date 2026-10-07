@@ -110,13 +110,13 @@ Status legend:
 - [x] CUE sheet parser & virtual multi-track album rip splitting
 - [x] Interactive synchronized LRC lyrics editor (tap-to-stamp timestamp recorder)
 
-### [ ] Phase 10: Smart Listening, Offline Wrapped & Ecosystem
-- [ ] 100% offline "Wrapped" recap with shareable local Canvas image cards
-- [ ] Offline "Track Radio" (metadata & acoustic clustering smart queue)
-- [ ] Smart sleep gestures (shake-to-extend, flip-to-pause)
-- [ ] Custom Now Playing skins (spinning vinyl, retro cassette, minimalist OLED)
-- [ ] Android Auto dashboard integration (`MediaBrowserServiceCompat`)
-- [ ] Expanded Home Screen widget suite (4×2 large artwork widget, 2×1 minimalist pill, scrollable favorites/recents widget)
+### [x] Phase 10: Smart Listening, Offline Wrapped & Ecosystem
+- [x] 100% offline "Wrapped" recap with shareable local Canvas image cards
+- [x] Offline "Track Radio" (metadata & acoustic clustering smart queue)
+- [x] Smart sleep gestures (shake-to-extend, flip-to-pause)
+- [x] Custom Now Playing skins (spinning vinyl, retro cassette, minimalist OLED)
+- [x] Android Auto dashboard integration (`MediaBrowserServiceCompat`)
+- [x] Expanded Home Screen widget suite (4×2 large artwork widget, 2×1 minimalist pill, scrollable favorites/recents widget)
 
 ### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox

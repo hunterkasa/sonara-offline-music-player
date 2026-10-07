@@ -286,6 +286,25 @@ class AudioSettingsScreen extends ConsumerWidget {
                 haptics,
               ),
           ],
+          const Divider(),
+
+          // NOW PLAYING PLAYER SKIN
+          _buildSectionHeader(context, 'NOW PLAYING PLAYER SKIN'),
+          ListTile(
+            leading: const Icon(Icons.style_rounded),
+            title: const Text('Active Player Skin'),
+            subtitle: Text(switch (settings.nowPlayingSkin) {
+              NowPlayingSkin.defaultModern =>
+                'Default Modern (Adaptive Gradient)',
+              NowPlayingSkin.spinningVinyl =>
+                'Spinning Vinyl Turntable (33 RPM)',
+              NowPlayingSkin.retroCassette =>
+                'Retro 90s Cassette (Animated Spools)',
+              NowPlayingSkin.minimalistOled => 'Minimalist OLED (Pure Black)',
+            }),
+            trailing: const Icon(Icons.arrow_drop_down_rounded),
+            onTap: () => _showSkinDialog(context, ref, settings.nowPlayingSkin),
+          ),
           const SizedBox(height: AppSpacing.xl),
         ],
       ),
@@ -538,6 +557,50 @@ class AudioSettingsScreen extends ConsumerWidget {
               },
               child: const Text('Off'),
             ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSkinDialog(
+    BuildContext context,
+    WidgetRef ref,
+    NowPlayingSkin currentSkin,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return SimpleDialog(
+          title: const Text('Select Player Skin'),
+          children: [
+            for (final skin in NowPlayingSkin.values)
+              SimpleDialogOption(
+                onPressed: () {
+                  ref
+                      .read(audioSettingsProvider.notifier)
+                      .setNowPlayingSkin(skin);
+                  Navigator.pop(ctx);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(switch (skin) {
+                      NowPlayingSkin.defaultModern => 'Default Modern',
+                      NowPlayingSkin.spinningVinyl =>
+                        'Spinning Vinyl Turntable',
+                      NowPlayingSkin.retroCassette => 'Retro 90s Cassette',
+                      NowPlayingSkin.minimalistOled => 'Minimalist OLED',
+                    }),
+                    if (skin == currentSkin)
+                      const Icon(
+                        Icons.check_rounded,
+                        color: Colors.green,
+                        size: 20,
+                      ),
+                  ],
+                ),
+              ),
           ],
         );
       },

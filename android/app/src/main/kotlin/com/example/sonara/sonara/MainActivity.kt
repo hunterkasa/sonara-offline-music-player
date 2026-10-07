@@ -1,9 +1,14 @@
 package com.example.sonara.sonara
 
 import android.app.Activity
+import android.content.Context
 import android.content.ContentUris
 import android.content.Intent
 import android.database.ContentObserver
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -19,12 +24,19 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : AudioServiceActivity() {
     private val METHOD_CHANNEL = "com.example.sonara/mediastore"
     private val EVENT_CHANNEL = "com.example.sonara/mediastore_observer"
+    private val SENSOR_EVENT_CHANNEL = "com.example.sonara/sensors"
     private val REQUEST_CODE_WRITE = 1001
 
     private var contentObserver: ContentObserver? = null
     private var eventSink: EventChannel.EventSink? = null
     private var initialAudioUri: String? = null
     private var pendingWriteResult: MethodChannel.Result? = null
+
+    private var sensorManager: SensorManager? = null
+    private var sensorSink: EventChannel.EventSink? = null
+    private var sensorListener: SensorEventListener? = null
+    private var lastShakeTime = 0L
+    private var isFaceDown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,6 +141,78 @@ class MainActivity : AudioServiceActivity() {
                 }
             }
         )
+
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, SENSOR_EVENT_CHANNEL).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    sensorSink = events
+                    startSensorListening()
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    stopSensorListening()
+                    sensorSink = null
+                }
+            }
+        )
+    }
+
+    private fun startSensorListening() {
+        if (sensorManager == null) {
+            sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        }
+        val manager = sensorManager ?: return
+
+        if (sensorListener == null) {
+            sensorListener = object : SensorEventListener {
+                override fun onSensorChanged(event: SensorEvent?) {
+                    if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
+                        val x = event.values[0]
+                        val y = event.values[1]
+                        val z = event.values[2]
+
+                        // Shake detection: g-force threshold ~ 2.3
+                        val gX = x / SensorManager.GRAVITY_EARTH
+                        val gY = y / SensorManager.GRAVITY_EARTH
+                        val gZ = z / SensorManager.GRAVITY_EARTH
+                        val gForce = Math.sqrt((gX * gX + gY * gY + gZ * gZ).toDouble()).toFloat()
+
+                        val now = System.currentTimeMillis()
+                        if (gForce > 2.3f && (now - lastShakeTime > 1500)) {
+                            lastShakeTime = now
+                            sensorSink?.success(mapOf("event" to "shake"))
+                        }
+
+                        // Flip face-down detection: z < -8.2 and flat in x/y
+                        if (z < -8.2f && Math.abs(x) < 4.5f && Math.abs(y) < 4.5f) {
+                            if (!isFaceDown) {
+                                isFaceDown = true
+                                sensorSink?.success(mapOf("event" to "flip_face_down"))
+                            }
+                        } else if (z > -3.0f) {
+                            if (isFaceDown) {
+                                isFaceDown = false
+                                sensorSink?.success(mapOf("event" to "flip_restored"))
+                            }
+                        }
+                    }
+                }
+
+                override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+            }
+
+            val accelerometer = manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            accelerometer?.let {
+                manager.registerListener(sensorListener, it, SensorManager.SENSOR_DELAY_UI)
+            }
+        }
+    }
+
+    private fun stopSensorListening() {
+        sensorListener?.let {
+            sensorManager?.unregisterListener(it)
+            sensorListener = null
+        }
     }
 
     private fun registerMediaStoreObserver() {

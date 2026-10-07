@@ -100,6 +100,12 @@ flutter run -d emulator-5554
 - **In-App Tag & Artwork Editor (Phase 9):** In-place ID3v2.3 (MP3) and Vorbis Comment / PICTURE (FLAC) editing supporting Title, Artist, Album, Year, Track#, Disc#, Genre, and custom artwork replacement, compliant with Android 11+ Scoped Storage via `MediaStore.createWriteRequest`.
 - **CUE Sheet Parser & Virtual Track Splitting (Phase 9):** Non-destructive 75fps frame-accurate parsing of `.cue` sidecars for monolithic album rips, indexing tracks into Drift SQLite and playing seamlessly via `ClippingAudioSource`.
 - **Synchronized LRC Lyrics Studio (Phase 9):** Interactive tap-to-stamp timestamp recorder with 0.75x slow-mo playback, $\pm 100\text{ms}$ micro-adjustments, line navigation, and direct RFC-compliant sidecar `.lrc` file export.
+- **100% Offline "Wrapped" Recap (Phase 10):** Spotify-style recap story cards generated entirely from on-device SQLite listening statistics (top tracks, top artists, genre distribution, peak listening hour, listener persona badge, and skip percentage) with local high-resolution PNG export via `RepaintBoundary` and zero external cloud transmission.
+- **Offline "Track Radio" (Phase 10):** Multi-factor acoustic and metadata similarity clustering engine (genre matching, era proximity, artist affiliation, and duration similarity) accessible directly via track context menus for instant intelligent queues.
+- **Smart Sleep Gestures (Phase 10):** Native accelerometer event detection with zero idle battery overhead, featuring shake-to-extend (+15 minutes) during timer fadeouts and flip-face-down-to-pause.
+- **Custom Tactile Now Playing Skins (Phase 10):** Dynamic player skins including Default Modern, Spinning Vinyl Turntable with tone arm physics, Retro 90s Cassette Deck with spinning spools, and Minimalist OLED Pure Black with high-contrast battery saving layout.
+- **Android Auto Dashboard Support (Phase 10):** Native `MediaBrowserServiceCompat` integration enabling vehicle touchscreen and steering-wheel navigation across Playlists, Artists, Albums, Liked Songs, and Recently Played.
+- **Expanded Home Screen Widget Suite (Phase 10):** Multi-form-factor widget choices including 2×1 Minimalist Pill widget, 4×1 Standard Player, and 4×2 Expanded Artwork Card widget with direct media controls.
 
 ### 5. Build Release APKs
 ```powershell

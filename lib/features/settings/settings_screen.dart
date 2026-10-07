@@ -137,6 +137,18 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.push('/storage-inspector'),
           ),
+          ListTile(
+            leading: const Icon(
+              Icons.auto_awesome_rounded,
+              color: Colors.amber,
+            ),
+            title: const Text('Sonara Wrapped'),
+            subtitle: const Text(
+              '100% offline recap cards & listening analytics',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/wrapped'),
+          ),
           const Divider(),
 
           if (kDebugMode) ...[
