@@ -302,3 +302,9 @@ This log records non-obvious technical choices, architecture invariants, and dep
   3. *MediaStore Genre Extraction & Genre Detail Screen:* Added `MediaStore.Audio.Media.GENRE` projection (API 30+) in `MainActivity.kt` and `MediaStoreItem`, persisted extracted genres into `db.genres` and `db.trackGenres` during library scanning, fixed SQLite parameter limit crashes during scan reconciliation using in-memory set diffs and batched deletes, added `watchGenresWithCount` join query, created `GenreDetailScreen` (`/genre/:id`) with track count, play all, shuffle, and track listing, and added tab query parameter navigation in `LibraryScreen`.
 - **Rationale:** Resolves user complaints regarding unresponsive visualizers, hidden playlists, empty genres tab, and scanner crashes on genre exploration.
 
+### ADR 10.10: Android Notification Stop/Close Cross Vector Icon and Monochrome Notification Silhouette
+- **Decision:**
+  1. *Stop Action Cross Icon:* Replaced default `MediaControl.stop`'s square tape-stop symbol (`drawable/audio_service_stop.png` which rendered as an unsightly square "block") with `drawable/ic_action_close.xml` and overridden `drawable/audio_service_stop.xml` containing the standard Material Design cross (`✕` close/dismiss) vector drawable.
+  2. *Monochrome Notification Silhouette:* Configured `androidNotificationIcon: 'drawable/ic_notification'` in `AudioServiceConfig` with a pure `#FFFFFFFF` monochrome music note silhouette on transparent background (`ic_notification.xml`), preventing Android and OEM Dynamic Island / Mini Capsule shells from turning launcher icons into solid white rectangular blocks.
+- **Rationale:** Eliminates solid block icon artifacts in the Android drop-down notification shade, lock screen, and Dynamic Island/Capsule indicators, presenting a clean modern cross button for closing playback.
+

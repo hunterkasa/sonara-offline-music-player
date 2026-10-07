@@ -216,6 +216,12 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     });
   }
 
+  static const _closeControl = MediaControl(
+    androidIcon: 'drawable/ic_action_close',
+    label: 'Stop',
+    action: MediaAction.stop,
+  );
+
   void _broadcastPlaybackState(PlaybackEvent event) {
     final playing = _player.playing;
     final processingState = _mapProcessingState(_player.processingState);
@@ -226,7 +232,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
           MediaControl.skipToPrevious,
           if (playing) MediaControl.pause else MediaControl.play,
           MediaControl.skipToNext,
-          MediaControl.stop,
+          _closeControl,
         ],
         systemActions: const {
           MediaAction.seek,

@@ -75,6 +75,7 @@ Future<void> main() async {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.example.sonara.playback',
         androidNotificationChannelName: 'Sonara Music Playback',
+        androidNotificationIcon: 'drawable/ic_notification',
         androidNotificationOngoing: true,
         androidStopForegroundOnPause: true,
         notificationColor: Color(0xFF6750A4),

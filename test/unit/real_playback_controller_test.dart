@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart' show MediaAction;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio_platform_interface/just_audio_platform_interface.dart';
 import 'package:sonara/audio/playback_controller.dart';
@@ -281,6 +282,19 @@ void main() {
         expect(audioHandler.audioSettings.bassBoost, equals(0.8));
         expect(audioHandler.audioSettings.loudnessGain, equals(4.0));
         expect(audioHandler.pitchSemitones, equals(3));
+      },
+    );
+
+    test(
+      'playbackState publishes close stop control with ic_action_close',
+      () async {
+        await controller.playQueue(['track_1'], initialIndex: 0);
+        final state = audioHandler.playbackState.value;
+        final stopControl = state.controls.firstWhere(
+          (c) => c.action == MediaAction.stop,
+        );
+        expect(stopControl.androidIcon, equals('drawable/ic_action_close'));
+        expect(stopControl.label, equals('Stop'));
       },
     );
   });
