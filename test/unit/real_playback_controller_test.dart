@@ -258,24 +258,30 @@ void main() {
       expect(controller.currentSnapshot.currentTrackKey, isNull);
     });
 
-    test('applyAudioSettings applies equalizer, bass boost, and pitch', () async {
-      const settings = AudioSettings(
-        equalizerEnabled: true,
-        equalizerPreset: 'rock',
-        bandGains: [4.5, 2.0, -1.0, 2.5, 4.0],
-        bassBoost: 0.8,
-        loudnessGain: 4.0,
-        pitchSemitones: 3,
-      );
+    test(
+      'applyAudioSettings applies equalizer, bass boost, and pitch',
+      () async {
+        const settings = AudioSettings(
+          equalizerEnabled: true,
+          equalizerPreset: 'rock',
+          bandGains: [4.5, 2.0, -1.0, 2.5, 4.0],
+          bassBoost: 0.8,
+          loudnessGain: 4.0,
+          pitchSemitones: 3,
+        );
 
-      await controller.applyAudioSettings(settings);
+        await controller.applyAudioSettings(settings);
 
-      expect(audioHandler.audioSettings.equalizerEnabled, isTrue);
-      expect(audioHandler.audioSettings.equalizerPreset, equals('rock'));
-      expect(audioHandler.audioSettings.bandGains, equals([4.5, 2.0, -1.0, 2.5, 4.0]));
-      expect(audioHandler.audioSettings.bassBoost, equals(0.8));
-      expect(audioHandler.audioSettings.loudnessGain, equals(4.0));
-      expect(audioHandler.pitchSemitones, equals(3));
-    });
+        expect(audioHandler.audioSettings.equalizerEnabled, isTrue);
+        expect(audioHandler.audioSettings.equalizerPreset, equals('rock'));
+        expect(
+          audioHandler.audioSettings.bandGains,
+          equals([4.5, 2.0, -1.0, 2.5, 4.0]),
+        );
+        expect(audioHandler.audioSettings.bassBoost, equals(0.8));
+        expect(audioHandler.audioSettings.loudnessGain, equals(4.0));
+        expect(audioHandler.pitchSemitones, equals(3));
+      },
+    );
   });
 }

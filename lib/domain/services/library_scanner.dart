@@ -165,6 +165,9 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
           scannedCount: processed,
           currentTrackTitle: chunk.last.title,
         );
+
+        // Yield UI thread between chunks to maintain 60fps responsiveness
+        await Future<void>.delayed(Duration.zero);
       }
 
       // Reconcile deletions

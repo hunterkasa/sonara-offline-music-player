@@ -237,16 +237,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           const Divider(height: 1.0),
 
           // Main Tab Body
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                await ref
-                    .read(libraryScannerProvider.notifier)
-                    .scanLibrary(isFullScan: true);
-              },
-              child: _buildTabContent(),
-            ),
-          ),
+          Expanded(child: _buildTabContent()),
         ],
       ),
     );

@@ -91,387 +91,380 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await ref
-              .read(libraryScannerProvider.notifier)
-              .scanLibrary(isFullScan: true);
-        },
-        child: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.m,
-            vertical: AppSpacing.s,
-          ),
-          children: [
-            // Live scanning indicator
-            if (scanProgress.isScanning)
-              Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.m),
-                padding: const EdgeInsets.all(AppSpacing.s),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(
-                      width: 18.0,
-                      height: 18.0,
-                      child: CircularProgressIndicator(strokeWidth: 2.0),
-                    ),
-                    const SizedBox(width: 12.0),
-                    Expanded(
-                      child: Text(
-                        scanProgress.statusMessage ?? 'Scanning local music...',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+      body: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.m,
+          vertical: AppSpacing.s,
+        ),
+        children: [
+          // Live scanning indicator
+          if (scanProgress.isScanning)
+            Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.m),
+              padding: const EdgeInsets.all(AppSpacing.s),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(12.0),
               ),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 18.0,
+                    height: 18.0,
+                    child: CircularProgressIndicator(strokeWidth: 2.0),
+                  ),
+                  const SizedBox(width: 12.0),
+                  Expanded(
+                    child: Text(
+                      scanProgress.statusMessage ?? 'Scanning local music...',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-            // Quick Access Grid
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: AppSpacing.xs,
-              crossAxisSpacing: AppSpacing.xs,
-              childAspectRatio: 3.0,
-              children: [
-                _buildQuickCard(
-                  context,
-                  icon: Icons.favorite_rounded,
-                  title: 'Liked Songs',
-                  color: Colors.redAccent,
-                  onTap: () {
-                    haptics.selection();
-                    context.push('/playlist/-1');
-                  },
-                ),
-                _buildQuickCard(
-                  context,
-                  icon: Icons.shuffle_rounded,
-                  title: 'Shuffle All',
-                  color: Colors.deepPurpleAccent,
-                  onTap: () async {
-                    haptics.selection();
-                    final tracks = await db.watchAllTracks().first;
-                    if (tracks.isEmpty) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'No songs in your library to shuffle.',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                      return;
-                    }
-                    final shuffled = List<String>.from(
-                      tracks.map((t) => t.trackKey),
-                    )..shuffle();
-                    await playback.playQueue(shuffled, initialIndex: 0);
-                    await playback.setShuffle(true);
+          // Quick Access Grid
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: AppSpacing.xs,
+            crossAxisSpacing: AppSpacing.xs,
+            childAspectRatio: 3.0,
+            children: [
+              _buildQuickCard(
+                context,
+                icon: Icons.favorite_rounded,
+                title: 'Liked Songs',
+                color: Colors.redAccent,
+                onTap: () {
+                  haptics.selection();
+                  context.push('/playlist/-1');
+                },
+              ),
+              _buildQuickCard(
+                context,
+                icon: Icons.shuffle_rounded,
+                title: 'Shuffle All',
+                color: Colors.deepPurpleAccent,
+                onTap: () async {
+                  haptics.selection();
+                  final tracks = await db.watchAllTracks().first;
+                  if (tracks.isEmpty) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Shuffling ${shuffled.length} songs'),
+                        const SnackBar(
+                          content: Text('No songs in your library to shuffle.'),
                           behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 1),
                         ),
                       );
                     }
-                  },
-                ),
-                _buildQuickCard(
-                  context,
-                  icon: Icons.history_rounded,
-                  title: 'Recently Added',
-                  color: Colors.teal,
-                  onTap: () {
-                    haptics.selection();
-                    context.push('/playlist/-2');
-                  },
-                ),
-                _buildQuickCard(
-                  context,
-                  icon: Icons.repeat_rounded,
-                  title: 'On Repeat',
-                  color: Colors.amber,
-                  onTap: () {
-                    haptics.selection();
-                    context.push('/playlist/-3');
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.l),
+                    return;
+                  }
+                  final shuffled = List<String>.from(
+                    tracks.map((t) => t.trackKey),
+                  )..shuffle();
+                  await playback.playQueue(shuffled, initialIndex: 0);
+                  await playback.setShuffle(true);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Shuffling ${shuffled.length} songs'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
+              ),
+              _buildQuickCard(
+                context,
+                icon: Icons.history_rounded,
+                title: 'Recently Added',
+                color: Colors.teal,
+                onTap: () {
+                  haptics.selection();
+                  context.push('/playlist/-2');
+                },
+              ),
+              _buildQuickCard(
+                context,
+                icon: Icons.repeat_rounded,
+                title: 'On Repeat',
+                color: Colors.amber,
+                onTap: () {
+                  haptics.selection();
+                  context.push('/playlist/-3');
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.l),
 
-            // Jump back in (Albums Shelf)
-            _buildShelfHeader(context, 'Jump Back In'),
-            const SizedBox(height: AppSpacing.s),
-            StreamBuilder<List<Album>>(
-              stream:
-                  (db.select(db.albums)
-                        ..orderBy([(a) => d.OrderingTerm.desc(a.year)])
-                        ..limit(10))
-                      .watch(),
-              builder: (context, snapshot) {
-                final albums = snapshot.data ?? [];
-                if (albums.isEmpty) {
-                  return _buildEmptyShelfPlaceholder(
-                    context,
-                    message: 'Scan your library to see albums here',
-                  );
-                }
+          // Jump back in (Albums Shelf)
+          _buildShelfHeader(context, 'Jump Back In'),
+          const SizedBox(height: AppSpacing.s),
+          StreamBuilder<List<Album>>(
+            stream:
+                (db.select(db.albums)
+                      ..orderBy([(a) => d.OrderingTerm.desc(a.year)])
+                      ..limit(10))
+                    .watch(),
+            builder: (context, snapshot) {
+              final albums = snapshot.data ?? [];
+              if (albums.isEmpty) {
+                return _buildEmptyShelfPlaceholder(
+                  context,
+                  message: 'Scan your library to see albums here',
+                );
+              }
 
-                return SizedBox(
-                  height: 190.0,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: albums.length,
-                    itemBuilder: (context, index) {
-                      final album = albums[index];
-                      return SizedBox(
-                        width: 140.0,
-                        child: MediaCard(
-                          title: album.title,
-                          subtitle: album.year != null ? '${album.year}' : null,
-                          artworkKey: album.artworkKey,
-                          onTap: () {
-                            haptics.selection();
-                            context.push('/album/${album.id}');
-                          },
-                        ),
-                      );
-                    },
+              return SizedBox(
+                height: 190.0,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: albums.length,
+                  itemBuilder: (context, index) {
+                    final album = albums[index];
+                    return SizedBox(
+                      width: 140.0,
+                      child: MediaCard(
+                        title: album.title,
+                        subtitle: album.year != null ? '${album.year}' : null,
+                        artworkKey: album.artworkKey,
+                        onTap: () {
+                          haptics.selection();
+                          context.push('/album/${album.id}');
+                        },
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.l),
+
+          // On Repeat (Top Played Tracks)
+          StreamBuilder<List<Track>>(
+            stream: db.watchTopTracks(limit: 10),
+            builder: (context, snapshot) {
+              final tracks = snapshot.data ?? [];
+              if (tracks.isEmpty) return const SizedBox.shrink();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildShelfHeader(context, 'On Repeat'),
+                  const SizedBox(height: AppSpacing.s),
+                  SizedBox(
+                    height: 190.0,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: tracks.length,
+                      itemBuilder: (context, index) {
+                        final track = tracks[index];
+                        return SizedBox(
+                          width: 140.0,
+                          child: MediaCard(
+                            title: track.title,
+                            subtitle: '${track.playCount} plays',
+                            filePath: track.path,
+                            onTap: () {
+                              haptics.selection();
+                              playback.playTrack(track.trackKey);
+                            },
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.l),
+                  const SizedBox(height: AppSpacing.l),
+                ],
+              );
+            },
+          ),
 
-            // On Repeat (Top Played Tracks)
-            StreamBuilder<List<Track>>(
-              stream: db.watchTopTracks(limit: 10),
-              builder: (context, snapshot) {
-                final tracks = snapshot.data ?? [];
-                if (tracks.isEmpty) return const SizedBox.shrink();
+          // Your Top Artists (Circular Shelf)
+          StreamBuilder<List<Artist>>(
+            stream: db.watchTopArtists(limit: 10),
+            builder: (context, snapshot) {
+              final artists = snapshot.data ?? [];
+              if (artists.isEmpty) return const SizedBox.shrink();
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildShelfHeader(context, 'On Repeat'),
-                    const SizedBox(height: AppSpacing.s),
-                    SizedBox(
-                      height: 190.0,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: tracks.length,
-                        itemBuilder: (context, index) {
-                          final track = tracks[index];
-                          return SizedBox(
-                            width: 140.0,
-                            child: MediaCard(
-                              title: track.title,
-                              subtitle: '${track.playCount} plays',
-                              filePath: track.path,
-                              onTap: () {
-                                haptics.selection();
-                                playback.playTrack(track.trackKey);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.l),
-                  ],
-                );
-              },
-            ),
-
-            // Your Top Artists (Circular Shelf)
-            StreamBuilder<List<Artist>>(
-              stream: db.watchTopArtists(limit: 10),
-              builder: (context, snapshot) {
-                final artists = snapshot.data ?? [];
-                if (artists.isEmpty) return const SizedBox.shrink();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildShelfHeader(context, 'Your Top Artists'),
-                    const SizedBox(height: AppSpacing.s),
-                    SizedBox(
-                      height: 150.0,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: artists.length,
-                        itemBuilder: (context, index) {
-                          final artist = artists[index];
-                          return SizedBox(
-                            width: 110.0,
-                            child: InkWell(
-                              onTap: () {
-                                haptics.selection();
-                                context.push('/artist/${artist.id}');
-                              },
-                              borderRadius: BorderRadius.circular(55),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 40,
-                                    backgroundColor:
-                                        colorScheme.surfaceContainerHighest,
-                                    child: Icon(
-                                      Icons.person_rounded,
-                                      size: 40,
-                                      color: colorScheme.primary,
-                                    ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildShelfHeader(context, 'Your Top Artists'),
+                  const SizedBox(height: AppSpacing.s),
+                  SizedBox(
+                    height: 150.0,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: artists.length,
+                      itemBuilder: (context, index) {
+                        final artist = artists[index];
+                        return SizedBox(
+                          width: 110.0,
+                          child: InkWell(
+                            onTap: () {
+                              haptics.selection();
+                              context.push('/artist/${artist.id}');
+                            },
+                            borderRadius: BorderRadius.circular(55),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor:
+                                      colorScheme.surfaceContainerHighest,
+                                  child: Icon(
+                                    Icons.person_rounded,
+                                    size: 40,
+                                    color: colorScheme.primary,
                                   ),
-                                  const SizedBox(height: AppSpacing.xs),
-                                  Text(
-                                    artist.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  artist.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: AppSpacing.l),
-                  ],
-                );
-              },
-            ),
+                  ),
+                  const SizedBox(height: AppSpacing.l),
+                ],
+              );
+            },
+          ),
 
-            // Recently Added (Tracks Shelf)
-            StreamBuilder<List<Track>>(
-              stream: db.watchRecentlyAddedTracks(limit: 10),
-              builder: (context, snapshot) {
-                final tracks = snapshot.data ?? [];
-                if (tracks.isEmpty) return const SizedBox.shrink();
+          // Recently Added (Tracks Shelf)
+          StreamBuilder<List<Track>>(
+            stream: db.watchRecentlyAddedTracks(limit: 10),
+            builder: (context, snapshot) {
+              final tracks = snapshot.data ?? [];
+              if (tracks.isEmpty) return const SizedBox.shrink();
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildShelfHeader(context, 'Recently Added'),
-                    const SizedBox(height: AppSpacing.s),
-                    SizedBox(
-                      height: 190.0,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: tracks.length,
-                        itemBuilder: (context, index) {
-                          final track = tracks[index];
-                          return SizedBox(
-                            width: 140.0,
-                            child: MediaCard(
-                              title: track.title,
-                              subtitle: 'Recently Added',
-                              filePath: track.path,
-                              onTap: () {
-                                haptics.selection();
-                                playback.playTrack(track.trackKey);
-                              },
-                            ),
-                          );
-                        },
-                      ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildShelfHeader(context, 'Recently Added'),
+                  const SizedBox(height: AppSpacing.s),
+                  SizedBox(
+                    height: 190.0,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: tracks.length,
+                      itemBuilder: (context, index) {
+                        final track = tracks[index];
+                        return SizedBox(
+                          width: 140.0,
+                          child: MediaCard(
+                            title: track.title,
+                            subtitle: 'Recently Added',
+                            filePath: track.path,
+                            onTap: () {
+                              haptics.selection();
+                              playback.playTrack(track.trackKey);
+                            },
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: AppSpacing.l),
-                  ],
-                );
-              },
-            ),
+                  ),
+                  const SizedBox(height: AppSpacing.l),
+                ],
+              );
+            },
+          ),
 
-            // Made For You (Playlists Shelf)
-            playlistsAsync.when(
-              data: (playlists) {
-                if (playlists.isEmpty) return const SizedBox.shrink();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildShelfHeader(context, 'Made For You'),
-                    const SizedBox(height: AppSpacing.s),
-                    SizedBox(
-                      height: 150.0,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: playlists.length,
-                        itemBuilder: (context, index) {
-                          final playlist = playlists[index];
-                          return SizedBox(
-                            width: 130.0,
-                            child: InkWell(
-                              onTap: () {
-                                haptics.selection();
-                                context.push('/playlist/${playlist.id}');
-                              },
-                              borderRadius: AppRadii.cardRadius,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 120.0,
-                                    height: 100.0,
-                                    decoration: BoxDecoration(
-                                      color:
-                                          colorScheme.surfaceContainerHighest,
-                                      borderRadius: AppRadii.cardRadius,
-                                    ),
-                                    child: Icon(
-                                      playlist.isSmart
-                                          ? Icons.auto_awesome_rounded
-                                          : Icons.queue_music_rounded,
-                                      size: 40,
-                                      color: colorScheme.primary,
-                                    ),
+          // Made For You (Playlists Shelf)
+          playlistsAsync.when(
+            data: (playlists) {
+              if (playlists.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildShelfHeader(context, 'Made For You'),
+                  const SizedBox(height: AppSpacing.s),
+                  SizedBox(
+                    height: 150.0,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: playlists.length,
+                      itemBuilder: (context, index) {
+                        final playlist = playlists[index];
+                        return SizedBox(
+                          width: 130.0,
+                          child: InkWell(
+                            onTap: () {
+                              haptics.selection();
+                              context.push('/playlist/${playlist.id}');
+                            },
+                            borderRadius: AppRadii.cardRadius,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 120.0,
+                                  height: 100.0,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainerHighest,
+                                    borderRadius: AppRadii.cardRadius,
                                   ),
-                                  const SizedBox(height: AppSpacing.xs),
-                                  Text(
-                                    playlist.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  child: Icon(
+                                    playlist.isSmart
+                                        ? Icons.auto_awesome_rounded
+                                        : Icons.queue_music_rounded,
+                                    size: 40,
+                                    color: colorScheme.primary,
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  playlist.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: AppSpacing.l),
-                  ],
-                );
-              },
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-            ),
+                  ),
+                  const SizedBox(height: AppSpacing.l),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+          ),
 
-            const SizedBox(height: AppSpacing.xxl),
-          ],
-        ),
+          const SizedBox(height: AppSpacing.xxl),
+        ],
       ),
     );
   }
