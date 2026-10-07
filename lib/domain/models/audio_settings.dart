@@ -29,6 +29,7 @@ class AudioSettings {
   final String? activeDeviceProfileId; // currently active profile ID
   final String visualizerMode; // 'off', 'spectrum', 'vu', 'fluid'
   final NowPlayingSkin nowPlayingSkin;
+  final bool backgroundPlayback;
 
   const AudioSettings({
     this.equalizerEnabled = false,
@@ -50,6 +51,7 @@ class AudioSettings {
     this.activeDeviceProfileId,
     this.visualizerMode = 'off',
     this.nowPlayingSkin = NowPlayingSkin.defaultModern,
+    this.backgroundPlayback = true,
   });
 
   AudioSettings copyWith({
@@ -72,6 +74,7 @@ class AudioSettings {
     String? activeDeviceProfileId,
     String? visualizerMode,
     NowPlayingSkin? nowPlayingSkin,
+    bool? backgroundPlayback,
   }) {
     return AudioSettings(
       equalizerEnabled: equalizerEnabled ?? this.equalizerEnabled,
@@ -97,6 +100,7 @@ class AudioSettings {
           activeDeviceProfileId ?? this.activeDeviceProfileId,
       visualizerMode: visualizerMode ?? this.visualizerMode,
       nowPlayingSkin: nowPlayingSkin ?? this.nowPlayingSkin,
+      backgroundPlayback: backgroundPlayback ?? this.backgroundPlayback,
     );
   }
 
@@ -121,6 +125,7 @@ class AudioSettings {
       'activeDeviceProfileId': activeDeviceProfileId,
       'visualizerMode': visualizerMode,
       'nowPlayingSkin': nowPlayingSkin.name,
+      'backgroundPlayback': backgroundPlayback,
     };
   }
 
@@ -156,6 +161,7 @@ class AudioSettings {
         (e) => e.name == map['nowPlayingSkin'],
         orElse: () => NowPlayingSkin.defaultModern,
       ),
+      backgroundPlayback: map['backgroundPlayback'] as bool? ?? true,
     );
   }
 

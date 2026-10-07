@@ -726,18 +726,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {
                     haptics.selection();
-                    if (likedTracks.isNotEmpty) {
-                      final keys = likedTracks.map((t) => t.trackKey).toList();
-                      unawaited(playback.playQueue(keys, initialIndex: 0));
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'No liked songs yet. Tap heart to add tracks!',
-                          ),
-                        ),
-                      );
-                    }
+                    context.push('/playlist/-1');
                   },
                 ),
                 const Divider(),
@@ -845,6 +834,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         haptics.selection();
                         context.push('/playlist/${p.id}');
                       },
+                      onLongPress: () {
+                        haptics.medium();
+                        _showPlaylistOptionsSheet(
+                          context,
+                          p,
+                          playlistService,
+                          playback,
+                          haptics,
+                        );
+                      },
                     );
                   }),
               ],
@@ -888,6 +887,162 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showPlaylistOptionsSheet(
+    BuildContext context,
+    Playlist playlist,
+    PlaylistService playlistService,
+    PlaybackController playback,
+    HapticService haptics,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                title: Text(
+                  playlist.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  playlist.isSmart ? 'Smart Playlist' : 'Custom Playlist',
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.play_arrow_rounded),
+                title: const Text('Play'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final keys = await playlistService.getPlaylistTrackKeys(
+                    playlist.id,
+                  );
+                  if (keys.isNotEmpty) {
+                    unawaited(playback.playQueue(keys, initialIndex: 0));
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.shuffle_rounded),
+                title: const Text('Shuffle'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final keys = await playlistService.getPlaylistTrackKeys(
+                    playlist.id,
+                  );
+                  if (keys.isNotEmpty) {
+                    final shuffled = List<String>.from(keys)..shuffle();
+                    unawaited(playback.playQueue(shuffled, initialIndex: 0));
+                    unawaited(playback.setShuffle(true));
+                  }
+                },
+              ),
+              if (!playlist.isSmart) ...[
+                ListTile(
+                  leading: const Icon(Icons.edit_rounded),
+                  title: const Text('Rename'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final controller = TextEditingController(
+                      text: playlist.name,
+                    );
+                    final newName = await showDialog<String>(
+                      context: context,
+                      builder: (dCtx) => AlertDialog(
+                        title: const Text('Rename Playlist'),
+                        content: TextField(
+                          controller: controller,
+                          autofocus: true,
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dCtx),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () =>
+                                Navigator.pop(dCtx, controller.text.trim()),
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (newName != null && newName.isNotEmpty) {
+                      await playlistService.renamePlaylist(
+                        playlist.id,
+                        newName,
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.copy_rounded),
+                  title: const Text('Duplicate'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await playlistService.duplicatePlaylist(playlist.id);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (dCtx) => AlertDialog(
+                        title: const Text('Delete Playlist?'),
+                        content: Text(
+                          'Delete "${playlist.name}"? Tracks will remain in your library.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dCtx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                            ),
+                            onPressed: () => Navigator.pop(dCtx, true),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await playlistService.deletePlaylist(playlist.id);
+                    }
+                  },
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }

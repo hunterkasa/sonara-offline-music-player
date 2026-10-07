@@ -53,7 +53,7 @@ void main() {
     await tester.tap(find.text('Bohemian Rhapsody'));
     expect(tapped, isTrue);
 
-    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.tap(find.byIcon(Icons.more_vert_rounded));
     expect(moreTapped, isTrue);
   });
 }

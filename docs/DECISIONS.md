@@ -273,5 +273,15 @@ This log records non-obvious technical choices, architecture invariants, and dep
 - **Decision:** Configured `SonaraAudioHandler` as an Android Auto compatible `MediaBrowserServiceCompat` with root categories (`playlists`, `artists`, `albums`, `liked`, `recent`) declared in `@xml/automotive_app_desc.xml`. Tracks and containers use deterministic URI-style Media IDs for fast, steering-wheel friendly car touchscreen navigation.
 - **Rationale:** Enables drivers to safely access and play their offline music library on vehicle infotainment displays without touching their smartphone.
 
+### ADR 10.6: Branded Visual Identity, PopScope Navigation Stack, Zero-Lag Resumes, and Dynamic Playlists
+- **Decision:**
+  1. *Brand Identity:* Added `SonaraBrandLogo` acoustic waveform squircle vector icon and updated all UI icons to Material 3 rounded variants (`Icons.*_rounded`).
+  2. *Predictive Back Navigation:* Replaced naive system exits with predictive `PopScope` navigation: collapses expanded Now Playing sheets first, backtracks through user's bottom tab navigation history stack, and requires a double-tap within 2s to exit only when on the root Home tab.
+  3. *Zero-Lag Resumes & DAC Pop Prevention:* Eliminated blocking volume fade loops in `play()` and unpausing in `SonaraAudioHandler`. Restored hardware volume synchronously to prevent 0-volume muted states. Added a 100ms hardware buffer on track skipping with `AnimatedSwitcher` slide+fade transitions for album art and track metadata.
+  4. *Unified Virtual & Custom Playlists:* Unified virtual IDs (-1 Liked Songs, -2 Recently Added, -3 On Repeat) in `PlaylistService` and `PlaylistDetailScreen`, added a dedicated multi-select `PlaylistTrackPickerSheet` with search filtering, long-press playlist options (Play, Shuffle, Rename, Duplicate, Delete), direct track removals, drag reordering, and empty state resilience.
+  5. *Audio Visualizers & Background Playback:* Overhauled `AudioVisualizer` with authentic backlit dual analog VU meters (scale arcs, dB markings, red overload LED), 24-band spectrum with gravity peak caps, and layered fluid harmonic waves. Added `backgroundPlayback` setting with Android lifecycle pause triggers.
+- **Rationale:** Resolves user-reported audio delays, missing visual feedback, navigation inconsistencies, and playlist management limitations while maintaining strict offline invariants.
+
+
 
 

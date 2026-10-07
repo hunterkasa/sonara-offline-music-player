@@ -9,6 +9,7 @@ import 'package:sonara/data/db/app_database.dart';
 import 'package:sonara/data/db/database_provider.dart';
 import 'package:sonara/domain/services/library_scanner.dart';
 import 'package:sonara/domain/services/playlist_service.dart';
+import 'package:sonara/shared/artwork/sonara_brand_logo.dart';
 import 'package:sonara/shared/cards/media_card.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -33,11 +34,17 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _getGreeting(),
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+        title: Row(
+          children: [
+            const SonaraBrandLogo(size: 28),
+            const SizedBox(width: 10),
+            Text(
+              _getGreeting(),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
@@ -59,7 +66,7 @@ class HomeScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(Icons.settings_rounded),
             tooltip: 'Settings',
             onPressed: () {
               haptics.selection();
@@ -128,7 +135,7 @@ class HomeScreen extends ConsumerWidget {
                   color: Colors.redAccent,
                   onTap: () {
                     haptics.selection();
-                    context.go('/library');
+                    context.push('/playlist/-1');
                   },
                 ),
                 _buildQuickCard(
@@ -138,12 +145,33 @@ class HomeScreen extends ConsumerWidget {
                   color: Colors.deepPurpleAccent,
                   onTap: () async {
                     haptics.selection();
-                    final tracks = await (db.select(
-                      db.tracks,
-                    )..orderBy([(t) => d.OrderingTerm.asc(t.titleSort)])).get();
-                    if (tracks.isNotEmpty) {
-                      final shuffled = List<Track>.from(tracks)..shuffle();
-                      await playback.playTrack(shuffled.first.trackKey);
+                    final tracks = await db.watchAllTracks().first;
+                    if (tracks.isEmpty) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'No songs in your library to shuffle.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    final shuffled = List<String>.from(
+                      tracks.map((t) => t.trackKey),
+                    )..shuffle();
+                    await playback.playQueue(shuffled, initialIndex: 0);
+                    await playback.setShuffle(true);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Shuffling ${shuffled.length} songs'),
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
                     }
                   },
                 ),
@@ -154,7 +182,7 @@ class HomeScreen extends ConsumerWidget {
                   color: Colors.teal,
                   onTap: () {
                     haptics.selection();
-                    context.go('/library');
+                    context.push('/playlist/-2');
                   },
                 ),
                 _buildQuickCard(
@@ -164,7 +192,7 @@ class HomeScreen extends ConsumerWidget {
                   color: Colors.amber,
                   onTap: () {
                     haptics.selection();
-                    context.go('/library');
+                    context.push('/playlist/-3');
                   },
                 ),
               ],

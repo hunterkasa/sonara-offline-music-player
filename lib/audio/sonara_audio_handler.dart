@@ -347,15 +347,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       await _updateEffectiveVolume();
 
       if (resumePlaying) {
-        if (_audioSettings.smoothFades) {
-          try {
-            await _player.setVolume(0.0);
-          } catch (_) {}
-          await _player.play();
-          await _fadeVolume(from: 0.0, to: _currentVolumeMultiplier);
-        } else {
-          await _player.play();
-        }
+        await _player.play();
       }
     } catch (e) {
       debugPrint('Failed to load sliding window: $e');
@@ -380,29 +372,6 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       debugPrint('Corrupt or missing file, skipping smoothly to next track.');
       skipToNext();
     }
-  }
-
-  Future<void> _fadeVolume({
-    required double from,
-    required double to,
-    Duration duration = const Duration(milliseconds: 200),
-  }) async {
-    const steps = 4;
-    final stepDuration = Duration(
-      milliseconds: duration.inMilliseconds ~/ steps,
-    );
-    final delta = (to - from) / steps;
-    var current = from;
-    for (var i = 0; i < steps; i++) {
-      current += delta;
-      try {
-        await _player.setVolume(current.clamp(0.0, 1.0));
-      } catch (_) {}
-      await Future<void>.delayed(stepDuration);
-    }
-    try {
-      await _player.setVolume(to.clamp(0.0, 1.0));
-    } catch (_) {}
   }
 
   /// Apply audio settings from user preferences
@@ -480,11 +449,9 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       isShuffle: queueManager.state.shuffleEnabled,
     );
     _currentVolumeMultiplier = multiplier;
-    if (_player.playing) {
-      try {
-        await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
-      } catch (_) {}
-    }
+    try {
+      await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
+    } catch (_) {}
   }
 
   @override
@@ -498,15 +465,10 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       await _reloadSlidingWindow(resumePlaying: true);
       return;
     }
-    if (_audioSettings.smoothFades) {
-      try {
-        await _player.setVolume(0.0);
-      } catch (_) {}
-      await _player.play();
-      await _fadeVolume(from: 0.0, to: _currentVolumeMultiplier);
-    } else {
-      await _player.play();
-    }
+    try {
+      await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
+    } catch (_) {}
+    await _player.play();
   }
 
   @override
@@ -521,16 +483,10 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
         speed: _player.speed,
       );
     }
-
-    if (_audioSettings.smoothFades && _player.playing) {
-      await _fadeVolume(from: _currentVolumeMultiplier, to: 0.0);
-      await _player.pause();
-      try {
-        await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
-      } catch (_) {}
-    } else {
-      await _player.pause();
-    }
+    await _player.pause();
+    try {
+      await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
+    } catch (_) {}
   }
 
   @override
@@ -548,6 +504,8 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> skipToNext() async {
     final hasNext = queueManager.advanceToNext();
     if (hasNext) {
+      // 100ms smooth transition prevents abrupt hardware DAC pops on skip
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       await _reloadSlidingWindow(resumePlaying: _player.playing);
     } else {
       await _player.stop();
@@ -562,6 +520,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
     final hasPrev = queueManager.retreatToPrevious();
     if (hasPrev) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       await _reloadSlidingWindow(resumePlaying: _player.playing);
     }
   }

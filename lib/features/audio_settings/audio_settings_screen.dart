@@ -103,6 +103,18 @@ class AudioSettingsScreen extends ConsumerWidget {
               notifier.setSmoothFades(val);
             },
           ),
+          SwitchListTile(
+            secondary: const Icon(Icons.play_circle_outline_rounded),
+            title: const Text('Background Playback'),
+            subtitle: const Text(
+              'Keep music playing when leaving the app or locking the screen',
+            ),
+            value: settings.backgroundPlayback,
+            onChanged: (val) {
+              haptics.selection();
+              notifier.setBackgroundPlayback(val);
+            },
+          ),
           const Divider(),
 
           // VOLUME NORMALIZATION (REPLAYGAIN)

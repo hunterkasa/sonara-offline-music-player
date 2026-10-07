@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sonara/data/db/app_database.dart';
 import 'package:sonara/data/db/database_provider.dart';
+import 'package:sonara/domain/services/smart_playlist_engine.dart';
 
 final playlistServiceProvider = Provider<PlaylistService>((ref) {
   final db = ref.watch(databaseProvider);
@@ -35,15 +39,143 @@ class PlaylistService {
 
   Stream<List<Playlist>> watchPlaylists() => _db.watchAllPlaylists();
 
-  Future<Playlist?> getPlaylist(int id) => _db.getPlaylist(id);
+  Future<Playlist?> getPlaylist(int id) {
+    if (id == -1) {
+      return Future.value(
+        Playlist(
+          id: -1,
+          name: 'Liked Songs',
+          description: 'Your favorite tracks',
+          isSmart: true,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    }
+    if (id == -2) {
+      return Future.value(
+        Playlist(
+          id: -2,
+          name: 'Recently Added',
+          description: 'Latest tracks added to your library',
+          isSmart: true,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    }
+    if (id == -3) {
+      return Future.value(
+        Playlist(
+          id: -3,
+          name: 'On Repeat',
+          description: 'Your most listened songs',
+          isSmart: true,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    }
+    return _db.getPlaylist(id);
+  }
 
-  Stream<Playlist?> watchPlaylist(int id) => _db.watchPlaylist(id);
+  Stream<Playlist?> watchPlaylist(int id) {
+    if (id == -1) {
+      return Stream.value(
+        Playlist(
+          id: -1,
+          name: 'Liked Songs',
+          description: 'Your favorite tracks',
+          isSmart: true,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    }
+    if (id == -2) {
+      return Stream.value(
+        Playlist(
+          id: -2,
+          name: 'Recently Added',
+          description: 'Latest tracks added to your library',
+          isSmart: true,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    }
+    if (id == -3) {
+      return Stream.value(
+        Playlist(
+          id: -3,
+          name: 'On Repeat',
+          description: 'Your most listened songs',
+          isSmart: true,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    }
+    return _db.watchPlaylist(id);
+  }
 
-  Stream<List<Track>> watchPlaylistTracks(int playlistId) =>
-      _db.watchPlaylistTracks(playlistId);
+  Stream<List<Track>> watchPlaylistTracks(int playlistId) async* {
+    if (playlistId == -1) {
+      yield* _db.watchLikedTracks();
+      return;
+    }
+    if (playlistId == -2) {
+      yield* _db.watchRecentlyAddedTracks(limit: 50);
+      return;
+    }
+    if (playlistId == -3) {
+      yield* _db.watchTopTracks(limit: 50);
+      return;
+    }
 
-  Future<List<String>> getPlaylistTrackKeys(int playlistId) =>
-      _db.getPlaylistTrackKeys(playlistId);
+    final playlist = await _db.getPlaylist(playlistId);
+    if (playlist != null && playlist.isSmart && playlist.rulesJson != null) {
+      try {
+        final rulesMap =
+            jsonDecode(playlist.rulesJson!) as Map<String, dynamic>;
+        final group = SmartRuleGroup.fromJson(rulesMap);
+        final engine = SmartPlaylistEngine(_db);
+        yield* _db.watchAllTracks().asyncMap((_) => engine.evaluate(group));
+        return;
+      } catch (e) {
+        debugPrint('Error evaluating smart playlist: $e');
+      }
+    }
+
+    yield* _db.watchPlaylistTracks(playlistId);
+  }
+
+  Future<List<String>> getPlaylistTrackKeys(int playlistId) async {
+    if (playlistId == -1) {
+      final liked = await _db.watchLikedTracks().first;
+      return liked.map((t) => t.trackKey).toList();
+    }
+    if (playlistId == -2) {
+      final recent = await _db.watchRecentlyAddedTracks(limit: 50).first;
+      return recent.map((t) => t.trackKey).toList();
+    }
+    if (playlistId == -3) {
+      final top = await _db.watchTopTracks(limit: 50).first;
+      return top.map((t) => t.trackKey).toList();
+    }
+    final playlist = await _db.getPlaylist(playlistId);
+    if (playlist != null && playlist.isSmart && playlist.rulesJson != null) {
+      try {
+        final rulesMap =
+            jsonDecode(playlist.rulesJson!) as Map<String, dynamic>;
+        final group = SmartRuleGroup.fromJson(rulesMap);
+        final engine = SmartPlaylistEngine(_db);
+        final matched = await engine.evaluate(group);
+        return matched.map((t) => t.trackKey).toList();
+      } catch (_) {}
+    }
+    return _db.getPlaylistTrackKeys(playlistId);
+  }
 
   Future<int> createPlaylist({
     required String name,
@@ -64,21 +196,34 @@ class PlaylistService {
   }
 
   Future<void> renamePlaylist(int id, String newName) {
+    if (id <= 0) return Future.value();
     final trimmed = newName.trim();
     if (trimmed.isEmpty) return Future.value();
     return _db.renamePlaylist(id, trimmed);
   }
 
-  Future<void> deletePlaylist(int id) => _db.deletePlaylist(id);
+  Future<void> deletePlaylist(int id) {
+    if (id <= 0) return Future.value();
+    return _db.deletePlaylist(id);
+  }
 
-  Future<int> duplicatePlaylist(int id) => _db.duplicatePlaylist(id);
+  Future<int> duplicatePlaylist(int id) {
+    if (id <= 0) return Future.value(0);
+    return _db.duplicatePlaylist(id);
+  }
 
-  Future<void> addTracksToPlaylist(int playlistId, List<String> trackKeys) =>
-      _db.addTracksToPlaylist(playlistId, trackKeys);
+  Future<void> addTracksToPlaylist(int playlistId, List<String> trackKeys) {
+    if (playlistId <= 0) return Future.value();
+    return _db.addTracksToPlaylist(playlistId, trackKeys);
+  }
 
-  Future<void> removeTrackFromPlaylist(int playlistId, String trackKey) =>
-      _db.removeTrackFromPlaylist(playlistId, trackKey);
+  Future<void> removeTrackFromPlaylist(int playlistId, String trackKey) {
+    if (playlistId <= 0) return Future.value();
+    return _db.removeTrackFromPlaylist(playlistId, trackKey);
+  }
 
-  Future<void> reorderTracks(int playlistId, int oldIndex, int newIndex) =>
-      _db.reorderPlaylistTracks(playlistId, oldIndex, newIndex);
+  Future<void> reorderTracks(int playlistId, int oldIndex, int newIndex) {
+    if (playlistId <= 0) return Future.value();
+    return _db.reorderPlaylistTracks(playlistId, oldIndex, newIndex);
+  }
 }

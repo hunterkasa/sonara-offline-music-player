@@ -288,16 +288,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           delegate: SliverChildBuilderDelegate((context, index) {
             final genres = [
-              ('Rock', Colors.deepOrange),
+              ('Rock', Colors.deepOrangeAccent),
               ('Pop', Colors.pinkAccent),
-              ('Hip-Hop', Colors.amber.shade800),
-              ('Classical', Colors.blueGrey),
-              ('Jazz', Colors.indigo),
-              ('Electronic', Colors.teal),
-              ('Metal', Colors.brown),
-              ('Indie', Colors.purple),
+              ('Hip-Hop', Colors.amberAccent),
+              ('Classical', Colors.lightBlueAccent),
+              ('Jazz', Colors.indigoAccent),
+              ('Electronic', Colors.tealAccent),
+              ('Metal', Colors.blueGrey),
+              ('Indie', Colors.purpleAccent),
             ];
             final item = genres[index % genres.length];
+            final accent = item.$2;
             return InkWell(
               onTap: () {
                 haptics.selection();
@@ -306,17 +307,38 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               borderRadius: AppRadii.cardRadius,
               child: Container(
                 decoration: BoxDecoration(
-                  color: item.$2.withValues(alpha: 0.85),
+                  color: colorScheme.surfaceContainerHigh,
                   borderRadius: AppRadii.cardRadius,
+                  border: Border.all(
+                    color: accent.withValues(alpha: 0.25),
+                    width: 1.0,
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      accent.withValues(alpha: 0.20),
+                      colorScheme.surfaceContainerHigh,
+                    ],
+                  ),
                 ),
                 padding: const EdgeInsets.all(AppSpacing.m),
-                child: Text(
-                  item.$1,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      item.$1,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    Icon(
+                      Icons.graphic_eq_rounded,
+                      size: 20,
+                      color: accent.withValues(alpha: 0.6),
+                    ),
+                  ],
                 ),
               ),
             );

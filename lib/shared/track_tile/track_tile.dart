@@ -12,6 +12,7 @@ class TrackTile extends StatelessWidget {
   final VoidCallback? onMore;
   final bool isPlaying;
   final int? trackNumber;
+  final Widget? trailing;
 
   const TrackTile({
     super.key,
@@ -22,6 +23,7 @@ class TrackTile extends StatelessWidget {
     this.onMore,
     this.isPlaying = false,
     this.trackNumber,
+    this.trailing,
   });
 
   String _formatDuration(int ms) {
@@ -139,12 +141,15 @@ class TrackTile extends StatelessWidget {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.more_vert, size: 20.0),
-                  color: colorScheme.onSurfaceVariant,
-                  onPressed: defaultOnMore,
-                  visualDensity: VisualDensity.compact,
-                ),
+                if (trailing != null)
+                  trailing!
+                else
+                  IconButton(
+                    icon: const Icon(Icons.more_vert_rounded, size: 20.0),
+                    color: colorScheme.onSurfaceVariant,
+                    onPressed: defaultOnMore,
+                    visualDensity: VisualDensity.compact,
+                  ),
               ],
             ),
           ),
