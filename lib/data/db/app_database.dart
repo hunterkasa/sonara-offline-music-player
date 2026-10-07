@@ -853,6 +853,66 @@ class AppDatabase extends _$AppDatabase {
     return map;
   }
 
+  /// Get a genre by its ID
+  Future<Genre?> getGenreById(int id) {
+    return (select(genres)..where((g) => g.id.equals(id))).getSingleOrNull();
+  }
+
+  /// Watch a genre by its ID
+  Stream<Genre?> watchGenre(int id) {
+    return (select(genres)..where((g) => g.id.equals(id))).watchSingleOrNull();
+  }
+
+  /// Watch all tracks belonging to a genre in alphabetical order
+  Stream<List<Track>> watchTracksForGenre(int genreId) {
+    final query =
+        select(trackGenres)
+            .join([innerJoin(tracks, tracks.id.equalsExp(trackGenres.trackId))])
+          ..where(
+            trackGenres.genreId.equals(genreId) & tracks.isHidden.equals(false),
+          )
+          ..orderBy([OrderingTerm.asc(tracks.titleSort)]);
+    return query.watch().map(
+      (rows) => rows.map((r) => r.readTable(tracks)).toList(),
+    );
+  }
+
+  /// Get all tracks belonging to a genre
+  Future<List<Track>> getTracksForGenre(int genreId) async {
+    final query =
+        select(trackGenres)
+            .join([innerJoin(tracks, tracks.id.equalsExp(trackGenres.trackId))])
+          ..where(
+            trackGenres.genreId.equals(genreId) & tracks.isHidden.equals(false),
+          )
+          ..orderBy([OrderingTerm.asc(tracks.titleSort)]);
+    final rows = await query.get();
+    return rows.map((r) => r.readTable(tracks)).toList();
+  }
+
+  /// Watch all genres with their track counts
+  Stream<List<(Genre, int)>> watchGenresWithCount() {
+    final countExp = trackGenres.trackId.count();
+    final query =
+        select(genres).join([
+            leftOuterJoin(
+              trackGenres,
+              trackGenres.genreId.equalsExp(genres.id),
+            ),
+          ])
+          ..addColumns([countExp])
+          ..groupBy([genres.id])
+          ..orderBy([OrderingTerm.asc(genres.name)]);
+
+    return query.watch().map((rows) {
+      return rows.map((r) {
+        final genre = r.readTable(genres);
+        final count = r.read(countExp) ?? 0;
+        return (genre, count);
+      }).toList();
+    });
+  }
+
   /// Updates track metadata across tracks, artists, albums, and FTS5 index
   Future<void> updateTrackMetadata({
     required String trackKey,

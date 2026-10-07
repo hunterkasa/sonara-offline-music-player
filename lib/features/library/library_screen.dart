@@ -29,17 +29,48 @@ enum SongSortOption {
 }
 
 class LibraryScreen extends ConsumerStatefulWidget {
-  const LibraryScreen({super.key});
+  final String? initialTab;
+
+  const LibraryScreen({super.key, this.initialTab});
 
   @override
   ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
 }
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
-  LibraryTab _currentTab = LibraryTab.songs;
+  late LibraryTab _currentTab;
   SongSortOption _sortOption = SongSortOption.titleAsc;
   bool _isGridView = false;
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTab = _resolveTab(widget.initialTab);
+  }
+
+  @override
+  void didUpdateWidget(covariant LibraryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != null &&
+        widget.initialTab != oldWidget.initialTab) {
+      setState(() {
+        _currentTab = _resolveTab(widget.initialTab);
+      });
+    }
+  }
+
+  LibraryTab _resolveTab(String? tab) {
+    return switch (tab?.toLowerCase()) {
+      'playlists' || 'playlist' => LibraryTab.playlists,
+      'albums' || 'album' => LibraryTab.albums,
+      'artists' || 'artist' => LibraryTab.artists,
+      'genres' || 'genre' => LibraryTab.genres,
+      'folders' || 'folder' => LibraryTab.folders,
+      'songs' || 'song' => LibraryTab.songs,
+      _ => LibraryTab.songs,
+    };
+  }
 
   @override
   void dispose() {
@@ -563,11 +594,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // ---------------------------------------------------------------------------
   Widget _buildGenresView() {
     final db = ref.watch(databaseProvider);
+    final haptics = ref.read(hapticServiceProvider);
 
-    return StreamBuilder<List<Genre>>(
-      stream: (db.select(
-        db.genres,
-      )..orderBy([(g) => d.OrderingTerm.asc(g.name)])).watch(),
+    return StreamBuilder<List<(Genre, int)>>(
+      stream: db.watchGenresWithCount(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -582,7 +612,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           padding: const EdgeInsets.only(bottom: 96.0),
           itemCount: genres.length,
           itemBuilder: (context, index) {
-            final genre = genres[index];
+            final (genre, count) = genres[index];
             return ListTile(
               leading: Container(
                 width: 44.0,
@@ -600,8 +630,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 genre.name,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
+              subtitle: Text(
+                count == 1 ? '1 song' : '$count songs',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {},
+              onTap: () {
+                haptics.selection();
+                context.push('/genre/${genre.id}');
+              },
             );
           },
         );

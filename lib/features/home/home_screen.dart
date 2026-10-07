@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -158,6 +160,16 @@ class HomeScreen extends ConsumerWidget {
               ),
               _buildQuickCard(
                 context,
+                icon: Icons.queue_music_rounded,
+                title: 'Playlists',
+                color: Colors.indigoAccent,
+                onTap: () {
+                  haptics.selection();
+                  context.go('/library?tab=playlists');
+                },
+              ),
+              _buildQuickCard(
+                context,
                 icon: Icons.shuffle_rounded,
                 title: 'Shuffle All',
                 color: Colors.deepPurpleAccent,
@@ -211,6 +223,16 @@ class HomeScreen extends ConsumerWidget {
                   context.push('/playlist/-3');
                 },
               ),
+              _buildQuickCard(
+                context,
+                icon: Icons.album_rounded,
+                title: 'Genres',
+                color: Colors.deepOrangeAccent,
+                onTap: () {
+                  haptics.selection();
+                  context.go('/library?tab=genres');
+                },
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.l),
@@ -262,6 +284,145 @@ class HomeScreen extends ConsumerWidget {
             },
             loading: () => const SizedBox.shrink(),
             error: (_, _) => const SizedBox.shrink(),
+          ),
+
+          // Front-and-Center Playlists Shelf
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildShelfHeader(
+                context,
+                'Your Playlists',
+                subtitle: 'Personal collections & favorites',
+                onSeeAll: () {
+                  haptics.selection();
+                  context.go('/library?tab=playlists');
+                },
+              ),
+              const SizedBox(height: AppSpacing.s),
+              playlistsAsync.when(
+                data: (playlists) {
+                  return SizedBox(
+                    height: 165.0,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        // Pinned Liked Songs card
+                        _buildPlaylistShelfCard(
+                          context,
+                          title: 'Liked Songs',
+                          subtitle: 'Favorites',
+                          icon: Icons.favorite_rounded,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
+                          ),
+                          onTap: () {
+                            haptics.selection();
+                            context.push('/playlist/-1');
+                          },
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+
+                        // Pinned Recently Added card
+                        _buildPlaylistShelfCard(
+                          context,
+                          title: 'Recently Added',
+                          subtitle: 'Latest additions',
+                          icon: Icons.history_rounded,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF00B4DB), Color(0xFF0083B0)],
+                          ),
+                          onTap: () {
+                            haptics.selection();
+                            context.push('/playlist/-2');
+                          },
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+
+                        // Custom user playlists
+                        ...playlists.map(
+                          (pl) => Padding(
+                            padding: const EdgeInsets.only(
+                              right: AppSpacing.xs,
+                            ),
+                            child: _buildPlaylistShelfCard(
+                              context,
+                              title: pl.name,
+                              subtitle: pl.isSmart
+                                  ? 'Smart playlist'
+                                  : 'Custom playlist',
+                              icon: pl.isSmart
+                                  ? Icons.auto_awesome_rounded
+                                  : Icons.queue_music_rounded,
+                              onTap: () {
+                                haptics.selection();
+                                context.push('/playlist/${pl.id}');
+                              },
+                            ),
+                          ),
+                        ),
+
+                        // Create new playlist card
+                        _buildPlaylistShelfCard(
+                          context,
+                          title: 'New Playlist',
+                          subtitle: 'Create playlist',
+                          icon: Icons.add_rounded,
+                          isAction: true,
+                          onTap: () async {
+                            haptics.selection();
+                            final controller = TextEditingController();
+                            final name = await showDialog<String>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('New Playlist'),
+                                content: TextField(
+                                  controller: controller,
+                                  autofocus: true,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Playlist name',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(ctx).pop(),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx)
+                                            .pop(controller.text.trim()),
+                                    child: const Text('Create'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (name != null && name.isNotEmpty) {
+                              final playlistService = ref.read(
+                                playlistServiceProvider,
+                              );
+                              final id = await playlistService.createPlaylist(
+                                name: name,
+                              );
+                              if (context.mounted) {
+                                unawaited(context.push('/playlist/$id'));
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                loading: () => const SizedBox(
+                  height: 165.0,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (_, _) => const SizedBox.shrink(),
+              ),
+              const SizedBox(height: AppSpacing.l),
+            ],
           ),
 
           // Jump back in (Albums Shelf)
@@ -451,74 +612,81 @@ class HomeScreen extends ConsumerWidget {
             },
           ),
 
-          // Made For You (Playlists Shelf)
-          playlistsAsync.when(
-            data: (playlists) {
-              if (playlists.isEmpty) return const SizedBox.shrink();
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildShelfHeader(context, 'Made For You'),
-                  const SizedBox(height: AppSpacing.s),
-                  SizedBox(
-                    height: 150.0,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: playlists.length,
-                      itemBuilder: (context, index) {
-                        final playlist = playlists[index];
-                        return SizedBox(
-                          width: 130.0,
-                          child: InkWell(
-                            onTap: () {
-                              haptics.selection();
-                              context.push('/playlist/${playlist.id}');
-                            },
-                            borderRadius: AppRadii.cardRadius,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 120.0,
-                                  height: 100.0,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.surfaceContainerHighest,
-                                    borderRadius: AppRadii.cardRadius,
-                                  ),
-                                  child: Icon(
-                                    playlist.isSmart
-                                        ? Icons.auto_awesome_rounded
-                                        : Icons.queue_music_rounded,
-                                    size: 40,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: AppSpacing.xs),
-                                Text(
-                                  playlist.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.l),
-                ],
-              );
-            },
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => const SizedBox.shrink(),
-          ),
-
           const SizedBox(height: AppSpacing.xxl),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaylistShelfCard(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+    Gradient? gradient,
+    bool isAction = false,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return SizedBox(
+      width: 130.0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadii.cardRadius,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 120.0,
+              height: 100.0,
+              decoration: BoxDecoration(
+                gradient: gradient,
+                color: gradient == null
+                    ? (isAction
+                          ? colorScheme.surfaceContainerHighest.withValues(
+                              alpha: 0.6,
+                            )
+                          : colorScheme.surfaceContainerHighest)
+                    : null,
+                borderRadius: AppRadii.cardRadius,
+                border: isAction
+                    ? Border.all(
+                        color: colorScheme.primary.withValues(alpha: 0.4),
+                        width: 1.5,
+                      )
+                    : null,
+              ),
+              child: Icon(
+                icon,
+                size: 38,
+                color: gradient != null
+                    ? Colors.white
+                    : (isAction
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -527,35 +695,46 @@ class HomeScreen extends ConsumerWidget {
     BuildContext context,
     String title, {
     String? subtitle,
+    VoidCallback? onSeeAll,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    if (subtitle == null) {
-      return Text(
-        title,
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-        ),
+    final titleWidget = subtitle == null
+        ? Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2.0),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          );
+
+    if (onSeeAll != null) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: titleWidget),
+          TextButton(onPressed: onSeeAll, child: const Text('See All')),
+        ],
       );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 2.0),
-        Text(
-          subtitle,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
+    return titleWidget;
   }
 
   Widget _buildEmptyShelfPlaceholder(

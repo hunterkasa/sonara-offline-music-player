@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/album/album_detail_screen.dart';
 import '../../features/artist/artist_detail_screen.dart';
 import '../../features/audio_settings/audio_settings_screen.dart';
+import '../../features/genre/genre_detail_screen.dart';
 import '../../features/audio_settings/equalizer_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/library/library_screen.dart';
@@ -74,7 +75,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/library',
-                builder: (context, state) => const LibraryScreen(),
+                builder: (context, state) =>
+                    LibraryScreen(initialTab: state.uri.queryParameters['tab']),
               ),
             ],
           ),
@@ -99,6 +101,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '0') ?? 0;
           return ArtistDetailScreen(artistId: id);
+        },
+      ),
+      GoRoute(
+        path: '/genre/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '0') ?? 0;
+          return GenreDetailScreen(genreId: id);
         },
       ),
       GoRoute(

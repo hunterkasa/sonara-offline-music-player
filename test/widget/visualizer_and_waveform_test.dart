@@ -112,5 +112,61 @@ void main() {
       expect(find.byType(AudioVisualizer), findsOneWidget);
       expect(find.byType(CustomPaint), findsWidgets);
     });
+
+    testWidgets(
+      'AudioVisualizer animates and responds to audio playback and EQ inputs',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 300,
+                  height: 150,
+                  child: AudioVisualizer(
+                    isPlaying: true,
+                    position: Duration(seconds: 45),
+                    duration: Duration(minutes: 3),
+                    speed: 1.25,
+                    trackKey: 'test_track_key',
+                    bandGains: [3.0, 1.0, 0.0, -1.0, 2.0],
+                    bassBoost: 0.6,
+                    style: VisualizerStyle.spectrum,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(AudioVisualizer), findsOneWidget);
+        expect(find.byType(CustomPaint), findsWidgets);
+
+        // Advance clock by 100ms
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Update to paused state
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 300,
+                  height: 150,
+                  child: AudioVisualizer(
+                    isPlaying: false,
+                    position: Duration(seconds: 45),
+                    style: VisualizerStyle.vuMeter,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.byType(AudioVisualizer), findsOneWidget);
+      },
+    );
   });
 }

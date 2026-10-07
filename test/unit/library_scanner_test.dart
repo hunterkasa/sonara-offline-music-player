@@ -176,5 +176,68 @@ void main() {
       expect(tracks.length, 1);
       expect(tracks.first.isMissing, true);
     });
+
+    test(
+      'extracts and associates genres into genres and trackGenres tables',
+      () async {
+        mediaStore.items = [
+          const MediaStoreItem(
+            id: 301,
+            contentUri: 'content://media/external/audio/media/301',
+            albumArtUri: '',
+            title: 'Rock Song',
+            artist: 'Rock Band',
+            album: 'Rock Album',
+            durationMs: 150000,
+            path: '/storage/emulated/0/Music/rock.mp3',
+            sizeBytes: 4000000,
+            dateAdded: 1600000000,
+            dateModified: 1600000000,
+            albumId: 3,
+            trackNumber: 1,
+            mimeType: 'audio/mpeg',
+            year: 2024,
+            genre: 'Rock',
+          ),
+          const MediaStoreItem(
+            id: 302,
+            contentUri: 'content://media/external/audio/media/302',
+            albumArtUri: '',
+            title: 'Jazz Song',
+            artist: 'Jazz Band',
+            album: 'Jazz Album',
+            durationMs: 200000,
+            path: '/storage/emulated/0/Music/jazz.mp3',
+            sizeBytes: 5000000,
+            dateAdded: 1600000000,
+            dateModified: 1600000000,
+            albumId: 4,
+            trackNumber: 1,
+            mimeType: 'audio/mpeg',
+            year: 2024,
+            genre: 'Jazz',
+          ),
+        ];
+        mediaStore.knownIds = [301, 302];
+
+        await scanner.scanLibrary(isFullScan: true);
+
+        final genres = await db.select(db.genres).get();
+        expect(genres.length, 2);
+        expect(
+          genres.map((g) => g.name).toSet(),
+          containsAll({'Rock', 'Jazz'}),
+        );
+
+        final rockGenre = genres.firstWhere((g) => g.name == 'Rock');
+        final rockTracks = await db.getTracksForGenre(rockGenre.id);
+        expect(rockTracks.length, 1);
+        expect(rockTracks.first.title, 'Rock Song');
+
+        final genresWithCount = await db.watchGenresWithCount().first;
+        expect(genresWithCount.length, 2);
+        expect(genresWithCount.firstWhere((g) => g.$1.name == 'Rock').$2, 1);
+      },
+    );
   });
 }

@@ -260,6 +260,9 @@ class MainActivity : AudioServiceActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             projection.add(MediaStore.Audio.Media.YEAR)
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            projection.add(MediaStore.Audio.Media.GENRE)
+        }
 
         val selectionList = mutableListOf<String>()
         val selectionArgs = mutableListOf<String>()
@@ -298,6 +301,9 @@ class MainActivity : AudioServiceActivity() {
             val yearCol = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
             } else -1
+            val genreCol = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                cursor.getColumnIndex(MediaStore.Audio.Media.GENRE)
+            } else -1
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
@@ -320,7 +326,8 @@ class MainActivity : AudioServiceActivity() {
                     "albumId" to albumId,
                     "trackNumber" to cursor.getInt(trackCol),
                     "mimeType" to (cursor.getString(mimeCol) ?: ""),
-                    "year" to if (yearCol >= 0 && !cursor.isNull(yearCol)) cursor.getInt(yearCol) else 0
+                    "year" to if (yearCol >= 0 && !cursor.isNull(yearCol)) cursor.getInt(yearCol) else 0,
+                    "genre" to if (genreCol >= 0 && !cursor.isNull(genreCol)) (cursor.getString(genreCol) ?: "") else ""
                 )
                 trackList.add(item)
             }

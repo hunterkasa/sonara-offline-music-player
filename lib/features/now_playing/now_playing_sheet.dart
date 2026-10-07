@@ -342,6 +342,15 @@ class NowPlayingSheet extends ConsumerWidget {
                                                   child: AudioVisualizer(
                                                     isPlaying:
                                                         snapshot.isPlaying,
+                                                    position: snapshot.position,
+                                                    duration: snapshot.duration,
+                                                    speed: snapshot.speed,
+                                                    trackKey: snapshot
+                                                        .currentTrackKey,
+                                                    bandGains:
+                                                        audioSettings.bandGains,
+                                                    bassBoost:
+                                                        audioSettings.bassBoost,
                                                     style:
                                                         switch (visualizerMode) {
                                                           'vuMeter' =>

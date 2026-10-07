@@ -118,6 +118,9 @@ Status legend:
 - [x] Smart sleep gestures (shake-to-extend, flip-to-pause)
 - [x] Custom Now Playing skins (spinning vinyl, retro cassette, minimalist OLED)
 - [x] Android Auto dashboard integration (`MediaBrowserServiceCompat`)
+- [x] Audio-responsive visualizers (phase-locked playback, BPM transients, EQ/bass boost scaling, 15ms analog ballistics, decay floor)
+- [x] Elevated playlist discovery (Home Quick Access tile, prominent high-priority carousel, See All shortcut)
+- [x] MediaStore genre extraction (API 30+), batched scan reconciliation, genre detail screen (`/genre/:id`), and tab routing
 - [x] Expanded Home Screen widget suite (4×2 large artwork widget, 2×1 minimalist pill, scrollable favorites/recents widget)
 
 ### [ ] Phase 11: iOS Parity (On Request Only)

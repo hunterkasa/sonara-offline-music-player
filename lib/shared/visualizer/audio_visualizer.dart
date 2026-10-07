@@ -6,6 +6,12 @@ enum VisualizerStyle { spectrum, vuMeter, fluidWave }
 
 class AudioVisualizer extends StatefulWidget {
   final bool isPlaying;
+  final Duration position;
+  final Duration duration;
+  final double speed;
+  final String? trackKey;
+  final List<double>? bandGains;
+  final double bassBoost;
   final VisualizerStyle style;
   final Color? accentColor;
   final double height;
@@ -13,6 +19,12 @@ class AudioVisualizer extends StatefulWidget {
   const AudioVisualizer({
     super.key,
     required this.isPlaying,
+    this.position = Duration.zero,
+    this.duration = Duration.zero,
+    this.speed = 1.0,
+    this.trackKey,
+    this.bandGains,
+    this.bassBoost = 0.0,
     this.style = VisualizerStyle.spectrum,
     this.accentColor,
     this.height = 120.0,
@@ -28,16 +40,21 @@ class _AudioVisualizerState extends State<AudioVisualizer>
   final Random _rng = Random(42);
 
   // 24 simulated frequency bands for spectrum
-  final List<double> _bandValues = List.filled(24, 0.12);
-  final List<double> _peakValues = List.filled(24, 0.15);
+  final List<double> _bandValues = List.filled(24, 0.08);
+  final List<double> _peakValues = List.filled(24, 0.10);
 
   // VU meter needle values (dB: -20 to +3)
-  double _leftVu = -18.0;
-  double _rightVu = -18.0;
+  double _leftVu = -20.0;
+  double _rightVu = -20.0;
+
+  double _audioPhaseSec = 0.0;
+  int _lastTickMs = 0;
 
   @override
   void initState() {
     super.initState();
+    _audioPhaseSec = widget.position.inMilliseconds / 1000.0;
+    _lastTickMs = DateTime.now().millisecondsSinceEpoch;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
@@ -52,53 +69,140 @@ class _AudioVisualizerState extends State<AudioVisualizer>
     if (!_controller.isAnimating) {
       _controller.repeat();
     }
+    // Re-sync audio phase on seeking or track switch
+    final posDiffMs =
+        (widget.position.inMilliseconds - oldWidget.position.inMilliseconds)
+            .abs();
+    if (posDiffMs > 1000 || widget.trackKey != oldWidget.trackKey) {
+      _audioPhaseSec = widget.position.inMilliseconds / 1000.0;
+    }
   }
 
   void _tick() {
-    final t = _controller.value * 2 * pi;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final dt = ((now - _lastTickMs) / 1000.0).clamp(0.005, 0.05);
+    _lastTickMs = now;
 
     if (widget.isPlaying) {
-      // Dynamic audio spectrum simulation with realistic bass-heavy curve
+      _audioPhaseSec += dt * widget.speed;
+
+      // Track-deterministic tempo (116 - 132 BPM)
+      final trackHash = widget.trackKey?.hashCode ?? 42;
+      final bpm = 116.0 + (trackHash.abs() % 17);
+      final beatFreq = bpm / 60.0; // beats per second
+
+      // Beat phases:
+      // Quarter-note beat (kick on downbeats 0.0 and 0.5)
+      final beatPhase = (_audioPhaseSec * beatFreq) % 1.0;
+      // Exponential kick decay (punchy attack, smooth release)
+      final kickTransient = exp(-12.0 * beatPhase);
+
+      // Snare on off-beat (0.5)
+      final snarePhase = (_audioPhaseSec * beatFreq + 0.5) % 1.0;
+      final snareTransient = exp(-16.0 * snarePhase);
+
+      // Hi-hat flutter (16th notes)
+      final hatPhase = (_audioPhaseSec * beatFreq * 4.0) % 1.0;
+      final hatTransient = exp(-24.0 * hatPhase);
+
+      // Equalizer multipliers (5 bands mapped across 24 bands)
+      final gains = widget.bandGains ?? const [0.0, 0.0, 0.0, 0.0, 0.0];
+      final bassBoostScale = 1.0 + (widget.bassBoost * 1.4);
+
       for (var i = 0; i < _bandValues.length; i++) {
-        // Bass frequencies have larger amplitude, treble has faster flicker
-        final freqWeight = (1.0 - (i / _bandValues.length) * 0.45);
-        final harmonic = sin(t * (2.0 + (i * 0.35)) + (i * 0.8));
-        final noise = (_rng.nextDouble() - 0.5) * 0.25;
-        final target = ((harmonic * 0.4 + 0.5) * freqWeight + noise).clamp(
-          0.08,
-          0.96,
+        // Map 24 bands to 5 EQ bands:
+        // 0..3: sub-bass, 4..8: bass/low-mid, 9..14: midrange, 15..19: presence, 20..23: brilliance
+        final eqIdx = (i / 4.8).floor().clamp(0, gains.length - 1);
+        final eqDb = gains.length > eqIdx ? gains[eqIdx] : 0.0;
+        final eqScale = pow(10.0, eqDb / 20.0).toDouble().clamp(0.2, 2.5);
+
+        // Harmonic oscillation based on audio phase and band index
+        final freqHarmonic = sin(
+          _audioPhaseSec * (2.2 + (i * 0.45) * widget.speed) +
+              (i * 0.75) +
+              (trackHash % 7),
+        );
+        final subHarmonic = cos(
+          _audioPhaseSec * (1.1 + (i * 0.22)) + (i * 0.35),
         );
 
-        _bandValues[i] = _bandValues[i] * 0.55 + target * 0.45;
+        // Rhythmic transient injection by frequency band:
+        // Low bands (0..6) react heavily to kick drum transient and bass boost
+        // Mid bands (7..14) react to snare transient and melody
+        // High bands (15..23) react to hi-hat shimmer and treble
+        double transientContribution = 0.0;
+        if (i < 7) {
+          final lowWeight = (1.0 - (i / 7.0));
+          transientContribution =
+              kickTransient * 0.65 * lowWeight * bassBoostScale;
+        } else if (i < 15) {
+          final midWeight = 1.0 - ((i - 11).abs() / 4.0);
+          transientContribution = snareTransient * 0.45 * midWeight;
+        } else {
+          final highWeight = ((i - 14) / 9.0);
+          transientContribution = hatTransient * 0.35 * highWeight;
+        }
+
+        final noise = (_rng.nextDouble() - 0.5) * 0.12;
+        final rawTarget =
+            ((freqHarmonic * 0.28 + subHarmonic * 0.18 + 0.42) +
+                transientContribution +
+                noise) *
+            eqScale;
+        final target = rawTarget.clamp(0.08, 0.98);
+
+        // Smooth interpolation for fluid responsive movement
+        _bandValues[i] = _bandValues[i] * 0.48 + target * 0.52;
 
         if (_bandValues[i] > _peakValues[i]) {
           _peakValues[i] = _bandValues[i];
         } else {
-          _peakValues[i] = max(0.08, _peakValues[i] - 0.015);
+          _peakValues[i] = max(0.08, _peakValues[i] - 0.016);
         }
       }
 
-      // VU meters (-20 dB to +3 dB) with realistic analog inertia
-      final vuPulse = (sin(t * 2.8) * 6.0) + (cos(t * 1.4) * 4.0);
-      final leftTarget = (-7.0 + vuPulse + _rng.nextDouble() * 3.5).clamp(
-        -20.0,
-        3.0,
-      );
-      final rightTarget = (-6.5 + vuPulse + _rng.nextDouble() * 3.5).clamp(
-        -20.0,
-        3.0,
-      );
+      // VU meters (-20 dB to +3 dB) with realistic analog galvanometer ballistics
+      // Kick impact and overall audio RMS power
+      final audioEnergy =
+          (kickTransient * 0.7 + snareTransient * 0.3) * bassBoostScale;
+      final stereoFlutter = sin(_audioPhaseSec * 3.4) * 1.8;
 
-      _leftVu = (_leftVu * 0.65) + (leftTarget * 0.35);
-      _rightVu = (_rightVu * 0.65) + (rightTarget * 0.35);
+      // Base level is ~ -12 dB, peaking into 0 to +2 dB on heavy transients
+      final leftTargetDb =
+          (-12.0 +
+                  (audioEnergy * 14.0) +
+                  stereoFlutter +
+                  (_rng.nextDouble() * 1.5))
+              .clamp(-20.0, 3.0);
+      final rightTargetDb =
+          (-12.0 +
+                  (audioEnergy * 14.0) -
+                  stereoFlutter +
+                  (_rng.nextDouble() * 1.5))
+              .clamp(-20.0, 3.0);
+
+      // Fast attack (needle rises instantly on transients), smooth mechanical release
+      if (leftTargetDb > _leftVu) {
+        _leftVu = _leftVu * 0.25 + leftTargetDb * 0.75; // Fast attack (~15ms)
+      } else {
+        _leftVu =
+            _leftVu * 0.86 +
+            leftTargetDb * 0.14; // Natural mechanical decay (~300ms)
+      }
+
+      if (rightTargetDb > _rightVu) {
+        _rightVu = _rightVu * 0.25 + rightTargetDb * 0.75;
+      } else {
+        _rightVu = _rightVu * 0.86 + rightTargetDb * 0.14;
+      }
     } else {
       // Smooth decay towards resting floor when paused
       for (var i = 0; i < _bandValues.length; i++) {
-        _bandValues[i] = max(0.06, _bandValues[i] * 0.92);
-        _peakValues[i] = max(0.06, _peakValues[i] * 0.94);
+        _bandValues[i] = max(0.05, _bandValues[i] * 0.90);
+        _peakValues[i] = max(0.05, _peakValues[i] * 0.92);
       }
-      _leftVu = max(-20.0, _leftVu - 0.5);
-      _rightVu = max(-20.0, _rightVu - 0.5);
+      _leftVu = max(-20.0, _leftVu - 0.8);
+      _rightVu = max(-20.0, _rightVu - 0.8);
     }
 
     if (mounted) setState(() {});
@@ -130,6 +234,7 @@ class _AudioVisualizerState extends State<AudioVisualizer>
             leftVuDb: _leftVu,
             rightVuDb: _rightVu,
             animationValue: _controller.value,
+            audioPhaseSec: _audioPhaseSec,
           ),
         ),
       ),
@@ -147,6 +252,7 @@ class _VisualizerPainter extends CustomPainter {
   final double leftVuDb;
   final double rightVuDb;
   final double animationValue;
+  final double audioPhaseSec;
 
   _VisualizerPainter({
     required this.style,
@@ -158,6 +264,7 @@ class _VisualizerPainter extends CustomPainter {
     required this.leftVuDb,
     required this.rightVuDb,
     required this.animationValue,
+    required this.audioPhaseSec,
   });
 
   @override
@@ -427,7 +534,9 @@ class _VisualizerPainter extends CustomPainter {
   }
 
   void _paintFluidWave(Canvas canvas, Size size) {
-    final t = animationValue * 2 * pi;
+    final t = isPlaying ? (audioPhaseSec * 2.8) : (animationValue * 2 * pi);
+    final bassEnergy = bands.isNotEmpty ? bands[2] : 0.2;
+    final amp = isPlaying ? (0.55 + bassEnergy * 0.75) : 0.18;
     final midY = size.height * 0.52;
 
     // Back ambient wave
@@ -436,8 +545,8 @@ class _VisualizerPainter extends CustomPainter {
       final normX = x / size.width;
       final y =
           midY +
-          sin(normX * 3.5 * pi + t) * (size.height * 0.24) +
-          cos(normX * 2.0 * pi - t * 0.7) * (size.height * 0.12);
+          sin(normX * 3.5 * pi + t) * (size.height * 0.24) * amp +
+          cos(normX * 2.0 * pi - t * 0.7) * (size.height * 0.12) * amp;
       backPath.lineTo(x, y);
     }
     backPath.lineTo(size.width, size.height);
@@ -459,7 +568,6 @@ class _VisualizerPainter extends CustomPainter {
     final frontPath = Path()..moveTo(0, size.height);
     for (var x = 0.0; x <= size.width; x += 6.0) {
       final normX = x / size.width;
-      final amp = isPlaying ? 1.0 : 0.3;
       final y =
           midY +
           (sin(normX * 4.5 * pi - t * 1.2) * (size.height * 0.28) +
@@ -492,7 +600,6 @@ class _VisualizerPainter extends CustomPainter {
     final crestPath = Path()..moveTo(0, midY);
     for (var x = 0.0; x <= size.width; x += 8.0) {
       final normX = x / size.width;
-      final amp = isPlaying ? 1.0 : 0.3;
       final y =
           midY +
           (sin(normX * 5.0 * pi + t * 0.9) * (size.height * 0.2) +
@@ -510,6 +617,7 @@ class _VisualizerPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _VisualizerPainter oldDelegate) {
     return oldDelegate.animationValue != animationValue ||
+        oldDelegate.audioPhaseSec != audioPhaseSec ||
         oldDelegate.style != style ||
         oldDelegate.isPlaying != isPlaying;
   }

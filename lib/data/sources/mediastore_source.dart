@@ -19,6 +19,7 @@ class MediaStoreItem {
   final int trackNumber;
   final String mimeType;
   final int year;
+  final String genre;
 
   const MediaStoreItem({
     required this.id,
@@ -36,6 +37,7 @@ class MediaStoreItem {
     required this.trackNumber,
     required this.mimeType,
     required this.year,
+    this.genre = '',
   });
 
   factory MediaStoreItem.fromMap(Map<dynamic, dynamic> map) {
@@ -55,6 +57,7 @@ class MediaStoreItem {
       trackNumber: (map['trackNumber'] as num?)?.toInt() ?? 0,
       mimeType: (map['mimeType'] as String?) ?? '',
       year: (map['year'] as num?)?.toInt() ?? 0,
+      genre: (map['genre'] as String?) ?? '',
     );
   }
 }

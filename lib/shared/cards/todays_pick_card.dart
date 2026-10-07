@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sonara/app/theme/theme_tokens.dart';
 import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/core/services/haptic_service.dart';
-import 'package:sonara/data/db/app_database.dart';
 import 'package:sonara/data/db/database_provider.dart';
 import 'package:sonara/domain/services/daily_mix_service.dart';
 import 'package:sonara/domain/services/track_radio_service.dart';

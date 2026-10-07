@@ -172,15 +172,27 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
 
       // Reconcile deletions
       if (isFullScan) {
-        final knownIds = (await _mediaStore.getKnownMediaIds()).toSet();
-        if (knownIds.isNotEmpty) {
-          await (_db.update(_db.tracks)..where(
-                (t) =>
-                    t.mediaStoreId.isNotNull() &
-                    t.mediaStoreId.isNotIn(knownIds),
-              ))
-              .write(const TracksCompanion(isMissing: Value(true)));
-        }
+        try {
+          final knownIds = (await _mediaStore.getKnownMediaIds()).toSet();
+          if (knownIds.isNotEmpty) {
+            final dbTracks = await (_db.select(
+              _db.tracks,
+            )..where((t) => t.mediaStoreId.isNotNull())).get();
+            final missingTrackIds = dbTracks
+                .where((t) => !knownIds.contains(t.mediaStoreId))
+                .map((t) => t.id)
+                .toList();
+            const updateBatch = 200;
+            for (var i = 0; i < missingTrackIds.length; i += updateBatch) {
+              final end = (i + updateBatch < missingTrackIds.length)
+                  ? i + updateBatch
+                  : missingTrackIds.length;
+              final chunk = missingTrackIds.sublist(i, end);
+              await (_db.update(_db.tracks)..where((t) => t.id.isIn(chunk)))
+                  .write(const TracksCompanion(isMissing: Value(true)));
+            }
+          }
+        } catch (_) {}
       }
 
       // Update last scan timestamp
@@ -209,146 +221,182 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
 
   Future<void> _processChunk(List<MediaStoreItem> items) async {
     for (final item in items) {
-      final file = File(item.path);
-      ParsedMetadata metadata;
+      try {
+        final file = File(item.path);
+        ParsedMetadata metadata;
 
-      if (await file.exists()) {
-        metadata = await TagReader.readFromFile(file);
-      } else {
-        metadata = ParsedMetadata(
-          title: MetadataUtils.resolveTitle(item.title, item.path),
-          artist: MetadataUtils.resolveArtist(item.artist),
-          album: MetadataUtils.resolveAlbum(item.album, item.path),
-          albumArtist: MetadataUtils.resolveArtist(item.artist),
-          year: item.year > 0 ? item.year : null,
-          trackNumber: item.trackNumber > 0 ? item.trackNumber : null,
-        );
-      }
-
-      final title = metadata.title.isNotEmpty ? metadata.title : item.title;
-      final artistName = metadata.artist.isNotEmpty
-          ? metadata.artist
-          : item.artist;
-      final albumTitle = metadata.album.isNotEmpty
-          ? metadata.album
-          : item.album;
-      final duration = item.durationMs;
-      final size = item.sizeBytes;
-
-      final trackKey = TrackKeyUtil.generate(
-        title: title,
-        artist: artistName,
-        album: albumTitle,
-        durationMs: duration,
-        sizeBytes: size,
-      );
-
-      // Artwork caching
-      String? artworkKey;
-      if (metadata.embeddedArtwork != null) {
-        artworkKey = ArtworkService.generateArtworkKey(
-          '$albumTitle-$artistName',
-        );
-        await _artworkService.cacheArtworkBytes(
-          artworkKey,
-          metadata.embeddedArtwork!,
-        );
-      } else {
-        final sidecar = await _artworkService.resolveArtworkFile(
-          artworkKey: null,
-          filePath: item.path,
-        );
-        if (sidecar != null) {
-          artworkKey = ArtworkService.generateArtworkKey(sidecar.path);
-        }
-      }
-
-      // Check for sidecar CUE sheet
-      final withoutExt = p.withoutExtension(item.path);
-      File? cueFile = File('$withoutExt.cue');
-      if (!await cueFile.exists()) {
-        final upperCue = File('$withoutExt.CUE');
-        if (await upperCue.exists()) {
-          cueFile = upperCue;
+        if (await file.exists()) {
+          metadata = await TagReader.readFromFile(file);
         } else {
-          cueFile = null;
+          metadata = ParsedMetadata(
+            title: MetadataUtils.resolveTitle(item.title, item.path),
+            artist: MetadataUtils.resolveArtist(item.artist),
+            album: MetadataUtils.resolveAlbum(item.album, item.path),
+            albumArtist: MetadataUtils.resolveArtist(item.artist),
+            year: item.year > 0 ? item.year : null,
+            trackNumber: item.trackNumber > 0 ? item.trackNumber : null,
+          );
         }
-      }
 
-      if (cueFile != null) {
-        try {
-          final cueContent = await cueFile.readAsString();
-          final cueSheet = CueParser.parse(
-            cueContent,
-            parentDuration: Duration(milliseconds: duration),
+        final title = metadata.title.isNotEmpty ? metadata.title : item.title;
+        final artistName = metadata.artist.isNotEmpty
+            ? metadata.artist
+            : item.artist;
+        final albumTitle = metadata.album.isNotEmpty
+            ? metadata.album
+            : item.album;
+        final duration = item.durationMs;
+        final size = item.sizeBytes;
+
+        final trackKey = TrackKeyUtil.generate(
+          title: title,
+          artist: artistName,
+          album: albumTitle,
+          durationMs: duration,
+          sizeBytes: size,
+        );
+
+        // Artwork caching
+        String? artworkKey;
+        if (metadata.embeddedArtwork != null) {
+          artworkKey = ArtworkService.generateArtworkKey(
+            '$albumTitle-$artistName',
           );
-          if (cueSheet.tracks.isNotEmpty) {
-            await _db.importCueTracks(
-              audioPath: item.path,
-              contentUri: item.contentUri,
-              cueTracks: cueSheet.tracks,
-              artworkKey: artworkKey,
-              parentMediaStoreId: item.id,
-              parentFileSize: size,
-            );
-            continue; // Virtual sub-tracks imported, skip inserting monolith rip
+          await _artworkService.cacheArtworkBytes(
+            artworkKey,
+            metadata.embeddedArtwork!,
+          );
+        } else {
+          final sidecar = await _artworkService.resolveArtworkFile(
+            artworkKey: null,
+            filePath: item.path,
+          );
+          if (sidecar != null) {
+            artworkKey = ArtworkService.generateArtworkKey(sidecar.path);
           }
-        } catch (_) {}
+        }
+
+        // Check for sidecar CUE sheet
+        final withoutExt = p.withoutExtension(item.path);
+        File? cueFile = File('$withoutExt.cue');
+        if (!await cueFile.exists()) {
+          final upperCue = File('$withoutExt.CUE');
+          if (await upperCue.exists()) {
+            cueFile = upperCue;
+          } else {
+            cueFile = null;
+          }
+        }
+
+        if (cueFile != null) {
+          try {
+            final cueContent = await cueFile.readAsString();
+            final cueSheet = CueParser.parse(
+              cueContent,
+              parentDuration: Duration(milliseconds: duration),
+            );
+            if (cueSheet.tracks.isNotEmpty) {
+              await _db.importCueTracks(
+                audioPath: item.path,
+                contentUri: item.contentUri,
+                cueTracks: cueSheet.tracks,
+                artworkKey: artworkKey,
+                parentMediaStoreId: item.id,
+                parentFileSize: size,
+              );
+              continue; // Virtual sub-tracks imported, skip inserting monolith rip
+            }
+          } catch (_) {}
+        }
+
+        // Resolve or create Artist
+        final artistId = await _getOrCreateArtist(artistName);
+
+        // Resolve or create Album
+        final albumId = await _getOrCreateAlbum(
+          title: albumTitle,
+          artistId: artistId,
+          year: metadata.year ?? (item.year > 0 ? item.year : null),
+          artworkKey: artworkKey,
+        );
+
+        // Upsert Track
+        await _db
+            .into(_db.tracks)
+            .insertOnConflictUpdate(
+              TracksCompanion(
+                trackKey: Value(trackKey),
+                mediaStoreId: Value(item.id),
+                contentUri: Value(item.contentUri),
+                path: Value(item.path),
+                relativeDir: Value(p.dirname(item.path)),
+                title: Value(title),
+                titleSort: Value(MetadataUtils.normalizeSortName(title)),
+                artistId: Value(artistId),
+                albumId: Value(albumId),
+                albumArtistId: Value(artistId),
+                trackNo: Value(
+                  metadata.trackNumber ??
+                      (item.trackNumber > 0 ? item.trackNumber : null),
+                ),
+                discNo: Value(metadata.discNumber),
+                year: Value(
+                  metadata.year ?? (item.year > 0 ? item.year : null),
+                ),
+                durationMs: Value(duration),
+                mime: Value(
+                  item.mimeType.isNotEmpty ? item.mimeType : metadata.codec,
+                ),
+                sizeBytes: Value(size),
+                dateAdded: Value(item.dateAdded),
+                dateModified: Value(item.dateModified),
+                artworkKey: Value(artworkKey),
+                replayGainTrackDb: Value(metadata.replayGainTrackDb),
+                replayGainAlbumDb: Value(metadata.replayGainAlbumDb),
+                hasLyrics: Value(
+                  metadata.lyrics != null && metadata.lyrics!.isNotEmpty,
+                ),
+              ),
+            );
+
+        // Fetch track for genre association
+        final insertedTrack = await (_db.select(
+          _db.tracks,
+        )..where((t) => t.trackKey.equals(trackKey))).getSingleOrNull();
+
+        // Collect genres from tags or MediaStore
+        final genresList = <String>{};
+        for (final g in metadata.genres) {
+          final trimmed = g.trim();
+          if (trimmed.isNotEmpty) genresList.add(trimmed);
+        }
+        if (genresList.isEmpty && item.genre.trim().isNotEmpty) {
+          genresList.add(item.genre.trim());
+        }
+
+        if (insertedTrack != null) {
+          for (final genreName in genresList) {
+            final genreId = await _db.getOrCreateGenre(genreName);
+            await _db
+                .into(_db.trackGenres)
+                .insertOnConflictUpdate(
+                  TrackGenresCompanion(
+                    trackId: Value(insertedTrack.id),
+                    genreId: Value(genreId),
+                  ),
+                );
+          }
+        }
+
+        // Sync FTS
+        await _db.customStatement(
+          'INSERT OR REPLACE INTO tracks_fts(track_key, title, artist, album, genre) VALUES (?, ?, ?, ?, ?)',
+          [trackKey, title, artistName, albumTitle, genresList.join(' ')],
+        );
+      } catch (_) {
+        // Individual track processing error must never break the whole library scan
+        continue;
       }
-
-      // Resolve or create Artist
-      final artistId = await _getOrCreateArtist(artistName);
-
-      // Resolve or create Album
-      final albumId = await _getOrCreateAlbum(
-        title: albumTitle,
-        artistId: artistId,
-        year: metadata.year ?? (item.year > 0 ? item.year : null),
-        artworkKey: artworkKey,
-      );
-
-      // Upsert Track
-      await _db
-          .into(_db.tracks)
-          .insertOnConflictUpdate(
-            TracksCompanion(
-              trackKey: Value(trackKey),
-              mediaStoreId: Value(item.id),
-              contentUri: Value(item.contentUri),
-              path: Value(item.path),
-              relativeDir: Value(p.dirname(item.path)),
-              title: Value(title),
-              titleSort: Value(MetadataUtils.normalizeSortName(title)),
-              artistId: Value(artistId),
-              albumId: Value(albumId),
-              albumArtistId: Value(artistId),
-              trackNo: Value(
-                metadata.trackNumber ??
-                    (item.trackNumber > 0 ? item.trackNumber : null),
-              ),
-              discNo: Value(metadata.discNumber),
-              year: Value(metadata.year ?? (item.year > 0 ? item.year : null)),
-              durationMs: Value(duration),
-              mime: Value(
-                item.mimeType.isNotEmpty ? item.mimeType : metadata.codec,
-              ),
-              sizeBytes: Value(size),
-              dateAdded: Value(item.dateAdded),
-              dateModified: Value(item.dateModified),
-              artworkKey: Value(artworkKey),
-              replayGainTrackDb: Value(metadata.replayGainTrackDb),
-              replayGainAlbumDb: Value(metadata.replayGainAlbumDb),
-              hasLyrics: Value(
-                metadata.lyrics != null && metadata.lyrics!.isNotEmpty,
-              ),
-            ),
-          );
-
-      // Sync FTS
-      await _db.customStatement(
-        'INSERT OR REPLACE INTO tracks_fts(track_key, title, artist, album, genre) VALUES (?, ?, ?, ?, ?)',
-        [trackKey, title, artistName, albumTitle, metadata.genres.join(' ')],
-      );
     }
   }
 
