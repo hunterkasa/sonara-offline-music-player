@@ -18,18 +18,35 @@ import '../domain/services/replay_gain_calculator.dart';
 /// AudioSession focus & noisy events, and just_audio playback engine.
 class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   SonaraAudioHandler({
-    required this.queueManager,
-    this.db,
-    this.longAudioService,
-    this.deviceProfileService,
+    required QueueManager queueManager,
+    AppDatabase? db,
+    LongAudioService? longAudioService,
+    DeviceProfileService? deviceProfileService,
     AudioPlayer? player,
     AndroidEqualizer? equalizer,
     AndroidLoudnessEnhancer? loudnessEnhancer,
     bool enablePersistenceTimer = true,
-  }) : equalizer = equalizer ?? (player == null ? _defaultEffects.$2 : null),
-       loudnessEnhancer =
-           loudnessEnhancer ?? (player == null ? _defaultEffects.$3 : null),
-       _player = player ?? _defaultEffects.$1 {
+  }) : this._fromEffects(
+         queueManager: queueManager,
+         db: db,
+         longAudioService: longAudioService,
+         deviceProfileService: deviceProfileService,
+         effects: player != null
+             ? (player, equalizer, loudnessEnhancer)
+             : _createDefaultEffects(),
+         enablePersistenceTimer: enablePersistenceTimer,
+       );
+
+  SonaraAudioHandler._fromEffects({
+    required this.queueManager,
+    this.db,
+    this.longAudioService,
+    this.deviceProfileService,
+    required (AudioPlayer, AndroidEqualizer?, AndroidLoudnessEnhancer?) effects,
+    bool enablePersistenceTimer = true,
+  }) : _player = effects.$1,
+       equalizer = effects.$2,
+       loudnessEnhancer = effects.$3 {
     _initAudioSession();
     _listenToPlayerEvents();
     _listenToQueueManager();
@@ -39,7 +56,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   static (AudioPlayer, AndroidEqualizer?, AndroidLoudnessEnhancer?)
-  get _defaultEffects {
+  _createDefaultEffects() {
     if (!kIsWeb && Platform.isAndroid) {
       try {
         final eq = AndroidEqualizer();
@@ -345,6 +362,8 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       _consecutiveErrors = 0;
 
       await _updateEffectiveVolume();
+      await _applyEqualizerSettings();
+      await _applyLoudnessEnhancer();
 
       if (resumePlaying) {
         await _player.play();
@@ -374,43 +393,21 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  AndroidEqualizerParameters? _cachedEqualizerParams;
+  bool _isApplyingEqualizer = false;
+  bool _equalizerNeedsReapply = false;
+  bool _isApplyingLoudness = false;
+  bool _loudnessNeedsReapply = false;
+
   /// Apply audio settings from user preferences
   Future<void> applyAudioSettings(AudioSettings settings) async {
     _audioSettings = settings;
 
-    // 1. Equalizer
-    if (equalizer != null) {
-      try {
-        await equalizer!.setEnabled(settings.equalizerEnabled);
-        if (settings.equalizerEnabled) {
-          final params = await equalizer!.parameters;
-          for (var i = 0; i < params.bands.length; i++) {
-            if (i < settings.bandGains.length) {
-              final gain = settings.bandGains[i].clamp(
-                params.minDecibels,
-                params.maxDecibels,
-              );
-              await params.bands[i].setGain(gain);
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('Equalizer apply skipped: $e');
-      }
-    }
+    // 1. Equalizer & Bass Boost
+    await _applyEqualizerSettings();
 
     // 2. Loudness Enhancer
-    if (loudnessEnhancer != null) {
-      try {
-        final shouldEnable = settings.loudnessGain > 0;
-        await loudnessEnhancer!.setEnabled(shouldEnable);
-        if (shouldEnable) {
-          await loudnessEnhancer!.setTargetGain(settings.loudnessGain);
-        }
-      } catch (e) {
-        debugPrint('LoudnessEnhancer apply skipped: $e');
-      }
-    }
+    await _applyLoudnessEnhancer();
 
     // 3. Skip Silence
     try {
@@ -425,6 +422,89 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     // 5. Musical Pitch Transposition
     if (settings.pitchSemitones != _pitchSemitones) {
       await setPitchSemitones(settings.pitchSemitones);
+    }
+  }
+
+  Future<void> _applyEqualizerSettings() async {
+    if (equalizer == null) return;
+    if (_isApplyingEqualizer) {
+      _equalizerNeedsReapply = true;
+      return;
+    }
+    _isApplyingEqualizer = true;
+    try {
+      do {
+        _equalizerNeedsReapply = false;
+        await equalizer!.setEnabled(_audioSettings.equalizerEnabled);
+        if (!_audioSettings.equalizerEnabled) break;
+
+        AndroidEqualizerParameters? params = _cachedEqualizerParams;
+        if (params == null) {
+          try {
+            params = await equalizer!.parameters.timeout(
+              const Duration(milliseconds: 350),
+            );
+            _cachedEqualizerParams = params;
+          } on TimeoutException {
+            debugPrint(
+              'Equalizer parameters pending platform activation (deferred to playback)',
+            );
+            break;
+          } catch (e) {
+            debugPrint('Error retrieving equalizer parameters: $e');
+            break;
+          }
+        }
+
+        for (var i = 0; i < params.bands.length; i++) {
+          var targetGain = 0.0;
+          if (i < _audioSettings.bandGains.length) {
+            targetGain = _audioSettings.bandGains[i];
+          }
+
+          // Apply Bass Boost: boost sub-bass (band 0, 60Hz) and mid-bass (band 1, 230Hz)
+          if (_audioSettings.bassBoost > 0) {
+            if (i == 0) {
+              targetGain += _audioSettings.bassBoost * 6.0;
+            } else if (i == 1) {
+              targetGain += _audioSettings.bassBoost * 3.5;
+            }
+          }
+
+          final clampedGain = targetGain.clamp(
+            params.minDecibels,
+            params.maxDecibels,
+          );
+          await params.bands[i].setGain(clampedGain);
+        }
+      } while (_equalizerNeedsReapply);
+    } catch (e) {
+      debugPrint('Equalizer apply error: $e');
+    } finally {
+      _isApplyingEqualizer = false;
+    }
+  }
+
+  Future<void> _applyLoudnessEnhancer() async {
+    if (loudnessEnhancer == null) return;
+    if (_isApplyingLoudness) {
+      _loudnessNeedsReapply = true;
+      return;
+    }
+    _isApplyingLoudness = true;
+    try {
+      do {
+        _loudnessNeedsReapply = false;
+        final shouldEnable = _audioSettings.loudnessGain > 0;
+        await loudnessEnhancer!.setEnabled(shouldEnable);
+        if (shouldEnable) {
+          await loudnessEnhancer!.setTargetGain(_audioSettings.loudnessGain);
+        }
+      } while (_loudnessNeedsReapply);
+    } catch (e) {
+      debugPrint('LoudnessEnhancer apply error: $e');
+    } finally {
+      _isApplyingLoudness = false;
     }
   }
 
@@ -468,6 +548,11 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     try {
       await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
     } catch (_) {}
+    if (_cachedEqualizerParams == null &&
+        equalizer != null &&
+        _audioSettings.equalizerEnabled) {
+      await _applyEqualizerSettings();
+    }
     await _player.play();
   }
 

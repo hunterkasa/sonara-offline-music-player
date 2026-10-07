@@ -5,6 +5,7 @@ import 'package:just_audio_platform_interface/just_audio_platform_interface.dart
 import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/audio/sonara_audio_handler.dart';
 import 'package:sonara/data/db/app_database.dart';
+import 'package:sonara/domain/models/audio_settings.dart';
 import 'package:sonara/domain/services/queue_manager.dart';
 
 class FakeAudioPlayerPlatform extends AudioPlayerPlatform {
@@ -255,6 +256,26 @@ void main() {
       await controller.clearQueue();
       expect(controller.currentQueue.isEmpty, isTrue);
       expect(controller.currentSnapshot.currentTrackKey, isNull);
+    });
+
+    test('applyAudioSettings applies equalizer, bass boost, and pitch', () async {
+      const settings = AudioSettings(
+        equalizerEnabled: true,
+        equalizerPreset: 'rock',
+        bandGains: [4.5, 2.0, -1.0, 2.5, 4.0],
+        bassBoost: 0.8,
+        loudnessGain: 4.0,
+        pitchSemitones: 3,
+      );
+
+      await controller.applyAudioSettings(settings);
+
+      expect(audioHandler.audioSettings.equalizerEnabled, isTrue);
+      expect(audioHandler.audioSettings.equalizerPreset, equals('rock'));
+      expect(audioHandler.audioSettings.bandGains, equals([4.5, 2.0, -1.0, 2.5, 4.0]));
+      expect(audioHandler.audioSettings.bassBoost, equals(0.8));
+      expect(audioHandler.audioSettings.loudnessGain, equals(4.0));
+      expect(audioHandler.pitchSemitones, equals(3));
     });
   });
 }
