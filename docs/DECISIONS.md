@@ -308,3 +308,11 @@ This log records non-obvious technical choices, architecture invariants, and dep
   2. *Monochrome Notification Silhouette:* Configured `androidNotificationIcon: 'drawable/ic_notification'` in `AudioServiceConfig` with a pure `#FFFFFFFF` monochrome music note silhouette on transparent background (`ic_notification.xml`), preventing Android and OEM Dynamic Island / Mini Capsule shells from turning launcher icons into solid white rectangular blocks.
 - **Rationale:** Eliminates solid block icon artifacts in the Android drop-down notification shade, lock screen, and Dynamic Island/Capsule indicators, presenting a clean modern cross button for closing playback.
 
+### ADR 10.11: Streamlined Playlist Rows, Dedicated Reorder Drag Handles, and Context-Sheet Removal
+- **Decision:**
+  1. *De-cluttered Playlist Rows:* Removed the permanent inline red delete icon (`remove_circle_outline_rounded`) from each playlist row to maintain a clean, modern list aesthetic.
+  2. *Working Drag-to-Reorder Handles:* Wrapped the `=` drag handle (`Icons.drag_handle_rounded`) in `ReorderableDragStartListener(index: index)` with an expanded 36×48 touch hit target, enabling immediate drag-and-drop reordering without gesture delay or long-press conflict with the track tile. Added animated elevated shadow proxy decoration during dragging.
+  3. *Fixed Database Reordering Math:* Corrected `reorderPlaylistTracks` in `AppDatabase` to accept direct final destination indices without double-decrementing `targetIndex`, perfectly synchronizing with Flutter's `SliverReorderableList.onReorderItem` callback contract.
+  4. *Context-Sheet Track Removal:* Updated `TrackContextSheet` to accept `playlistId` and display a clean "Remove from Playlist" action with instant deletion and undo snackbar support.
+- **Rationale:** Resolves user complaints regarding unnecessary inline delete buttons cluttering playlist items and broken `=` drag handle reordering.
+

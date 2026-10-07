@@ -137,10 +137,15 @@ void main() {
       var keys = await playlistService.getPlaylistTrackKeys(id);
       expect(keys, equals(['track_1', 'track_2', 'track_3']));
 
-      // Move track_1 (index 0) to after track_2 (index 2 in Flutter reorder semantics)
-      await playlistService.reorderTracks(id, 0, 2);
+      // Move track_1 (index 0) to position 1 (after track_2)
+      await playlistService.reorderTracks(id, 0, 1);
       keys = await playlistService.getPlaylistTrackKeys(id);
       expect(keys, equals(['track_2', 'track_1', 'track_3']));
+
+      // Move track_3 (index 2) to position 0 (beginning)
+      await playlistService.reorderTracks(id, 2, 0);
+      keys = await playlistService.getPlaylistTrackKeys(id);
+      expect(keys, equals(['track_3', 'track_2', 'track_1']));
     });
   });
 }

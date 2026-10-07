@@ -143,6 +143,13 @@ void main() {
         expect(find.text('Shuffle'), findsOneWidget);
         expect(find.text('Playlist Flow Song 1'), findsOneWidget);
 
+        // Verify inline delete button is removed from list rows
+        expect(find.byIcon(Icons.remove_circle_outline_rounded), findsNothing);
+
+        // Verify '=' drag handle is wrapped in ReorderableDragStartListener
+        expect(find.byIcon(Icons.drag_handle_rounded), findsOneWidget);
+        expect(find.byType(ReorderableDragStartListener), findsOneWidget);
+
         await tester.pumpWidget(const SizedBox());
         await tester.pump(const Duration(milliseconds: 100));
       },

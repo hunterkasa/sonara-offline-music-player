@@ -7,6 +7,7 @@ import '../../audio/playback_controller.dart';
 import '../../core/services/haptic_service.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
+import '../../domain/services/playlist_service.dart';
 import '../../domain/services/track_radio_service.dart';
 import '../../features/lyrics/lyrics_editor_sheet.dart';
 import '../../features/playlist/add_to_playlist_sheet.dart';
@@ -15,9 +16,10 @@ import '../../features/track_info/track_info_sheet.dart';
 import '../artwork/artwork_widget.dart';
 
 class TrackContextSheet extends ConsumerWidget {
-  const TrackContextSheet({super.key, required this.track});
+  const TrackContextSheet({super.key, required this.track, this.playlistId});
 
   final Track track;
+  final int? playlistId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -161,6 +163,42 @@ class TrackContextSheet extends ConsumerWidget {
               );
             },
           ),
+          if (playlistId != null && playlistId! > 0)
+            ListTile(
+              leading: const Icon(
+                Icons.playlist_remove_rounded,
+                color: Colors.redAccent,
+              ),
+              title: const Text(
+                'Remove from Playlist',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+              onTap: () async {
+                haptics.light();
+                Navigator.of(context).pop();
+                final playlistService = ref.read(playlistServiceProvider);
+                await playlistService.removeTrackFromPlaylist(
+                  playlistId!,
+                  track.trackKey,
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Removed "${track.title}" from playlist'),
+                      behavior: SnackBarBehavior.floating,
+                      action: SnackBarAction(
+                        label: 'Undo',
+                        onPressed: () {
+                          playlistService.addTracksToPlaylist(playlistId!, [
+                            track.trackKey,
+                          ]);
+                        },
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
           StreamBuilder<Track?>(
             stream: db.watchTrack(track.trackKey),
             initialData: track,

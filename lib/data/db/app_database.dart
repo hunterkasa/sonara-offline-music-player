@@ -445,16 +445,13 @@ class AppDatabase extends _$AppDatabase {
       if (oldIndex < 0 ||
           oldIndex >= list.length ||
           newIndex < 0 ||
-          newIndex > list.length) {
+          newIndex >= list.length) {
         return;
       }
+      if (oldIndex == newIndex) return;
 
-      var targetIndex = newIndex;
-      if (oldIndex < targetIndex) {
-        targetIndex -= 1;
-      }
       final item = list.removeAt(oldIndex);
-      list.insert(targetIndex, item);
+      list.insert(newIndex, item);
 
       for (var i = 0; i < list.length; i++) {
         await (update(playlistTracks)..where(

@@ -487,9 +487,28 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   }, childCount: tracks.length),
                 )
               else
-                // Reorderable list with direct remove button for custom playlists
+                // Reorderable list for custom playlists with working drag handle
                 SliverReorderableList(
                   itemCount: tracks.length,
+                  proxyDecorator: (child, index, animation) {
+                    return AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) {
+                        final elevation = Tween<double>(
+                          begin: 0,
+                          end: 6,
+                        ).evaluate(animation);
+                        return Material(
+                          elevation: elevation,
+                          color: colorScheme.surfaceContainerHigh,
+                          shadowColor: Colors.black.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(8),
+                          child: child,
+                        );
+                      },
+                      child: child,
+                    );
+                  },
                   onReorderItem: (oldIndex, newIndex) {
                     haptics.light();
                     unawaited(
@@ -502,11 +521,11 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   },
                   itemBuilder: (context, index) {
                     final track = tracks[index];
-                    return ReorderableDelayedDragStartListener(
+                    return Material(
                       key: ValueKey(
                         'playlist_${playlist!.id}_${track.trackKey}',
                       ),
-                      index: index,
+                      color: Colors.transparent,
                       child: TrackTile(
                         track: track,
                         trackNumber: index + 1,
@@ -515,41 +534,38 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           children: [
                             IconButton(
                               icon: const Icon(
-                                Icons.remove_circle_outline_rounded,
-                                color: Colors.redAccent,
+                                Icons.more_vert_rounded,
                                 size: 20,
                               ),
-                              tooltip: 'Remove from playlist',
-                              onPressed: () async {
-                                haptics.light();
-                                await playlistService.removeTrackFromPlaylist(
-                                  playlist.id,
-                                  track.trackKey,
+                              color: colorScheme.onSurfaceVariant,
+                              tooltip: 'Track options',
+                              onPressed: () {
+                                haptics.medium();
+                                showModalBottomSheet<void>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  useSafeArea: true,
+                                  builder: (ctx) => TrackContextSheet(
+                                    track: track,
+                                    playlistId: playlist.id,
+                                  ),
                                 );
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Removed "${track.title}" from playlist',
-                                      ),
-                                      behavior: SnackBarBehavior.floating,
-                                      action: SnackBarAction(
-                                        label: 'Undo',
-                                        onPressed: () {
-                                          playlistService.addTracksToPlaylist(
-                                            playlist.id,
-                                            [track.trackKey],
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  );
-                                }
                               },
                             ),
-                            const Icon(
-                              Icons.drag_handle_rounded,
-                              color: Colors.grey,
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: Container(
+                                width: 36,
+                                height: 48,
+                                alignment: Alignment.center,
+                                color: Colors.transparent,
+                                child: Icon(
+                                  Icons.drag_handle_rounded,
+                                  color: colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.6),
+                                  size: 22,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -566,7 +582,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
                             context: context,
                             isScrollControlled: true,
                             useSafeArea: true,
-                            builder: (ctx) => TrackContextSheet(track: track),
+                            builder: (ctx) => TrackContextSheet(
+                              track: track,
+                              playlistId: playlist.id,
+                            ),
                           );
                         },
                       ),
