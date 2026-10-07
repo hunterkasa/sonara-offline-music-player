@@ -60,6 +60,9 @@ class NowPlayingSheet extends ConsumerWidget {
         ? snapshot.title.hashCode
         : 0xFF6200EE;
     final dominantColor = PaletteService.fromSeed(seed).primary;
+    final isMinimalistOled =
+        audioSettings.nowPlayingSkin == NowPlayingSkin.minimalistOled;
+    final effectiveAccent = isMinimalistOled ? Colors.white : dominantColor;
 
     return PopScope(
       canPop: false,
@@ -498,7 +501,7 @@ class NowPlayingSheet extends ConsumerWidget {
                       trackKey: trackKey ?? 'default_track',
                       position: snapshot.position,
                       duration: snapshot.duration,
-                      accentColor: dominantColor,
+                      accentColor: effectiveAccent,
                       height: 38,
                       onSeek: (pos) {
                         haptics.selection();
@@ -518,10 +521,10 @@ class NowPlayingSheet extends ConsumerWidget {
                       overlayShape: const RoundSliderOverlayShape(
                         overlayRadius: 12,
                       ),
-                      activeTrackColor: dominantColor,
+                      activeTrackColor: effectiveAccent,
                       inactiveTrackColor: theme.colorScheme.onSurfaceVariant
                           .withValues(alpha: 0.25),
-                      thumbColor: dominantColor,
+                      thumbColor: effectiveAccent,
                     ),
                     child: Slider(
                       value: progressRatio,
@@ -588,8 +591,12 @@ class NowPlayingSheet extends ConsumerWidget {
                         icon: Icon(
                           Icons.shuffle_rounded,
                           color: snapshot.shuffleEnabled
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
+                              ? (isMinimalistOled
+                                    ? Colors.white
+                                    : theme.colorScheme.primary)
+                              : (isMinimalistOled
+                                    ? Colors.white38
+                                    : theme.colorScheme.onSurfaceVariant),
                         ),
                         tooltip: 'Shuffle',
                         onPressed: () {
@@ -598,7 +605,10 @@ class NowPlayingSheet extends ConsumerWidget {
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.skip_previous_rounded),
+                        icon: Icon(
+                          Icons.skip_previous_rounded,
+                          color: isMinimalistOled ? Colors.white : null,
+                        ),
                         iconSize: 36,
                         tooltip: 'Previous',
                         onPressed: () {
@@ -610,7 +620,9 @@ class NowPlayingSheet extends ConsumerWidget {
                         width: 64,
                         height: 64,
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary,
+                          color: isMinimalistOled
+                              ? Colors.white
+                              : theme.colorScheme.primary,
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
@@ -618,7 +630,9 @@ class NowPlayingSheet extends ConsumerWidget {
                             snapshot.isPlaying
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
-                            color: theme.colorScheme.onPrimary,
+                            color: isMinimalistOled
+                                ? Colors.black
+                                : theme.colorScheme.onPrimary,
                           ),
                           iconSize: 36,
                           tooltip: snapshot.isPlaying ? 'Pause' : 'Play',
@@ -629,7 +643,10 @@ class NowPlayingSheet extends ConsumerWidget {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.skip_next_rounded),
+                        icon: Icon(
+                          Icons.skip_next_rounded,
+                          color: isMinimalistOled ? Colors.white : null,
+                        ),
                         iconSize: 36,
                         tooltip: 'Next',
                         onPressed: () {
@@ -643,8 +660,12 @@ class NowPlayingSheet extends ConsumerWidget {
                               ? Icons.repeat_one_rounded
                               : Icons.repeat_rounded,
                           color: snapshot.repeatMode > 0
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
+                              ? (isMinimalistOled
+                                    ? Colors.white
+                                    : theme.colorScheme.primary)
+                              : (isMinimalistOled
+                                    ? Colors.white38
+                                    : theme.colorScheme.onSurfaceVariant),
                         ),
                         tooltip: 'Repeat',
                         onPressed: () {
@@ -663,6 +684,7 @@ class NowPlayingSheet extends ConsumerWidget {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.lyrics_outlined),
+                        color: isMinimalistOled ? Colors.white70 : null,
                         tooltip: 'Lyrics',
                         onPressed: () async {
                           haptics.light();
@@ -678,6 +700,7 @@ class NowPlayingSheet extends ConsumerWidget {
                       ),
                       IconButton(
                         icon: const Icon(Icons.queue_music_rounded),
+                        color: isMinimalistOled ? Colors.white70 : null,
                         tooltip: 'Queue',
                         onPressed: () {
                           haptics.light();
@@ -697,8 +720,10 @@ class NowPlayingSheet extends ConsumerWidget {
                               ? Icons.timer_rounded
                               : Icons.timer_outlined,
                           color: timerState.isActive
-                              ? theme.colorScheme.primary
-                              : null,
+                              ? (isMinimalistOled
+                                    ? Colors.white
+                                    : theme.colorScheme.primary)
+                              : (isMinimalistOled ? Colors.white70 : null),
                         ),
                         tooltip: 'Sleep Timer',
                         onPressed: () {
@@ -727,7 +752,9 @@ class NowPlayingSheet extends ConsumerWidget {
                                       ),
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: theme.colorScheme.primary,
+                                        color: isMinimalistOled
+                                            ? Colors.white
+                                            : theme.colorScheme.primary,
                                         fontSize: 9,
                                       ),
                                     ),
@@ -735,7 +762,9 @@ class NowPlayingSheet extends ConsumerWidget {
                                     '${snapshot.speed}x',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: theme.colorScheme.primary,
+                                      color: isMinimalistOled
+                                          ? Colors.white
+                                          : theme.colorScheme.primary,
                                       fontSize: snapshot.pitchSemitones != 0
                                           ? 9
                                           : 12,
@@ -743,7 +772,10 @@ class NowPlayingSheet extends ConsumerWidget {
                                   ),
                                 ],
                               )
-                            : const Icon(Icons.speed_rounded),
+                            : Icon(
+                                Icons.speed_rounded,
+                                color: isMinimalistOled ? Colors.white70 : null,
+                              ),
                         tooltip: 'Playback Speed',
                         onPressed: () {
                           haptics.light();
@@ -759,6 +791,7 @@ class NowPlayingSheet extends ConsumerWidget {
                       ),
                       IconButton(
                         icon: const Icon(Icons.info_outline_rounded),
+                        color: isMinimalistOled ? Colors.white70 : null,
                         tooltip: 'Track Info',
                         onPressed: () {
                           haptics.light();

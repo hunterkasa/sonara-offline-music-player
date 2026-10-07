@@ -65,19 +65,34 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: scaffoldBg,
-        indicatorColor: colorScheme.secondaryContainer,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        indicatorColor: isAmoled
+            ? Colors.white12
+            : colorScheme.secondaryContainer,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(
+              color: isAmoled ? Colors.white : colorScheme.onSecondaryContainer,
+            );
+          }
+          return IconThemeData(
+            color: isAmoled ? Colors.white60 : colorScheme.onSurfaceVariant,
+          );
+        }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
+              color: isAmoled ? Colors.white : colorScheme.onSurface,
             );
           }
           return TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: colorScheme.onSurfaceVariant,
+            color: isAmoled ? Colors.white54 : colorScheme.onSurfaceVariant,
           );
         }),
       ),

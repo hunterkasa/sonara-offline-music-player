@@ -6,6 +6,8 @@ import '../../audio/playback_controller.dart';
 import '../../core/services/haptic_service.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
+import '../../domain/models/audio_settings.dart';
+import '../../domain/services/audio_settings_service.dart';
 import '../artwork/artwork_widget.dart';
 
 class MiniPlayer extends ConsumerWidget {
@@ -28,6 +30,11 @@ class MiniPlayer extends ConsumerWidget {
         ? (snapshot.position.inMilliseconds / snapshot.duration.inMilliseconds)
               .clamp(0.0, 1.0)
         : 0.0;
+
+    final audioSettings = ref.watch(audioSettingsProvider);
+    final isOled =
+        theme.scaffoldBackgroundColor == Colors.black ||
+        audioSettings.nowPlayingSkin == NowPlayingSkin.minimalistOled;
 
     return Semantics(
       label: 'Mini Player: ${snapshot.title} by ${snapshot.artist}',
@@ -62,11 +69,16 @@ class MiniPlayer extends ConsumerWidget {
             vertical: AppSpacing.xxs,
           ),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHigh,
+            color: isOled
+                ? const Color(0xFF0D0D0D)
+                : theme.colorScheme.surfaceContainerHigh,
             borderRadius: AppRadii.cardRadius,
+            border: isOled
+                ? Border.all(color: Colors.white24, width: 1.0)
+                : null,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
+                color: Colors.black.withValues(alpha: isOled ? 0.4 : 0.18),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -82,7 +94,7 @@ class MiniPlayer extends ConsumerWidget {
                 minHeight: 2.5,
                 backgroundColor: Colors.transparent,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.primary,
+                  isOled ? Colors.white : theme.colorScheme.primary,
                 ),
               ),
               Padding(
