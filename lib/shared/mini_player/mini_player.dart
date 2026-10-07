@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/theme_tokens.dart';
 import '../../audio/playback_controller.dart';
 import '../../core/services/haptic_service.dart';
-import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
 import '../../domain/models/audio_settings.dart';
 import '../../domain/services/audio_settings_service.dart';
@@ -24,7 +23,8 @@ class MiniPlayer extends ConsumerWidget {
         ref.read(playbackControllerProvider).currentSnapshot;
     final playback = ref.read(playbackControllerProvider);
     final haptics = ref.read(hapticServiceProvider);
-    final db = ref.watch(databaseProvider);
+    final trackAsync = ref.watch(trackStreamProvider(snapshot.currentTrackKey));
+    final track = trackAsync.value;
 
     final progressRatio = snapshot.duration.inMilliseconds > 0
         ? (snapshot.position.inMilliseconds / snapshot.duration.inMilliseconds)
@@ -115,27 +115,13 @@ class MiniPlayer extends ConsumerWidget {
                   children: [
                     // Artwork thumbnail with RepaintBoundary
                     RepaintBoundary(
-                      child: snapshot.currentTrackKey != null
-                          ? FutureBuilder<Track?>(
-                              future: db.getTrackByKey(
-                                snapshot.currentTrackKey!,
-                              ),
-                              builder: (context, trackSnap) {
-                                final track = trackSnap.data;
-                                return ArtworkWidget(
-                                  artworkKey: track?.artworkKey,
-                                  filePath: track?.path,
-                                  title: snapshot.title,
-                                  size: 44,
-                                  borderRadius: 8.0,
-                                );
-                              },
-                            )
-                          : ArtworkWidget(
-                              title: snapshot.title,
-                              size: 44,
-                              borderRadius: 8.0,
-                            ),
+                      child: ArtworkWidget(
+                        artworkKey: track?.artworkKey,
+                        filePath: track?.path,
+                        title: snapshot.title,
+                        size: 44,
+                        borderRadius: 8.0,
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.s),
                     // Title & Artist

@@ -203,7 +203,7 @@ class MainActivity : AudioServiceActivity() {
 
             val accelerometer = manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
             accelerometer?.let {
-                manager.registerListener(sensorListener, it, SensorManager.SENSOR_DELAY_UI)
+                manager.registerListener(sensorListener, it, SensorManager.SENSOR_DELAY_NORMAL)
             }
         }
     }

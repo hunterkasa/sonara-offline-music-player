@@ -49,6 +49,13 @@ class _AudioVisualizerState extends State<AudioVisualizer>
 
   double _audioPhaseSec = 0.0;
   int _lastTickMs = 0;
+  bool _isAtRest = false;
+
+  @visibleForTesting
+  bool get isAnimating => _controller.isAnimating;
+
+  @visibleForTesting
+  bool get isAtRest => _isAtRest;
 
   @override
   void initState() {
@@ -60,15 +67,31 @@ class _AudioVisualizerState extends State<AudioVisualizer>
       duration: const Duration(milliseconds: 2000),
     )..addListener(_tick);
 
-    _controller.repeat();
+    if (widget.isPlaying) {
+      _isAtRest = false;
+      _controller.repeat();
+    } else {
+      _isAtRest = true;
+    }
   }
 
   @override
   void didUpdateWidget(covariant AudioVisualizer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_controller.isAnimating) {
-      _controller.repeat();
+    if (widget.isPlaying) {
+      _isAtRest = false;
+      if (!_controller.isAnimating) {
+        _lastTickMs = DateTime.now().millisecondsSinceEpoch;
+        _controller.repeat();
+      }
+    } else if (oldWidget.isPlaying && !_isAtRest) {
+      // Transition from playing to paused: ensure animation is running so values decay smoothly
+      if (!_controller.isAnimating) {
+        _lastTickMs = DateTime.now().millisecondsSinceEpoch;
+        _controller.repeat();
+      }
     }
+
     // Re-sync audio phase on seeking or track switch
     final posDiffMs =
         (widget.position.inMilliseconds - oldWidget.position.inMilliseconds)
@@ -196,13 +219,36 @@ class _AudioVisualizerState extends State<AudioVisualizer>
         _rightVu = _rightVu * 0.86 + rightTargetDb * 0.14;
       }
     } else {
-      // Smooth decay towards resting floor when paused
+      // Smooth decay towards resting floor when paused (~300ms)
+      var hasMovement = false;
       for (var i = 0; i < _bandValues.length; i++) {
-        _bandValues[i] = max(0.05, _bandValues[i] * 0.90);
-        _peakValues[i] = max(0.05, _peakValues[i] * 0.92);
+        final newBand = max(0.05, _bandValues[i] * 0.85);
+        final newPeak = max(0.05, _peakValues[i] * 0.88);
+        if ((newBand - _bandValues[i]).abs() > 0.001 ||
+            (newPeak - _peakValues[i]).abs() > 0.001) {
+          hasMovement = true;
+        }
+        _bandValues[i] = newBand;
+        _peakValues[i] = newPeak;
       }
-      _leftVu = max(-20.0, _leftVu - 0.8);
-      _rightVu = max(-20.0, _rightVu - 0.8);
+      final newLeft = max(-20.0, _leftVu - 1.2);
+      final newRight = max(-20.0, _rightVu - 1.2);
+      if ((newLeft - _leftVu).abs() > 0.05 ||
+          (newRight - _rightVu).abs() > 0.05) {
+        hasMovement = true;
+      }
+      _leftVu = newLeft;
+      _rightVu = newRight;
+
+      if (!hasMovement) {
+        // Settled at rest floor: snap exactly and halt ticker to drop to 0% CPU/GPU
+        _bandValues.fillRange(0, _bandValues.length, 0.05);
+        _peakValues.fillRange(0, _peakValues.length, 0.05);
+        _leftVu = -20.0;
+        _rightVu = -20.0;
+        _isAtRest = true;
+        _controller.stop();
+      }
     }
 
     if (mounted) setState(() {});

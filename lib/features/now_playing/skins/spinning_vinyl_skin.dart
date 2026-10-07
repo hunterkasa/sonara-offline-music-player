@@ -88,43 +88,45 @@ class _SpinningVinylSkinState extends State<SpinningVinylSkin>
                 ),
 
                 // Rotating Vinyl Disc
-                AnimatedBuilder(
-                  animation: _rotationController,
-                  builder: (context, child) {
-                    final angle = _rotationController.value * 2.0 * math.pi;
-                    return Transform.rotate(angle: angle, child: child);
-                  },
-                  child: CustomPaint(
-                    size: Size(discSize, discSize),
-                    painter: const _VinylGroovePainter(),
-                    child: SizedBox(
-                      width: discSize,
-                      height: discSize,
-                      child: Center(
-                        child: ClipOval(
-                          child: SizedBox(
-                            width: discSize * 0.40,
-                            height: discSize * 0.40,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                ArtworkWidget(
-                                  artworkKey: widget.artworkKey,
-                                  filePath: widget.filePath,
-                                  title: widget.title,
-                                  size: discSize * 0.40,
-                                  borderRadius: 0,
-                                ),
-                                // Spindle Hole
-                                Container(
-                                  width: 14,
-                                  height: 14,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black,
-                                    shape: BoxShape.circle,
+                RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _rotationController,
+                    builder: (context, child) {
+                      final angle = _rotationController.value * 2.0 * math.pi;
+                      return Transform.rotate(angle: angle, child: child);
+                    },
+                    child: CustomPaint(
+                      size: Size(discSize, discSize),
+                      painter: const _VinylGroovePainter(),
+                      child: SizedBox(
+                        width: discSize,
+                        height: discSize,
+                        child: Center(
+                          child: ClipOval(
+                            child: SizedBox(
+                              width: discSize * 0.40,
+                              height: discSize * 0.40,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  ArtworkWidget(
+                                    artworkKey: widget.artworkKey,
+                                    filePath: widget.filePath,
+                                    title: widget.title,
+                                    size: discSize * 0.40,
+                                    borderRadius: 0,
                                   ),
-                                ),
-                              ],
+                                  // Spindle Hole
+                                  Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.black,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),

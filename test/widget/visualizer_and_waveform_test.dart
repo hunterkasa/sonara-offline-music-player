@@ -168,5 +168,56 @@ void main() {
         expect(find.byType(AudioVisualizer), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'AudioVisualizer halts animation ticker when paused to eliminate thermal & CPU drain',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 300,
+                  height: 150,
+                  child: AudioVisualizer(
+                    isPlaying: true,
+                    style: VisualizerStyle.spectrum,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Transition to paused
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 300,
+                  height: 150,
+                  child: AudioVisualizer(
+                    isPlaying: false,
+                    style: VisualizerStyle.spectrum,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // Pump frames for decay to settle into resting floor
+        for (var i = 0; i < 40; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+
+        final dynamic state = tester.state(find.byType(AudioVisualizer));
+        expect(state.isAtRest, isTrue);
+        expect(state.isAnimating, isFalse);
+      },
+    );
   });
 }

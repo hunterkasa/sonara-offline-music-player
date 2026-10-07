@@ -89,12 +89,14 @@ class _WaveformScrubberState extends State<WaveformScrubber> {
           child: SizedBox(
             height: widget.height,
             width: width,
-            child: CustomPaint(
-              painter: _WaveformPainter(
-                peaks: peaks,
-                progress: _currentProgress,
-                playedColor: playedColor,
-                unplayedColor: unplayed,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _WaveformPainter(
+                  peaks: peaks,
+                  progress: _currentProgress,
+                  playedColor: playedColor,
+                  unplayedColor: unplayed,
+                ),
               ),
             ),
           ),

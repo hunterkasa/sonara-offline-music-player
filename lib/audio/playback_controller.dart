@@ -240,13 +240,18 @@ class RealPlaybackController implements PlaybackController {
     _subscriptions.add(
       _handler.queueManager.stateStream.listen((_) => _updateSnapshot()),
     );
+    int lastPositionMs = 0;
     _subscriptions.add(
       _handler.player.positionStream.listen((pos) {
         statsService?.onPositionUpdate(
           pos.inMilliseconds,
           _handler.player.playing,
         );
-        _updateSnapshot();
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        if (!_handler.player.playing || (nowMs - lastPositionMs) >= 200) {
+          lastPositionMs = nowMs;
+          _updateSnapshot();
+        }
       }),
     );
     _updateSnapshot();

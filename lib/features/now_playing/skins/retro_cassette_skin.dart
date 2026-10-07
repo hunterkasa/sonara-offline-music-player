@@ -257,48 +257,50 @@ class _RetroCassetteSkinState extends State<RetroCassetteSkin>
   }) {
     final spoolRadius = 24.0 * radiusRatio.clamp(0.4, 1.0);
 
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        final angle = controller.value * 2.0 * math.pi;
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            // Dark Brown Magnetic Tape Pack
-            Container(
-              width: spoolRadius * 2,
-              height: spoolRadius * 2,
-              decoration: const BoxDecoration(
-                color: Color(0xFF382319), // Magnetic oxide brown
-                shape: BoxShape.circle,
-              ),
-            ),
-            // White Toothed Spool Hub
-            Transform.rotate(
-              angle: angle,
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEEEEE),
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final angle = controller.value * 2.0 * math.pi;
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              // Dark Brown Magnetic Tape Pack
+              Container(
+                width: spoolRadius * 2,
+                height: spoolRadius * 2,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF382319), // Magnetic oxide brown
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFBBBBBB)),
                 ),
-                child: CustomPaint(painter: _ReelToothedHubPainter()),
               ),
-            ),
-            // Center Spindle Hole
-            Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: Color(0xFF1E1E22),
-                shape: BoxShape.circle,
+              // White Toothed Spool Hub
+              Transform.rotate(
+                angle: angle,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEEEEE),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFBBBBBB)),
+                  ),
+                  child: CustomPaint(painter: _ReelToothedHubPainter()),
+                ),
               ),
-            ),
-          ],
-        );
-      },
+              // Center Spindle Hole
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E1E22),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 

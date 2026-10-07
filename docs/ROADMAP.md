@@ -122,6 +122,7 @@ Status legend:
 - [x] Elevated playlist discovery (Home Quick Access tile, prominent high-priority carousel, See All shortcut)
 - [x] MediaStore genre extraction (API 30+), batched scan reconciliation, genre detail screen (`/genre/:id`), and tab routing
 - [x] Expanded Home Screen widget suite (4×2 large artwork widget, 2×1 minimalist pill, scrollable favorites/recents widget)
+- [x] Thermal management & battery optimization (visualizer zero-idle ticker halt on rest, elimination of build-time SQLite queries in MiniPlayer, selective provider filtering, position stream throttling to 200ms, RepaintBoundary isolation, sensor delay throttling)
 
 ### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox

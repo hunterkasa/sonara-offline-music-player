@@ -16,14 +16,17 @@ class DailyMixCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final playback = ref.read(playbackControllerProvider);
-    final snapshotAsync = ref.watch(playbackSnapshotProvider);
-    final snapshot = snapshotAsync.value ?? playback.currentSnapshot;
     final haptics = ref.read(hapticServiceProvider);
 
-    // Check if any track from this mix is currently playing
-    final currentKey = snapshot.currentTrackKey;
-    final isMixPlaying =
-        snapshot.isPlaying && mix.tracks.any((t) => t.trackKey == currentKey);
+    // Rebuild only when mix playing state changes, ignoring position stream updates
+    final isMixPlaying = ref.watch(
+      playbackSnapshotProvider.select((s) {
+        final snap = s.value;
+        if (snap == null) return false;
+        return snap.isPlaying &&
+            mix.tracks.any((t) => t.trackKey == snap.currentTrackKey);
+      }),
+    );
 
     return SizedBox(
       width: 144.0,

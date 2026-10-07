@@ -18,14 +18,18 @@ class TodaysPickCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final playback = ref.read(playbackControllerProvider);
-    final snapshotAsync = ref.watch(playbackSnapshotProvider);
-    final snapshot = snapshotAsync.value ?? playback.currentSnapshot;
     final haptics = ref.read(hapticServiceProvider);
     final db = ref.read(databaseProvider);
     final radioService = ref.read(trackRadioServiceProvider);
 
-    final isCurrentTrack = snapshot.currentTrackKey == pick.track.trackKey;
-    final isPlaying = isCurrentTrack && snapshot.isPlaying;
+    // Rebuild only when this pick's playback state toggles, ignoring position updates
+    final isPlaying = ref.watch(
+      playbackSnapshotProvider.select(
+        (s) =>
+            s.value?.currentTrackKey == pick.track.trackKey &&
+            (s.value?.isPlaying ?? false),
+      ),
+    );
 
     return Container(
       decoration: BoxDecoration(
