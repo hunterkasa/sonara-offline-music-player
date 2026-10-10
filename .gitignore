@@ -27,11 +27,22 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
+
+# Operating System files
+Thumbs.db
+[Dd]esktop.ini
+
+# Android Keystore and Credentials
+*.keystore
+*.jks
+key.properties
+local.properties
 
 # Symbolication related
 app.*.symbols
