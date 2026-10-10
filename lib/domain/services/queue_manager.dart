@@ -336,10 +336,10 @@ class QueueManager {
   }
 
   /// Returns the next logical track index according to shuffle and repeat modes.
-  int? getNextIndex() {
+  int? getNextIndex({bool ignoreRepeatOne = false}) {
     if (_state.queue.isEmpty) return null;
 
-    if (_state.repeatMode == QueueRepeatMode.one) {
+    if (!ignoreRepeatOne && _state.repeatMode == QueueRepeatMode.one) {
       return _state.currentIndex;
     }
 
@@ -386,10 +386,10 @@ class QueueManager {
   }
 
   /// Returns the previous logical track index according to shuffle and repeat modes.
-  int? getPreviousIndex() {
+  int? getPreviousIndex({bool ignoreRepeatOne = false}) {
     if (_state.queue.isEmpty) return null;
 
-    if (_state.repeatMode == QueueRepeatMode.one) {
+    if (!ignoreRepeatOne && _state.repeatMode == QueueRepeatMode.one) {
       return _state.currentIndex;
     }
 
@@ -417,8 +417,8 @@ class QueueManager {
   }
 
   /// Advances to next track in queue.
-  bool advanceToNext() {
-    final next = getNextIndex();
+  bool advanceToNext({bool ignoreRepeatOne = false}) {
+    final next = getNextIndex(ignoreRepeatOne: ignoreRepeatOne);
     if (next != null) {
       _emit(_state.copyWith(currentIndex: next));
       return true;
@@ -427,8 +427,8 @@ class QueueManager {
   }
 
   /// Reverts to previous track in queue.
-  bool retreatToPrevious() {
-    final prev = getPreviousIndex();
+  bool retreatToPrevious({bool ignoreRepeatOne = false}) {
+    final prev = getPreviousIndex(ignoreRepeatOne: ignoreRepeatOne);
     if (prev != null) {
       _emit(_state.copyWith(currentIndex: prev));
       return true;
@@ -446,10 +446,6 @@ class QueueManager {
     final current = _state.currentTrack;
     if (current == null) return const [];
     window.add(current);
-
-    if (_state.repeatMode == QueueRepeatMode.one) {
-      return window;
-    }
 
     if (_state.shuffleEnabled && _state.shuffledIndices.isNotEmpty) {
       final currentPos = _state.shuffledIndices.indexOf(_state.currentIndex);

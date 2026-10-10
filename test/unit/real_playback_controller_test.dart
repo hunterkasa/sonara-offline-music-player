@@ -76,6 +76,16 @@ class FakeAudioPlayerPlatform extends AudioPlayerPlatform {
   Future<SeekResponse> seek(SeekRequest request) async => SeekResponse();
 
   @override
+  Future<ConcatenatingInsertAllResponse> concatenatingInsertAll(
+    ConcatenatingInsertAllRequest request,
+  ) async => ConcatenatingInsertAllResponse();
+
+  @override
+  Future<ConcatenatingRemoveRangeResponse> concatenatingRemoveRange(
+    ConcatenatingRemoveRangeRequest request,
+  ) async => ConcatenatingRemoveRangeResponse();
+
+  @override
   Future<DisposeResponse> dispose(DisposeRequest request) async {
     await _eventController.close();
     return DisposeResponse();
@@ -295,6 +305,41 @@ void main() {
         );
         expect(stopControl.androidIcon, equals('drawable/ic_action_close'));
         expect(stopControl.label, equals('Stop'));
+      },
+    );
+
+    test('skipToQueueItem jumps directly to target index in queue', () async {
+      await controller.playQueue([
+        'track_1',
+        'track_2',
+        'track_3',
+      ], initialIndex: 0);
+      expect(controller.currentSnapshot.currentTrackKey, equals('track_1'));
+
+      await controller.skipToQueueItem(2);
+      expect(controller.currentSnapshot.currentTrackKey, equals('track_3'));
+      expect(audioHandler.queueManager.currentIndex, equals(2));
+    });
+
+    test(
+      'manual skipToNext and skipToPrevious work during RepeatOne',
+      () async {
+        await controller.playQueue([
+          'track_1',
+          'track_2',
+          'track_3',
+        ], initialIndex: 0);
+        await controller.setRepeatMode(2); // Repeat One
+        expect(
+          audioHandler.queueManager.repeatMode,
+          equals(QueueRepeatMode.one),
+        );
+
+        await controller.skipToNext();
+        expect(controller.currentSnapshot.currentTrackKey, equals('track_2'));
+
+        await controller.skipToPrevious();
+        expect(controller.currentSnapshot.currentTrackKey, equals('track_1'));
       },
     );
   });

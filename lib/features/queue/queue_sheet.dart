@@ -314,7 +314,7 @@ class _QueueSheetState extends ConsumerState<QueueSheet> {
                             ),
                             onTap: () {
                               haptics.selection();
-                              playback.playTrack(track.trackKey);
+                              playback.skipToQueueItem(index);
                             },
                           ),
                         ),

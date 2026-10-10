@@ -90,6 +90,7 @@ abstract class PlaybackController {
   Future<void> togglePlayPause();
   Future<void> skipToNext();
   Future<void> skipToPrevious();
+  Future<void> skipToQueueItem(int index);
   Future<void> seek(Duration position);
   Future<void> setShuffle(bool enabled);
   Future<void> setRepeatMode(int mode);
@@ -180,6 +181,9 @@ class StubPlaybackController implements PlaybackController {
 
   @override
   Future<void> skipToPrevious() async {}
+
+  @override
+  Future<void> skipToQueueItem(int index) async {}
 
   @override
   Future<void> seek(Duration position) async {}
@@ -361,6 +365,9 @@ class RealPlaybackController implements PlaybackController {
 
   @override
   Future<void> skipToPrevious() => _handler.skipToPrevious();
+
+  @override
+  Future<void> skipToQueueItem(int index) => _handler.skipToQueueItem(index);
 
   @override
   Future<void> seek(Duration position) => _handler.seek(position);

@@ -128,7 +128,11 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
       final newRemaining = state.remaining + additionalDuration;
       final newTotal = state.totalDuration + additionalDuration;
       // Reset volume in case fade-out was already active
-      unawaited(audioHandler?.player.setVolume(1.0));
+      if (audioHandler != null) {
+        unawaited(audioHandler!.updateEffectiveVolume());
+      } else {
+        unawaited(audioHandler?.player.setVolume(1.0));
+      }
       state = state.copyWith(remaining: newRemaining, totalDuration: newTotal);
     }
   }
@@ -141,7 +145,11 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
     _trackEndSubscription = null;
     _initialTrackKey = null;
 
-    unawaited(audioHandler?.player.setVolume(1.0));
+    if (audioHandler != null) {
+      unawaited(audioHandler!.updateEffectiveVolume());
+    } else {
+      unawaited(audioHandler?.player.setVolume(1.0));
+    }
 
     state = state.copyWith(
       mode: SleepTimerMode.none,
@@ -172,16 +180,23 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
           vol = r;
           break;
       }
-      unawaited(audioHandler!.player.setVolume(vol.clamp(0.0, 1.0)));
+      final baseVol = audioHandler!.currentVolumeMultiplier;
+      unawaited(
+        audioHandler!.player.setVolume((vol * baseVol).clamp(0.0, 1.0)),
+      );
     } else {
-      unawaited(audioHandler!.player.setVolume(1.0));
+      unawaited(audioHandler!.updateEffectiveVolume());
     }
   }
 
   Future<void> _onTimerExpired() async {
     cancelTimer();
     await playbackController.pause();
-    await audioHandler?.player.setVolume(1.0);
+    if (audioHandler != null) {
+      await audioHandler!.updateEffectiveVolume();
+    } else {
+      await audioHandler?.player.setVolume(1.0);
+    }
   }
 
   @override

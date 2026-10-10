@@ -158,11 +158,24 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       },
     );
 
-    _player.playerStateStream.listen((state) {
+    _player.playerStateStream.listen((state) async {
       _broadcastPlaybackState(_player.playbackEvent);
       if (!state.playing) {
         // Persist queue and position on pause
-        queueManager.persistState(positionMs: _player.position.inMilliseconds);
+        await queueManager.persistState(
+          positionMs: _player.position.inMilliseconds,
+        );
+      }
+      if (state.processingState == ProcessingState.completed) {
+        if (queueManager.repeatMode == QueueRepeatMode.one) {
+          await _player.seek(Duration.zero);
+          await _player.play();
+        } else if (queueManager.repeatMode == QueueRepeatMode.all) {
+          final hasNext = queueManager.advanceToNext(ignoreRepeatOne: true);
+          if (hasNext) {
+            await _reloadSlidingWindow(resumePlaying: true);
+          }
+        }
       }
     });
 
@@ -188,7 +201,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     });
 
-    // 4. Crossfade volume ramp-down before track completion
+    // 4. Crossfade volume ramp-down before track completion & restoration
     _player.positionStream.listen((pos) {
       if (_player.playing && _audioSettings.crossfadeDurationSeconds > 0) {
         final totalDuration = _player.duration;
@@ -204,15 +217,74 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
                 remaining.inMilliseconds / crossfadeDur.inMilliseconds;
             final baseVol = _currentVolumeMultiplier.clamp(0.0, 1.0);
             _player.setVolume((baseVol * progress).clamp(0.0, 1.0));
+          } else {
+            final baseVol = _currentVolumeMultiplier.clamp(0.0, 1.0);
+            if ((_player.volume - baseVol).abs() > 0.01) {
+              _player.setVolume(baseVol);
+            }
           }
         }
       }
     });
   }
 
+  QueueRepeatMode? _lastRepeatMode;
+  bool? _lastShuffleEnabled;
+
   void _listenToQueueManager() {
-    queueManager.stateStream.listen((state) {
-      _syncMediaItemFromQueue();
+    queueManager.stateStream.listen((state) async {
+      await _syncMediaItemFromQueue();
+
+      // Synchronize repeat mode with audio player
+      if (_lastRepeatMode != state.repeatMode) {
+        _lastRepeatMode = state.repeatMode;
+        if (state.repeatMode == QueueRepeatMode.one) {
+          try {
+            await _player.setLoopMode(LoopMode.one);
+          } catch (e) {
+            debugPrint('Error setting LoopMode.one: $e');
+          }
+        } else {
+          try {
+            await _player.setLoopMode(LoopMode.off);
+          } catch (e) {
+            debugPrint('Error setting LoopMode.off: $e');
+          }
+          if (state.repeatMode == QueueRepeatMode.all && _audioSource != null) {
+            final window = queueManager.getSlidingWindow(windowSize: 5);
+            while (_audioSource!.length < window.length) {
+              final track = window[_audioSource!.length];
+              await _audioSource!.add(_buildAudioSourceForTrack(track));
+            }
+          }
+        }
+      }
+
+      // Synchronize shuffle changes without interrupting currently playing track
+      if (_lastShuffleEnabled != null &&
+          _lastShuffleEnabled != state.shuffleEnabled &&
+          _player.playing) {
+        _lastShuffleEnabled = state.shuffleEnabled;
+        final source = _audioSource;
+        if (source != null && source.length > 1 && !_isSwitchingSource) {
+          _isSwitchingSource = true;
+          try {
+            final window = queueManager.getSlidingWindow(windowSize: 5);
+            while (source.length > 1) {
+              await source.removeAt(source.length - 1);
+            }
+            for (var i = 1; i < window.length; i++) {
+              await source.add(_buildAudioSourceForTrack(window[i]));
+            }
+          } catch (e) {
+            debugPrint('Error syncing shuffled window: $e');
+          } finally {
+            _isSwitchingSource = false;
+          }
+        }
+      } else {
+        _lastShuffleEnabled = state.shuffleEnabled;
+      }
     });
   }
 
@@ -359,6 +431,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
           final nextTrack = window.last;
           await source.add(_buildAudioSourceForTrack(nextTrack));
         }
+        await _updateEffectiveVolume();
       } catch (e) {
         debugPrint('Failed to advance sliding window in place: $e');
         await _reloadSlidingWindow(resumePlaying: _player.playing);
@@ -408,6 +481,11 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
         initialPosition: targetPosition,
         initialIndex: 0,
       );
+      if (queueManager.repeatMode == QueueRepeatMode.one) {
+        await _player.setLoopMode(LoopMode.one);
+      } else {
+        await _player.setLoopMode(LoopMode.off);
+      }
       _consecutiveErrors = 0;
 
       await _updateEffectiveVolume();
@@ -573,6 +651,10 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  double get currentVolumeMultiplier => _currentVolumeMultiplier;
+
+  Future<void> updateEffectiveVolume() => _updateEffectiveVolume();
+
   Future<void> _updateEffectiveVolume() async {
     final current = queueManager.currentTrack;
     var multiplier = ReplayGainCalculator.computeVolumeMultiplier(
@@ -671,8 +753,16 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   @override
+  Future<void> skipToQueueItem(int index) async {
+    if (index >= 0 && index < queueManager.queue.length) {
+      queueManager.jumpToIndex(index);
+      await _reloadSlidingWindow(resumePlaying: true);
+    }
+  }
+
+  @override
   Future<void> skipToNext() async {
-    final hasNext = queueManager.advanceToNext();
+    final hasNext = queueManager.advanceToNext(ignoreRepeatOne: true);
     if (hasNext) {
       if (_audioSettings.smoothFades && _player.playing) {
         try {
@@ -697,7 +787,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       await _player.seek(Duration.zero);
       return;
     }
-    final hasPrev = queueManager.retreatToPrevious();
+    final hasPrev = queueManager.retreatToPrevious(ignoreRepeatOne: true);
     if (hasPrev) {
       if (_audioSettings.smoothFades && _player.playing) {
         try {

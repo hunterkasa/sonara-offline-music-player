@@ -61,6 +61,16 @@ class FakeAudioPlayerPlatform extends AudioPlayerPlatform {
   Future<SeekResponse> seek(SeekRequest request) async => SeekResponse();
 
   @override
+  Future<ConcatenatingInsertAllResponse> concatenatingInsertAll(
+    ConcatenatingInsertAllRequest request,
+  ) async => ConcatenatingInsertAllResponse();
+
+  @override
+  Future<ConcatenatingRemoveRangeResponse> concatenatingRemoveRange(
+    ConcatenatingRemoveRangeRequest request,
+  ) async => ConcatenatingRemoveRangeResponse();
+
+  @override
   Future<DisposeResponse> dispose(DisposeRequest request) async {
     await _eventController.close();
     return DisposeResponse();

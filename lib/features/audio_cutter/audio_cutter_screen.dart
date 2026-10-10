@@ -106,6 +106,9 @@ class _AudioCutterScreenState extends ConsumerState<AudioCutterScreen> {
         if (posMs >= _endMs) {
           if (_isLooping) {
             _previewPlayer.seek(Duration(milliseconds: _startMs));
+            if (!_previewPlayer.playing) {
+              _previewPlayer.play();
+            }
           } else {
             _previewPlayer.pause();
             _previewPlayer.seek(Duration(milliseconds: _startMs));
@@ -113,11 +116,19 @@ class _AudioCutterScreenState extends ConsumerState<AudioCutterScreen> {
         }
       });
 
-      _stateSub = _previewPlayer.playerStateStream.listen((state) {
+      _stateSub = _previewPlayer.playerStateStream.listen((state) async {
         if (!mounted) return;
         setState(() {
           _isPlaying = state.playing;
         });
+        if (state.processingState == ProcessingState.completed) {
+          if (_isLooping) {
+            await _previewPlayer.seek(Duration(milliseconds: _startMs));
+            await _previewPlayer.play();
+          } else {
+            await _previewPlayer.seek(Duration(milliseconds: _startMs));
+          }
+        }
       });
     } catch (e) {
       debugPrint('Error initializing preview player: $e');

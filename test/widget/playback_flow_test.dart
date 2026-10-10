@@ -149,6 +149,24 @@ class TestPlaybackController implements PlaybackController {
   }
 
   @override
+  Future<void> skipToQueueItem(int index) async {
+    if (index >= 0 && index < _queue.length) {
+      _queueIndex = index;
+      _emit(
+        PlaybackSnapshot(
+          currentTrackKey: _queue[_queueIndex],
+          title: 'Golden Track ${_queueIndex + 1}',
+          artist: 'Golden Artist',
+          state: PlaybackState.playing,
+          duration: const Duration(minutes: 3),
+          shuffleEnabled: _snapshot.shuffleEnabled,
+          repeatMode: _snapshot.repeatMode,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<void> seek(Duration position) async {
     _emit(
       PlaybackSnapshot(
