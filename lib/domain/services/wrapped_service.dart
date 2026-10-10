@@ -140,10 +140,11 @@ class WrappedService {
 
     // 3. Top Genres
     final genreCounts = <String, int>{};
+    final allTrackGenresMap = await _db.getAllTrackGenresMap();
     for (final track in allTracks) {
       final count = trackCountMap[track.trackKey] ?? 0;
       if (count > 0) {
-        final genres = await _db.getTrackGenres(track.id);
+        final genres = allTrackGenresMap[track.id] ?? const [];
         if (genres.isEmpty) {
           genreCounts['Other'] = (genreCounts['Other'] ?? 0) + count;
         } else {

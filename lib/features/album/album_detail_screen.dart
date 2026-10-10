@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' as d;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sonara/audio/playback_controller.dart';
@@ -25,181 +24,154 @@ class AlbumDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final db = ref.watch(databaseProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final playback = ref.watch(playbackControllerProvider);
 
-    return StreamBuilder<Album?>(
-      stream: (db.select(
-        db.albums,
-      )..where((a) => a.id.equals(albumId))).watchSingleOrNull(),
-      builder: (context, albumSnap) {
-        if (albumSnap.connectionState == ConnectionState.waiting &&
-            !albumSnap.hasData) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (albumSnap.data == null) {
+    final albumAsync = ref.watch(albumDetailStreamProvider(albumId));
+    final tracksAsync = ref.watch(albumTracksStreamProvider(albumId));
+
+    return albumAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) => Scaffold(
+        appBar: AppBar(),
+        body: Center(child: Text('Error loading album: $e')),
+      ),
+      data: (album) {
+        if (album == null) {
           return Scaffold(
             appBar: AppBar(),
             body: const Center(child: Text('Album not found')),
           );
         }
 
-        final album = albumSnap.data!;
+        final tracks = tracksAsync.value ?? [];
 
-        return StreamBuilder<List<Track>>(
-          stream:
-              (db.select(db.tracks)
-                    ..where((t) => t.albumId.equals(albumId))
-                    ..orderBy([
-                      (t) => d.OrderingTerm.asc(t.discNo),
-                      (t) => d.OrderingTerm.asc(t.trackNo),
-                      (t) => d.OrderingTerm.asc(t.titleSort),
-                    ]))
-                  .watch(),
-          builder: (context, tracksSnap) {
-            final tracks = tracksSnap.data ?? [];
-
-            return Scaffold(
-              body: CustomScrollView(
-                slivers: [
-                  SliverAppBar(
-                    expandedHeight: 280.0,
-                    pinned: true,
-                    flexibleSpace: FlexibleSpaceBar(
-                      title: Text(
-                        album.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 16.0),
-                      ),
-                      background: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              colorScheme.primaryContainer.withValues(
-                                alpha: 0.8,
-                              ),
-                              colorScheme.surface,
-                            ],
-                          ),
-                        ),
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              top: 40.0,
-                              bottom: 48.0,
-                            ),
-                            child: ArtworkWidget(
-                              title: album.title,
-                              artworkKey: album.artworkKey,
-                              size: 160.0,
-                              borderRadius: 16.0,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+        return Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 280.0,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: Text(
+                    album.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 16.0),
                   ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 12.0,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            album.title,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4.0),
-                          Text(
-                            '${tracks.length} tracks • ${_formatTotalDuration(tracks)}${album.year != null ? ' • ${album.year}' : ''}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 16.0),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: FilledButton.icon(
-                                  onPressed: tracks.isEmpty
-                                      ? null
-                                      : () {
-                                          playback.playQueue(
-                                            tracks
-                                                .map((t) => t.trackKey)
-                                                .toList(),
-                                            initialIndex: 0,
-                                          );
-                                        },
-                                  icon: const Icon(Icons.play_arrow_rounded),
-                                  label: const Text('Play'),
-                                ),
-                              ),
-                              const SizedBox(width: 12.0),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: tracks.isEmpty
-                                      ? null
-                                      : () {
-                                          playback.playQueue(
-                                            tracks
-                                                .map((t) => t.trackKey)
-                                                .toList(),
-                                            initialIndex: 0,
-                                            shuffle: true,
-                                          );
-                                        },
-                                  icon: const Icon(Icons.shuffle_rounded),
-                                  label: const Text('Shuffle'),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8.0),
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          colorScheme.primaryContainer.withValues(alpha: 0.8),
+                          colorScheme.surface,
                         ],
                       ),
                     ),
-                  ),
-                  if (tracks.isEmpty)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: Text('No tracks found in this album'),
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 40.0, bottom: 48.0),
+                        child: ArtworkWidget(
+                          title: album.title,
+                          artworkKey: album.artworkKey,
+                          size: 160.0,
+                          borderRadius: 16.0,
+                        ),
                       ),
-                    )
-                  else
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final track = tracks[index];
-                        return TrackTile(
-                          track: track,
-                          trackNumber: index + 1,
-                          onTap: () {
-                            playback.playQueue(
-                              tracks.map((t) => t.trackKey).toList(),
-                              initialIndex: index,
-                            );
-                          },
-                        );
-                      }, childCount: tracks.length),
                     ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 96.0)),
-                ],
+                  ),
+                ),
               ),
-            );
-          },
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 12.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        album.title,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4.0),
+                      Text(
+                        '${tracks.length} tracks • ${_formatTotalDuration(tracks)}${album.year != null ? ' • ${album.year}' : ''}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16.0),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: tracks.isEmpty
+                                  ? null
+                                  : () {
+                                      playback.playQueue(
+                                        tracks.map((t) => t.trackKey).toList(),
+                                        initialIndex: 0,
+                                      );
+                                    },
+                              icon: const Icon(Icons.play_arrow_rounded),
+                              label: const Text('Play'),
+                            ),
+                          ),
+                          const SizedBox(width: 12.0),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: tracks.isEmpty
+                                  ? null
+                                  : () {
+                                      playback.playQueue(
+                                        tracks.map((t) => t.trackKey).toList(),
+                                        initialIndex: 0,
+                                        shuffle: true,
+                                      );
+                                    },
+                              icon: const Icon(Icons.shuffle_rounded),
+                              label: const Text('Shuffle'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8.0),
+                    ],
+                  ),
+                ),
+              ),
+              if (tracks.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: Text('No tracks found in this album')),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final track = tracks[index];
+                    return TrackTile(
+                      track: track,
+                      trackNumber: index + 1,
+                      onTap: () {
+                        playback.playQueue(
+                          tracks.map((t) => t.trackKey).toList(),
+                          initialIndex: index,
+                        );
+                      },
+                    );
+                  }, childCount: tracks.length),
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 96.0)),
+            ],
+          ),
         );
       },
     );

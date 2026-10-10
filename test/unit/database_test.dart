@@ -200,5 +200,126 @@ void main() {
         expect(albumId2, equals(albumId1));
       },
     );
+
+    test('getAllTrackKeys and getMediaStoreTrackIds return targeted data without full objects', () async {
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              trackKey: 'key_1',
+              mediaStoreId: const Value(501),
+              contentUri: 'content://m/1',
+              path: '/Music/Rock/s1.mp3',
+              title: 'Rock Song',
+              titleSort: 'rock song',
+              relativeDir: const Value('Rock'),
+              durationMs: 180000,
+              sizeBytes: 1000,
+            ),
+          );
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              trackKey: 'key_2',
+              mediaStoreId: const Value(502),
+              contentUri: 'content://m/2',
+              path: '/Music/Pop/s2.mp3',
+              title: 'Pop Song',
+              titleSort: 'pop song',
+              relativeDir: const Value('Pop'),
+              durationMs: 200000,
+              sizeBytes: 2000,
+            ),
+          );
+
+      final keys = await db.getAllTrackKeys();
+      expect(keys, containsAll(['key_1', 'key_2']));
+
+      final pairs = await db.getMediaStoreTrackIds();
+      expect(pairs.map((p) => p.$2), containsAll([501, 502]));
+    });
+
+    test(
+      'watchFolderSummaries groups tracks by folder and emits counts',
+      () async {
+        await db
+            .into(db.tracks)
+            .insert(
+              TracksCompanion.insert(
+                trackKey: 'folder_key_1',
+                contentUri: 'content://m/f1',
+                path: '/Music/Jazz/s1.mp3',
+                title: 'Jazz 1',
+                titleSort: 'jazz 1',
+                relativeDir: const Value('Jazz'),
+                durationMs: 180000,
+                sizeBytes: 1000,
+              ),
+            );
+        await db
+            .into(db.tracks)
+            .insert(
+              TracksCompanion.insert(
+                trackKey: 'folder_key_2',
+                contentUri: 'content://m/f2',
+                path: '/Music/Jazz/s2.mp3',
+                title: 'Jazz 2',
+                titleSort: 'jazz 2',
+                relativeDir: const Value('Jazz'),
+                durationMs: 190000,
+                sizeBytes: 1100,
+              ),
+            );
+
+        final summaries = await db.watchFolderSummaries().first;
+        final jazzFolder = summaries.firstWhere((f) => f.path == 'Jazz');
+        expect(jazzFolder.trackCount, equals(2));
+      },
+    );
+
+    test('watchAlbum, watchAlbumTracks, watchArtist, watchArtistTracks stream correctly', () async {
+      final artId = await db.getOrCreateArtist('Pink Floyd');
+      final albId = await db.getOrCreateAlbum(
+        title: 'The Dark Side of the Moon',
+        artistId: artId,
+        year: 1973,
+      );
+
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              trackKey: 'dsotm_1',
+              contentUri: 'content://m/pf1',
+              path: '/Music/PF/time.mp3',
+              title: 'Time',
+              titleSort: 'time',
+              artistId: Value(artId),
+              albumId: Value(albId),
+              durationMs: 420000,
+              sizeBytes: 5000000,
+              trackNo: const Value(4),
+              discNo: const Value(1),
+            ),
+          );
+
+      final album = await db.watchAlbum(albId).first;
+      expect(album?.title, equals('The Dark Side of the Moon'));
+
+      final albumTracks = await db.watchAlbumTracks(albId).first;
+      expect(albumTracks.length, equals(1));
+      expect(albumTracks.first.title, equals('Time'));
+
+      final artist = await db.watchArtist(artId).first;
+      expect(artist?.name, equals('Pink Floyd'));
+
+      final artistTracks = await db.watchArtistTracks(artId).first;
+      expect(artistTracks.length, equals(1));
+
+      final artistAlbums = await db.watchArtistAlbums(artId).first;
+      expect(artistAlbums.length, equals(1));
+      expect(artistAlbums.first.title, equals('The Dark Side of the Moon'));
+    });
   });
 }

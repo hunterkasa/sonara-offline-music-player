@@ -652,30 +652,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // Folders View
   // ---------------------------------------------------------------------------
   Widget _buildFoldersView() {
-    final db = ref.watch(databaseProvider);
     final haptics = ref.read(hapticServiceProvider);
+    final foldersAsync = ref.watch(folderSummariesStreamProvider);
 
-    return StreamBuilder<List<Track>>(
-      stream: (db.select(
-        db.tracks,
-      )..orderBy([(t) => d.OrderingTerm.asc(t.path)])).watch(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final tracks = snapshot.data!;
-        if (tracks.isEmpty) {
+    return foldersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, st) => Center(child: Text('Error loading folders: $e')),
+      data: (folders) {
+        if (folders.isEmpty) {
           return _buildEmptyState('No music folders found');
         }
-
-        final folderMap = <String, int>{};
-        for (final t in tracks) {
-          final dir = t.relativeDir.isNotEmpty ? t.relativeDir : 'Root';
-          folderMap[dir] = (folderMap[dir] ?? 0) + 1;
-        }
-
-        final folders = folderMap.entries.toList();
 
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 96.0),
@@ -696,19 +682,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
               title: Text(
-                folder.key,
+                folder.path,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: Text(
-                '${folder.value} ${folder.value == 1 ? 'song' : 'songs'}',
+                '${folder.trackCount} ${folder.trackCount == 1 ? 'song' : 'songs'}',
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
                 haptics.selection();
                 context.push(
-                  '/folder?path=${Uri.encodeQueryComponent(folder.key)}',
+                  '/folder?path=${Uri.encodeQueryComponent(folder.path)}',
                 );
               },
             );

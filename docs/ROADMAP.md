@@ -151,6 +151,14 @@ Status legend:
 - [x] Direct native sharing via `FileProvider` and Android Share Sheet (`ACTION_SEND`)
 - [x] Routing integration (`/cutter`), track context menu entry, and Settings Library Tools access
 
+### [x] Phase B: Performance & Architecture Bottlenecks
+- [x] Background isolate tag extraction (`compute(_extractTagsChunkIsolated, items)`) offloading ID3/FLAC/Vorbis/MP4 parsing from UI thread
+- [x] Elimination of N+1 database queries in `TrackRadioService` and `WrappedService` using pre-fetched `getAllTrackGenresMap()`
+- [x] Indexed `SELECT relative_dir, count(*) GROUP BY relative_dir` in `watchFolderSummaries()` eliminating full-library Track deserialization in Folders tab
+- [x] Targeted SQL queries (`getAllTrackKeys()`, `getMediaStoreTrackIds()`) for lightweight reconciliation and queue initialization
+- [x] Memoized Riverpod stream providers for albums and artists (`albumDetailStreamProvider`, `albumTracksStreamProvider`, `artistDetailStreamProvider`, `artistTracksStreamProvider`, `artistAlbumsStreamProvider`) eliminating stream recreation in `build()`
+- [x] Isolated MiniPlayer progress bar (`_MiniPlayerProgressBar`) and record selector filtering eliminating full mini-player rebuilds on position ticks
+
 ### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox
 - [ ] AVAudioSession and background audio modes

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:sonara/core/services/permission_service.dart';
@@ -177,12 +178,10 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
         try {
           final knownIds = (await _mediaStore.getKnownMediaIds()).toSet();
           if (knownIds.isNotEmpty) {
-            final dbTracks = await (_db.select(
-              _db.tracks,
-            )..where((t) => t.mediaStoreId.isNotNull())).get();
-            final missingTrackIds = dbTracks
-                .where((t) => !knownIds.contains(t.mediaStoreId))
-                .map((t) => t.id)
+            final trackPairs = await _db.getMediaStoreTrackIds();
+            final missingTrackIds = trackPairs
+                .where((pair) => !knownIds.contains(pair.$2))
+                .map((pair) => pair.$1)
                 .toList();
             const updateBatch = 200;
             for (var i = 0; i < missingTrackIds.length; i += updateBatch) {
@@ -224,25 +223,24 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
   Future<void> _processChunk(List<MediaStoreItem> items) async {
     final preparedTracks = <_PreparedTrackData>[];
 
-    // Phase 1: Heavy file I/O & tag parsing (off DB transaction)
-    for (final item in items) {
+    // Phase 1: Heavy file I/O & deep tag parsing running in background isolate
+    final isolateResults = await compute(_extractTagsChunkIsolated, items);
+    final resultsMap = {for (final r in isolateResults) r.index: r.metadata};
+
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
       try {
         final hasValidPath = item.path.isNotEmpty && p.isAbsolute(item.path);
-        final file = hasValidPath ? File(item.path) : null;
-        ParsedMetadata metadata;
-
-        if (file != null && await file.exists()) {
-          metadata = await TagReader.readFromFile(file);
-        } else {
-          metadata = ParsedMetadata(
-            title: MetadataUtils.resolveTitle(item.title, item.path),
-            artist: MetadataUtils.resolveArtist(item.artist),
-            album: MetadataUtils.resolveAlbum(item.album, item.path),
-            albumArtist: MetadataUtils.resolveArtist(item.artist),
-            year: item.year > 0 ? item.year : null,
-            trackNumber: item.trackNumber > 0 ? item.trackNumber : null,
-          );
-        }
+        final metadata =
+            resultsMap[i] ??
+            ParsedMetadata(
+              title: MetadataUtils.resolveTitle(item.title, item.path),
+              artist: MetadataUtils.resolveArtist(item.artist),
+              album: MetadataUtils.resolveAlbum(item.album, item.path),
+              albumArtist: MetadataUtils.resolveArtist(item.artist),
+              year: item.year > 0 ? item.year : null,
+              trackNumber: item.trackNumber > 0 ? item.trackNumber : null,
+            );
 
         final title = metadata.title.isNotEmpty ? metadata.title : item.title;
         final artistName = metadata.artist.isNotEmpty
@@ -488,6 +486,56 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
     } catch (_) {}
     return false;
   }
+}
+
+class _IsolateItemResult {
+  final int index;
+  final ParsedMetadata metadata;
+
+  const _IsolateItemResult({required this.index, required this.metadata});
+}
+
+Future<List<_IsolateItemResult>> _extractTagsChunkIsolated(
+  List<MediaStoreItem> items,
+) async {
+  final results = <_IsolateItemResult>[];
+  for (var i = 0; i < items.length; i++) {
+    final item = items[i];
+    try {
+      final hasValidPath = item.path.isNotEmpty && p.isAbsolute(item.path);
+      final file = hasValidPath ? File(item.path) : null;
+      ParsedMetadata metadata;
+
+      if (file != null && file.existsSync()) {
+        metadata = await TagReader.readFromFile(file);
+      } else {
+        metadata = ParsedMetadata(
+          title: MetadataUtils.resolveTitle(item.title, item.path),
+          artist: MetadataUtils.resolveArtist(item.artist),
+          album: MetadataUtils.resolveAlbum(item.album, item.path),
+          albumArtist: MetadataUtils.resolveArtist(item.artist),
+          year: item.year > 0 ? item.year : null,
+          trackNumber: item.trackNumber > 0 ? item.trackNumber : null,
+        );
+      }
+      results.add(_IsolateItemResult(index: i, metadata: metadata));
+    } catch (_) {
+      results.add(
+        _IsolateItemResult(
+          index: i,
+          metadata: ParsedMetadata(
+            title: MetadataUtils.resolveTitle(item.title, item.path),
+            artist: MetadataUtils.resolveArtist(item.artist),
+            album: MetadataUtils.resolveAlbum(item.album, item.path),
+            albumArtist: MetadataUtils.resolveArtist(item.artist),
+            year: item.year > 0 ? item.year : null,
+            trackNumber: item.trackNumber > 0 ? item.trackNumber : null,
+          ),
+        ),
+      );
+    }
+  }
+  return results;
 }
 
 class _PreparedTrackData {

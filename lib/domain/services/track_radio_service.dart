@@ -37,7 +37,10 @@ class TrackRadioService {
       return [seedTrack];
     }
 
-    final seedGenres = await db.getTrackGenres(seedTrack.id);
+    final allTrackGenresMap = await db.getAllTrackGenresMap();
+    final seedGenres =
+        allTrackGenresMap[seedTrack.id] ??
+        await db.getTrackGenres(seedTrack.id);
     final seedGenreNames = seedGenres.map((g) => g.toLowerCase()).toSet();
 
     // Cache album years and artists
@@ -63,7 +66,7 @@ class TrackRadioService {
     for (final candidate in candidates) {
       // 1. Genre Score (weight 0.40)
       var genreScore = 0.4;
-      final candGenres = await db.getTrackGenres(candidate.id);
+      final candGenres = allTrackGenresMap[candidate.id] ?? const [];
       if (seedGenreNames.isNotEmpty && candGenres.isNotEmpty) {
         final candGenreNames = candGenres.map((g) => g.toLowerCase()).toSet();
         final intersection = seedGenreNames.intersection(candGenreNames);

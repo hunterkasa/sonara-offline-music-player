@@ -17,19 +17,22 @@ class MiniPlayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final snapshotAsync = ref.watch(playbackSnapshotProvider);
-    final snapshot =
-        snapshotAsync.value ??
-        ref.read(playbackControllerProvider).currentSnapshot;
+    final meta = ref.watch(
+      playbackSnapshotProvider.select((s) {
+        final snap =
+            s.value ?? ref.read(playbackControllerProvider).currentSnapshot;
+        return (
+          trackKey: snap.currentTrackKey,
+          title: snap.title,
+          artist: snap.artist,
+          isPlaying: snap.isPlaying,
+        );
+      }),
+    );
     final playback = ref.read(playbackControllerProvider);
     final haptics = ref.read(hapticServiceProvider);
-    final trackAsync = ref.watch(trackStreamProvider(snapshot.currentTrackKey));
+    final trackAsync = ref.watch(trackStreamProvider(meta.trackKey));
     final track = trackAsync.value;
-
-    final progressRatio = snapshot.duration.inMilliseconds > 0
-        ? (snapshot.position.inMilliseconds / snapshot.duration.inMilliseconds)
-              .clamp(0.0, 1.0)
-        : 0.0;
 
     final audioSettings = ref.watch(audioSettingsProvider);
     final isOled =
@@ -38,7 +41,7 @@ class MiniPlayer extends ConsumerWidget {
     final isWhite = theme.brightness == Brightness.light && !isOled;
 
     return Semantics(
-      label: 'Mini Player: ${snapshot.title} by ${snapshot.artist}',
+      label: 'Mini Player: ${meta.title} by ${meta.artist}',
       button: true,
       child: GestureDetector(
         onTap: () {
@@ -95,17 +98,8 @@ class MiniPlayer extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Hairline progress bar
-              LinearProgressIndicator(
-                value: progressRatio,
-                minHeight: 2.5,
-                backgroundColor: isWhite
-                    ? const Color(0xFFF1F3F5)
-                    : Colors.transparent,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  isOled ? Colors.white : theme.colorScheme.primary,
-                ),
-              ),
+              // Hairline progress bar isolated from parent rebuilds
+              _MiniPlayerProgressBar(isOled: isOled, isWhite: isWhite),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.s,
@@ -118,7 +112,7 @@ class MiniPlayer extends ConsumerWidget {
                       child: ArtworkWidget(
                         artworkKey: track?.artworkKey,
                         filePath: track?.path,
-                        title: snapshot.title,
+                        title: meta.title,
                         size: 44,
                         borderRadius: 8.0,
                       ),
@@ -131,9 +125,9 @@ class MiniPlayer extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            snapshot.title.isEmpty
+                            meta.title.isEmpty
                                 ? 'No track playing'
-                                : snapshot.title,
+                                : meta.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodyMedium?.copyWith(
@@ -142,9 +136,7 @@ class MiniPlayer extends ConsumerWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            snapshot.artist.isEmpty
-                                ? 'Sonara Music'
-                                : snapshot.artist,
+                            meta.artist.isEmpty ? 'Sonara Music' : meta.artist,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -162,12 +154,12 @@ class MiniPlayer extends ConsumerWidget {
                       ),
                       padding: const EdgeInsets.all(8),
                       icon: Icon(
-                        snapshot.isPlaying
+                        meta.isPlaying
                             ? Icons.pause_rounded
                             : Icons.play_arrow_rounded,
                       ),
                       iconSize: 30,
-                      tooltip: snapshot.isPlaying ? 'Pause' : 'Play',
+                      tooltip: meta.isPlaying ? 'Pause' : 'Play',
                       onPressed: () {
                         haptics.medium();
                         playback.togglePlayPause();
@@ -194,6 +186,36 @@ class MiniPlayer extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MiniPlayerProgressBar extends ConsumerWidget {
+  const _MiniPlayerProgressBar({required this.isOled, required this.isWhite});
+
+  final bool isOled;
+  final bool isWhite;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final progress = ref.watch(
+      playbackSnapshotProvider.select((s) {
+        final snap =
+            s.value ?? ref.read(playbackControllerProvider).currentSnapshot;
+        if (snap.duration.inMilliseconds <= 0) return 0.0;
+        return (snap.position.inMilliseconds / snap.duration.inMilliseconds)
+            .clamp(0.0, 1.0);
+      }),
+    );
+
+    return LinearProgressIndicator(
+      value: progress,
+      minHeight: 2.5,
+      backgroundColor: isWhite ? const Color(0xFFF1F3F5) : Colors.transparent,
+      valueColor: AlwaysStoppedAnimation<Color>(
+        isOled ? Colors.white : theme.colorScheme.primary,
       ),
     );
   }

@@ -12,6 +12,13 @@ import '../../core/utils/track_key.dart';
 
 part 'app_database.g.dart';
 
+class FolderSummary {
+  final String path;
+  final int trackCount;
+
+  const FolderSummary({required this.path, required this.trackCount});
+}
+
 @DriftDatabase(
   tables: [
     Tracks,
@@ -722,6 +729,28 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
+  /// Get all active track keys without materializing full Track models
+  Future<List<String>> getAllTrackKeys({bool includeHidden = false}) async {
+    final query = selectOnly(tracks)..addColumns([tracks.trackKey]);
+    if (!includeHidden) {
+      query.where(tracks.isHidden.equals(false));
+    }
+    query.orderBy([OrderingTerm.asc(tracks.titleSort)]);
+    final rows = await query.get();
+    return rows.map((r) => r.read(tracks.trackKey)!).toList();
+  }
+
+  /// Get targeted ID and MediaStore ID pairs for fast reconciliation
+  Future<List<(int id, int mediaStoreId)>> getMediaStoreTrackIds() async {
+    final query = selectOnly(tracks)
+      ..addColumns([tracks.id, tracks.mediaStoreId])
+      ..where(tracks.mediaStoreId.isNotNull());
+    final rows = await query.get();
+    return rows.map((r) {
+      return (r.read(tracks.id)!, r.read(tracks.mediaStoreId)!);
+    }).toList();
+  }
+
   /// Get all playlists for backup
   Future<List<Playlist>> getAllPlaylists() {
     return select(playlists).get();
@@ -983,6 +1012,27 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Watch distinct folders with song counts without loading full Track rows
+  Stream<List<FolderSummary>> watchFolderSummaries() {
+    final countExp = tracks.id.count();
+    final query = selectOnly(tracks)
+      ..addColumns([tracks.relativeDir, countExp])
+      ..where(tracks.isHidden.equals(false))
+      ..groupBy([tracks.relativeDir])
+      ..orderBy([OrderingTerm.asc(tracks.relativeDir)]);
+
+    return query.watch().map((rows) {
+      return rows.map((r) {
+        final dir = r.read(tracks.relativeDir) ?? '';
+        final count = r.read(countExp) ?? 0;
+        return FolderSummary(
+          path: dir.isNotEmpty ? dir : 'Root',
+          trackCount: count,
+        );
+      }).toList();
+    });
+  }
+
   /// Watch all tracks belonging to a folder (relative directory)
   Stream<List<Track>> watchTracksForFolder(String folderPath) {
     final isRoot = folderPath == 'Root' || folderPath.isEmpty;
@@ -1011,6 +1061,51 @@ class AppDatabase extends _$AppDatabase {
           })
           ..orderBy([(t) => OrderingTerm.asc(t.titleSort)]))
         .get();
+  }
+
+  /// Watch single album by ID
+  Stream<Album?> watchAlbum(int albumId) {
+    return (select(
+      albums,
+    )..where((a) => a.id.equals(albumId))).watchSingleOrNull();
+  }
+
+  /// Watch album tracks ordered by disc, track number, and title
+  Stream<List<Track>> watchAlbumTracks(int albumId) {
+    return (select(tracks)
+          ..where((t) => t.albumId.equals(albumId))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.discNo),
+            (t) => OrderingTerm.asc(t.trackNo),
+            (t) => OrderingTerm.asc(t.titleSort),
+          ]))
+        .watch();
+  }
+
+  /// Watch single artist by ID
+  Stream<Artist?> watchArtist(int artistId) {
+    return (select(
+      artists,
+    )..where((a) => a.id.equals(artistId))).watchSingleOrNull();
+  }
+
+  /// Watch artist tracks ordered by play count and title
+  Stream<List<Track>> watchArtistTracks(int artistId) {
+    return (select(tracks)
+          ..where((t) => t.artistId.equals(artistId))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.playCount),
+            (t) => OrderingTerm.asc(t.titleSort),
+          ]))
+        .watch();
+  }
+
+  /// Watch artist albums ordered by release year
+  Stream<List<Album>> watchArtistAlbums(int artistId) {
+    return (select(albums)
+          ..where((a) => a.albumArtistId.equals(artistId))
+          ..orderBy([(a) => OrderingTerm.desc(a.year)]))
+        .watch();
   }
 
   /// Updates track metadata across tracks, artists, albums, and FTS5 index
