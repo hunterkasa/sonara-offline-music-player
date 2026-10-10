@@ -139,6 +139,18 @@ Status legend:
   - Constrained screen height & high accessibility text scale responsive layout in `NowPlayingSheet`
   - Android 13+ `POST_NOTIFICATIONS` runtime permission request integration
 
+### [x] Phase A: Audio Cutter & Ringtone Studio
+- [x] Native audio slicing engine via `MediaExtractor` and `MediaMuxer` on Android
+- [x] Pure-Dart lossless WAV byte precision trimmer fallback
+- [x] System Ringtone, Notification, and Alarm assignment via `RingtoneManager`
+- [x] Android `WRITE_SETTINGS` permission verification and settings deep-linking
+- [x] Interactive `WaveformTrimmer` UI with draggable Start & End handles, shaded boundary dimming, and selection box
+- [x] Millisecond-precision start/duration/end indicators
+- [x] Fine-adjustment nudge controls (±1s, ±100ms) for start and end markers
+- [x] Seamless preview playback engine with A-B loop repetition and playhead tracking
+- [x] Direct native sharing via `FileProvider` and Android Share Sheet (`ACTION_SEND`)
+- [x] Routing integration (`/cutter`), track context menu entry, and Settings Library Tools access
+
 ### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox
 - [ ] AVAudioSession and background audio modes

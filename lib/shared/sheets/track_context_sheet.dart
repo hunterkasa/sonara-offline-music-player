@@ -284,6 +284,21 @@ class TrackContextSheet extends ConsumerWidget {
             },
           ),
           ListTile(
+            leading: const Icon(
+              Icons.content_cut_rounded,
+              color: Colors.tealAccent,
+            ),
+            title: const Text('Trim / Ringtone Studio'),
+            subtitle: const Text(
+              'Cut audio clip, set ringtone or notification',
+            ),
+            onTap: () {
+              haptics.selection();
+              Navigator.of(context).pop();
+              context.push('/cutter?trackKey=${track.trackKey}');
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.info_outline_rounded),
             title: const Text('Track Details'),
             onTap: () {

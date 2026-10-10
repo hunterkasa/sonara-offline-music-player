@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/album/album_detail_screen.dart';
 import '../../features/artist/artist_detail_screen.dart';
+import '../../features/audio_cutter/audio_cutter_screen.dart';
 import '../../features/audio_settings/audio_settings_screen.dart';
 import '../../features/audio_settings/equalizer_screen.dart';
 import '../../features/folder/folder_detail_screen.dart';
@@ -169,6 +170,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/wrapped',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const WrappedScreen(),
+      ),
+      GoRoute(
+        path: '/cutter',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final trackKey = state.uri.queryParameters['trackKey'] ?? '';
+          return AudioCutterScreen(trackKey: trackKey);
+        },
       ),
     ],
   );

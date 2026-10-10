@@ -152,6 +152,32 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.push('/wrapped'),
           ),
+          ListTile(
+            leading: const Icon(
+              Icons.content_cut_rounded,
+              color: Colors.tealAccent,
+            ),
+            title: const Text('Audio Cutter & Ringtone Studio'),
+            subtitle: const Text(
+              'Slice songs into ringtones, alarms & notification sounds',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () async {
+              final db = ref.read(databaseProvider);
+              final tracks = await db.getAllTracks();
+              if (tracks.isNotEmpty && context.mounted) {
+                await context.push('/cutter?trackKey=${tracks.first.trackKey}');
+              } else if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'No tracks available to trim. Add songs to your library first.',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
           const Divider(),
 
           if (kDebugMode) ...[

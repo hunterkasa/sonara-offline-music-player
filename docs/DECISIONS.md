@@ -337,5 +337,15 @@ This log records non-obvious technical choices, architecture invariants, and dep
   14. *Android 13+ Notification Permission:* Added notification permission checks and requests in `PermissionService` alongside audio permissions on Android 13+ (API 33+).
 - **Rationale:** Resolves all critical stability, data integrity, background battery, and audio playback defects identified during audit, verified with 100% passing tests and 0 analysis warnings.
 
+### ADR 10.14: Audio Cutter & Ringtone Studio Native Engine
+- **Decision:**
+  1. *Native Audio Slicing Engine (`MediaExtractor` & `MediaMuxer`):* Implemented lossless container-level audio trimming on Android over MethodChannel `com.example.sonara/audio_cutter`. `MediaExtractor` seeks to `startMs * 1000L` (`SEEK_TO_CLOSEST_SYNC`), adjusts sample presentation timestamps relative to the cut origin, and `MediaMuxer` writes encoded packets directly into `.m4a`/`.mp4`/`.ogg` without lossy re-encoding artifacts or quality degradation.
+  2. *Lossless Pure-Dart WAV Fallback:* Implemented precision byte-level PCM slicing for WAV files by reading the 44-byte RIFF header, calculating byte offsets from byte rate and block alignment, updating chunk size headers, and slicing PCM data without native dependencies.
+  3. *Android RingtoneManager & Settings Integration:* Integrated `RingtoneManager` with `MediaStore.Audio.Media.EXTERNAL_CONTENT_URI` to set clipped audio as Phone Ringtone (`TYPE_RINGTONE`), Notification sound (`TYPE_NOTIFICATION`), or Alarm tone (`TYPE_ALARM`). Provided non-blocking verification for `Settings.System.canWrite(context)` and deep-linking to Android's `ACTION_MANAGE_WRITE_SETTINGS`.
+  4. *WaveformTrimmer Custom Visualizer & Transport:* Built interactive `WaveformTrimmer` canvas with draggable dual boundary handles, shaded non-selected region masking, playhead indicator, and precision millisecond nudge controls (±1s, ±100ms). Embedded looping preview transport playing strictly within `[startMs, endMs]`.
+  5. *FileProvider & Native Share Sheet:* Configured `androidx.core.content.FileProvider` (`provider_paths.xml`) and launched Android `ACTION_SEND` intents to enable native sharing of clipped audio files across external messaging and social apps.
+- **Rationale:** Delivers full ringtone creation and audio clipping capabilities natively and offline, without requiring external network dependencies or third-party audio editing libraries.
+
+
 
 
