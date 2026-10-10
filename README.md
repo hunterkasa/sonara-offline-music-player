@@ -159,8 +159,8 @@ Get the latest production build ready for immediate sideloading on any Android d
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/hunterkasa/sonara.git
-   cd sonara
+   git clone https://github.com/hunterkasa/sonara-offline-music-player.git
+   cd sonara-offline-music-player
    ```
 
 2. **Install Flutter dependencies:**
