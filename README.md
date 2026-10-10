@@ -1,122 +1,244 @@
-# Sonara (Android Music Player)
+# 🎵 Sonara
 
-An offline-first, private, local-first Android music player crafted with Flutter & Dart.
+<p align="center">
+  <strong>A modern, audiophile-grade, 100% offline & private music player for Android.</strong><br>
+  Crafted with Flutter & Dart • No Ads • No Tracking • Zero Internet Permissions
+</p>
+
+<p align="center">
+  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.13+-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter"></a>
+  <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.1+-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart"></a>
+  <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Android-8.0+_(API_26+)-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License"></a>
+  <img src="https://img.shields.io/badge/Network-0%25_Offline-brightgreen?style=for-the-badge" alt="100% Offline">
+  <a href="../../releases/latest"><img src="https://img.shields.io/badge/Release-v1.0.0-orange?style=for-the-badge" alt="Latest Release"></a>
+</p>
+
+<p align="center">
+  <a href="#-quick-download"><strong>📥 Download APK</strong></a> •
+  <a href="#-screenshots"><strong>📸 Screenshots</strong></a> •
+  <a href="#-key-features"><strong>✨ Key Features</strong></a> •
+  <a href="#-prerequisites--installation"><strong>🚀 Getting Started</strong></a> •
+  <a href="#-building-from-source"><strong>🛠️ Build Source</strong></a> •
+  <a href="#-architecture"><strong>🏗️ Architecture</strong></a>
+</p>
 
 ---
 
-## Architecture Overview
+## 🌟 Overview
 
-Sonara follows a feature-first, 3-tier reactive pattern:
+**Sonara** is an offline music player designed from the ground up for music enthusiasts who value their privacy, battery life, and audio quality. 
+
+Unlike modern streaming clients that harvest telemetry, display ads, or require constant connectivity, Sonara enforces a strict **zero-network invariant**: `android.permission.INTERNET` is completely omitted from the release manifest. Your library, listening statistics, and playlists never leave your device.
+
+Sonara pairs a responsive, Material 3 tactile interface with an industrial audio engine capable of fluidly navigating **20,000+ tracks**, playing gapless audio, computing ReplayGain normalization, transposing musical pitch in real-time, and rendering synchronized lyrics.
+
+---
+
+## 📥 Quick Download
+
+Get the latest production build ready for immediate sideloading on any Android device running Android 8.0+:
+
+| Release | Architecture | File | Direct Link |
+| :--- | :--- | :--- | :--- |
+| **v1.0.0 (Latest)** | **Universal (All Phones)** | `app-release.apk` | [**Download APK (v1.0.0)**](../../releases/latest) |
+| v1.0.0 | ARM64 (Modern Devices) | `app-arm64-v8a-release.apk` | [Download ARM64](../../releases/latest) |
+| v1.0.0 | ARMv7 (Older Devices) | `app-armeabi-v7a-release.apk` | [Download ARMv7](../../releases/latest) |
+
+---
+
+## 📸 Screenshots
+
+<table align="center">
+  <tr>
+    <td align="center" width="25%">
+      <strong>Dynamic Home</strong><br>
+      <img src="docs/screenshots/phase-10/01_home_screen.png" width="220" alt="Home Screen" />
+    </td>
+    <td align="center" width="25%">
+      <strong>Now Playing (Modern)</strong><br>
+      <img src="docs/screenshots/phase-10/04_now_playing_modern.png" width="220" alt="Now Playing" />
+    </td>
+    <td align="center" width="25%">
+      <strong>Turntable Skin</strong><br>
+      <img src="docs/screenshots/phase-10/05_spinning_vinyl_skin.png" width="220" alt="Spinning Vinyl" />
+    </td>
+    <td align="center" width="25%">
+      <strong>90s Cassette Deck</strong><br>
+      <img src="docs/screenshots/phase-10/06_retro_cassette_skin.png" width="220" alt="Retro Cassette" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="25%">
+      <strong>60 FPS Visualizer</strong><br>
+      <img src="docs/screenshots/phase-8/02_visualizer_spectrum.png" width="220" alt="Visualizer" />
+    </td>
+    <td align="center" width="25%">
+      <strong>5-Band Hardware EQ</strong><br>
+      <img src="docs/screenshots/phase-5/03_equalizer_screen_on_rock.png" width="220" alt="Equalizer" />
+    </td>
+    <td align="center" width="25%">
+      <strong>Synchronized Lyrics Studio</strong><br>
+      <img src="docs/screenshots/phase-9/03_lyrics_studio.png" width="220" alt="Lyrics Studio" />
+    </td>
+    <td align="center" width="25%">
+      <strong>100% Offline Wrapped</strong><br>
+      <img src="docs/screenshots/phase-10/02_wrapped_screen.png" width="220" alt="Offline Wrapped" />
+    </td>
+  </tr>
+</table>
+
+---
+
+## ✨ Key Features
+
+### 🎧 Audiophile Playback Engine
+- **Hardware Equalizer & Presets:** 5-band parametric equalizer with Catmull-Rom Bezier curve visualization, 9 handcrafted presets (*Flat, Bass Boost, Treble Boost, Rock, Pop, Jazz, Electronic, Vocal, Classical*), and user custom profiles.
+- **Hardware Bass Boost & Loudness Enhancer:** Deep bass amplification and loudness enhancement up to +10 dB.
+- **ReplayGain & Peak Limiter:** Smart volume normalization across tracks and albums with configurable pre-amp (-12 dB to +12 dB) and anti-clipping limiter.
+- **Gapless Playback & Crossfade:** Configurable crossfade transitions (0s to 12s) with cubic volume ramping eliminating DAC clicks and abrupt stops.
+- **Pitch Transposition & Speed Control:** Musical pitch shifting across $\pm 12$ semitones ($2^{S/12}$) independent of tempo, plus pitch-preserved speed adjustments (0.5x to 2.0x).
+- **Per-Device Audio Profiles:** Detects output route changes (*Phone Speaker, Bluetooth, Wired IEMs, USB DAC*) and automatically applies corresponding EQ, loudness, and crossfade settings.
+- **Real-Time 60 FPS Visualizer:** 16-band Spectrum bars with peak decay, analog dual VU meters, and fluid Bezier wave visualizers alongside interactive amplitude peak waveform scrubbers.
+
+### 📚 Library & Smart Management
+- **Instant FTS5 Search:** Full-text SQLite search responding in <50ms across tracks, artists, albums, and playlists with search chips and hero cards.
+- **Scalable 20,000+ Track Queue:** Sliding-window queue manager loads only upcoming tracks into the playback engine, preventing memory bloat on massive collections.
+- **In-App Tag & Artwork Editor:** Edit ID3v2.3 (MP3) and Vorbis comments (FLAC) directly on disk. Supports Scoped Storage write permission requests on Android 11+.
+- **Lossless Audio Cutter & Ringtone Maker:** Extract segments using native `MediaExtractor` / `MediaMuxer` with waveform trimming, A-B loop preview, and one-tap assignment as ringtones or alarms.
+- **CUE Sheet Parser:** 75fps frame-accurate parsing of `.cue` sidecars for single-file album rips with seamless virtual track playback.
+- **Duplicate Audio Finder:** Scans audio collections and groups duplicate recordings by title, artist, and duration ($\pm 2\text{s}$) with bulk cleanup.
+- **M3U / M3U8 Playlist Engine:** Full UTF-8 playlist import/export with intelligent 3-tier fallback track matching.
+- **Smart Playlists:** Dynamic rule engine with boolean and date filters (*Recently Added, Most Played, Top Rated, Forgotten Favorites*).
+
+### 🎨 Tactile & Dynamic Interface
+- **Material 3 Dynamic Palette:** Off-thread palette extraction via `material_color_utilities` (`QuantizerCelebi`), generating dynamic ambient gradients from album art.
+- **Interactive Player Skins:** Switch seamlessly between:
+  - **Modern Dynamic:** Adaptive art glow and fluid animations.
+  - **Spinning Vinyl:** Realistic turntable with animated tonearm physics.
+  - **Retro 90s Cassette:** Nostalgic cassette deck with dual spinning reels and magnetic tape simulation.
+  - **Minimalist OLED:** Pure true-black theme optimized for battery saving on AMOLED displays.
+- **Synchronized Lyrics Studio:** Live auto-scrolling lyrics with tap-to-seek, paired with a dedicated studio to stamp, adjust ($\pm 100\text{ms}$), and export RFC-compliant `.lrc` files.
+- **Offline "Wrapped" Year-End Stories:** Spotify-style listening recaps generated entirely on-device from SQLite statistics, exportable as high-res shareable image cards without network communication.
+- **Acoustic "Track Radio":** Intelligent on-device clustering queue that analyzes genre affinity, era proximity, and artist discography.
+
+### 📱 Android Ecosystem Integration
+- **Android Auto Dashboard:** Native `MediaBrowserServiceCompat` integration for steering-wheel and in-car infotainment navigation.
+- **Home Screen Widgets:** Multiple widget form factors (2×1 Minimalist Pill, 4×1 Standard Player, 4×2 Expanded Card with album art).
+- **Dynamic Launcher Shortcuts:** Long-press launcher icon to jump to *Shuffle All*, *Liked Songs*, *Recently Played*, or *Search*.
+- **Smart Sleep Gestures:** Accelerometer detection enables shake-to-extend (+15m) during volume fadeouts and flip-face-down-to-pause.
+- **Zero Network Invariant:** Enforced via custom Gradle verification (`verifyNoInternetPermission`) guaranteeing that release builds strictly omit `android.permission.INTERNET`.
+
+---
+
+## 🚀 Prerequisites & Installation
+
+### Device Requirements
+- **OS:** Android 8.0 (Oreo / API level 26) or newer.
+- **Storage:** ~50 MB of free storage.
+- **Permissions:** Media audio permission (`READ_MEDIA_AUDIO` on Android 13+ or `READ_EXTERNAL_STORAGE` on Android 12 and below).
+
+### Manual Installation (Sideloading)
+1. Download **`app-release.apk`** from [Releases](../../releases/latest).
+2. On your Android device, tap the downloaded `.apk` file.
+3. If prompted, enable **"Install unknown apps"** in your Android Settings for your browser or file manager.
+4. Tap **Install** and launch Sonara!
+
+---
+
+## 🛠️ Building From Source
+
+### Development Prerequisites
+- **Flutter SDK:** `>= 3.13.5` (Channel `stable`)
+- **Dart SDK:** `>= 3.1.0`
+- **Java Development Kit (JDK):** Version 17
+- **Android SDK:** Platform SDK 34, Build Tools 34.0.0+
+- **Git**
+
+### Build Steps
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/hunterkasa/sonara.git
+   cd sonara
+   ```
+
+2. **Install Flutter dependencies:**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Verify static analysis and formatting:**
+   ```bash
+   flutter analyze
+   dart format --output=none --set-exit-if-changed .
+   ```
+
+4. **Execute automated test suites:**
+   ```bash
+   flutter test
+   ```
+   *(300+ unit, widget, and integration tests execute with 100% pass rate).*
+
+5. **Run on a connected Android device or emulator:**
+   ```bash
+   flutter run
+   ```
+
+6. **Compile production Release APKs:**
+   ```bash
+   # Universal release APK (works on all Android devices)
+   flutter build apk --release
+
+   # OR build architecture-optimized split APKs (~20MB each)
+   flutter build apk --release --split-per-abi
+   ```
+   Binaries are generated in: `build/app/outputs/flutter-apk/`.
+
+---
+
+## 🏗️ Architecture
+
+Sonara is engineered with a strict 3-tier reactive pattern:
+
 ```
 lib/
-  app/        # Bootstrap, router (go_router), theme tokens, l10n
-  core/       # Errors, logging, utils, platform bridges
-  data/       # db/ (Drift SQLite), sources/, repositories/
-  domain/     # Entities, services, use cases
-  audio/      # audio_handler, playback_controller abstraction
-  features/   # home, search, library, settings, now_playing
-  shared/     # mini_player, track_tile, skeletons, sheets
+├── app/          # App bootstrap, go_router navigation, theme tokens, l10n (EN, AR, BN, ZH)
+├── core/         # Error handling, offline logger, native bridges, utility parsers (LRC, CUE)
+├── data/         # Drift SQLite DB (WAL & FTS5), MediaStore scanners, pure-Dart tag readers
+├── domain/       # Logical queue manager, smart playlist engine, radio similarity clustering
+├── audio/        # SonaraAudioHandler, audio_service foreground session, PlaybackController
+├── features/     # Home, Search, Library, Now Playing, Equalizer, Cutter, Wrapped, Settings
+└── shared/       # Artwork cache, track tiles, waveform scrubbers, 60fps visualizers
 ```
 
-### Key Invariants:
-1. **Single Source of Truth:** Drift SQLite database with bundled `sqlite3_flutter_libs`, WAL mode, and FTS5 search.
-2. **Audio Isolation:** The UI never calls audio plugins directly; all actions flow through `PlaybackController`.
-3. **100% Offline & Private:** Zero network permissions (`android.permission.INTERNET` is strictly omitted).
+### Architectural Principles
+- **Drift SQLite as Single Source of Truth:** The UI consumes reactive streams from Drift SQLite tables; duplicate in-memory state is forbidden.
+- **Audio Stack Isolation:** The UI never communicates with audio plugins directly. All playback operations route through the `PlaybackController` domain abstraction.
+- **Background Isolate Processing:** Heavy file scanning, deep tag extraction, and palette downsampling execute in dedicated Dart worker isolates.
+- **Deterministic Identity:** Songs are uniquely identified by a SHA-256 `trackKey` computed from normalized metadata, preserving playlists across file moves and renames.
 
 ---
 
-## How to Test & Run
+## 🤝 Contributing
 
-### 1. Run Automated Tests
-```powershell
-flutter test
-```
-All unit, widget, and golden path tests execute in ~3 seconds.
+Contributions, feature suggestions, and bug reports are welcome!
 
-### 2. Verify Code Quality & Static Analysis
-```powershell
-flutter analyze
-dart format --output=none --set-exit-if-changed .
-```
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Ensure all tests pass (`flutter test && flutter analyze`)
+4. Commit your Changes (`git commit -m 'feat: add amazing feature'`)
+5. Push to the Branch (`git push origin feature/AmazingFeature`)
+6. Open a Pull Request
 
-### 3. Launch the App on Emulator or Physical Device
-Ensure your Android emulator (or USB-connected device) is active:
-```powershell
-# List connected devices
-flutter devices
+---
 
-# Run the app in debug mode
-flutter run -d emulator-5554
-```
+## 📄 License
 
-### 4. Interactive In-App Testing
-- **Permission Flow & Onboarding (Phase 1):** First launch presents the private & offline rationale screen. Dynamically requests `READ_MEDIA_AUDIO` on Android 13+ (API 33+) or `READ_EXTERNAL_STORAGE` on API <=32, with a settings deep-link fallback on permanent denial.
-- **MediaStore Native Scanner (Phase 1):** Scans audio files via background platform channel with transactional batching into Drift SQLite, real-time progress indicators, and incremental `ContentObserver` updates.
-- **Pure-Dart TagReader (Phase 1):** Reads ID3v1, ID3v2.2-2.4 (TIT2, TPE1, TALB, USLT, APIC, ReplayGain), FLAC Vorbis comments + picture blocks, MP4/M4A atoms, and OGG with automatic fallback heuristics.
-- **Browse Tabs & Scrubbers (Phase 1):** Switch between **Songs**, **Albums**, **Artists**, **Genres**, and **Folders** tabs in Library; sticky A-Z scrubber.
-- **Audio Service & MediaSession (Phase 2):** Full background playback with `FOREGROUND_SERVICE_MEDIA_PLAYBACK` on Android 14+. Lock screen and notification shade controls with artwork, scrub bar, and Bluetooth AVRCP support.
-- **Audio Focus & Headset Gestures (Phase 2):** Transient ducking on notifications, auto-pause on headphone unplug (`becomingNoisy`), resume on focus return, single/double/triple headset click handling.
-- **Scalable Queue & Sliding Window (Phase 2):** Logical queue supports 20,000+ tracks without memory leaks. Sliding window feed of 5 upcoming tracks into `just_audio`.
-- **Shuffle & Repeat (Phase 2):** Seeded Fisher-Yates shuffle (pins current track, exhausts before repeat) and repeat modes (off, all, one).
-- **Crash & Skip Resilience (Phase 2):** Missing/unplayable files skip smoothly with user snackbars without crash loops. Accurate decoder duration reconciliation in Drift DB.
-- **Process Death Restoration (Phase 2):** Drift DB persistence of logical queue, seek position, active index, and repeat/shuffle states across process kills and cold restarts.
-- **External Intent Handling (Phase 2):** Plays external audio files opened from file managers via Android `ACTION_VIEW audio/*` intent.
-- **Now Playing Screen & Dynamic Motion (Phase 3):** Full expandable Now Playing sheet with adaptive artwork color gradient, animated artwork scale (1.0 playing, 0.88 paused), swipe-to-skip, swipe-down collapse, and predictive back support.
-- **Reorderable Queue Sheet (Phase 3):** Modal queue with active track indicator, reorder drag handles (`onReorderItem`), swipe-to-remove dismissible tiles, and clear queue action.
-- **Synchronized Lyrics (Phase 3):** High-precision LRC parser (`LrcParser`) supporting sidecar `.lrc` / `.LRC` files, embedded ID3 tags (`USLT`/`SYLT`), active line auto-scroll, tap-to-seek, and dynamic font resizing (`A-` / `A+`).
-- **Sleep Timer (Phase 3):** Timer presets (15m, 30m, 45m, 60m), custom duration slider, "End of track" option, 20-second gentle linear volume ramp-down, and tap-to-extend (+15m).
-- **Playback Speed Control (Phase 3):** Pitch-preserved speed selection from 0.5x to 2.0x.
-- **Track Audio Specifications (Phase 3):** Technical inspection sheet displaying format, codec, bitrate, sample rate, bit depth, channels, file size, duration, storage path, and quality badges.
-- **Track Context Menu & Row Gestures (Phase 3):** Long-press and 3-dot context sheets (Play Next, Add to Queue, Favorites, Details) and swipe-right "Play Next" row gesture with Undo snackbar.
-- **Haptic Engine (Phase 3):** Tactile feedback on playback controls, scrubbing, long-press, and sheet actions with user toggle in Settings.
-- **Playlists & Drag-and-Drop Reordering (Phase 4):** Create, rename, delete, duplicate playlists with custom track ordering (`ReorderableListView`). Quick-add from track context sheets and dedicated playlist detail view.
-- **Liked Songs & Instant Favorites (Phase 4):** Reactive heart toggles across all screens with pinned Liked Songs card in Library and quick-action cards on Home.
-- **M3U / M3U8 Import & Export (Phase 4):** `#EXTINF` parser with resilient 3-tier track matching (absolute path, filename/basename, title+artist) and UTF-8 export.
-- **Smart Playlist Rule Engine (Phase 4):** Dynamic rule groups (AND/OR, text, numeric, date, boolean operators) with built-in presets (Recently Added, Most Played, Top Rated, Forgotten Favorites).
-- **Listening Statistics & Skip Detection (Phase 4):** Standard 30s / 50% threshold play logging, skip counter, and play history in Drift SQLite.
-- **Home Screen Dynamic Shelves (Phase 4):** "Good Morning/Afternoon/Evening" greeting, quick action cards, "Jump Back In", "On Repeat", and "Your Top Artists" horizontal shelves.
-- **Instant FTS5 Search (Phase 4):** SQLite FTS5 prefix search (<50ms) across tracks, artists, albums, playlists with filter chips ("All", "Songs", "Albums", "Artists", "Playlists"), Top Result hero card, and recent searches history.
-- **Hardware Equalizer & Presets (Phase 5):** 5-band hardware EQ (`AndroidEqualizer`), dynamic Catmull-Rom/cubic Bezier frequency curve, 9 presets (*Flat, Bass Boost, Treble Boost, Rock, Pop, Jazz, Electronic, Vocal/Acoustic, Classical*) plus Custom, bypass master switch.
-- **Bass Boost & Loudness Enhancer (Phase 5):** Hardware-accelerated bass boosting (0-100%) and loudness enhancer (`AndroidLoudnessEnhancer`) with target gain up to +10 dB.
-- **Crossfade & Smooth Volume Fades (Phase 5):** Configurable crossfade (0s to 12s, 0 = gapless) and 200ms volume ramp on pause/resume/skip eliminating DAC transient clicks.
-- **ReplayGain & Volume Normalization (Phase 5):** Smart (shuffle vs sequential), Track, and Album normalization with -12 dB to +12 dB pre-amp and peak limiter anti-clipping clamp.
-- **Platform Audio Engine Controls (Phase 5):** Hardware skip silence (`player.setSkipSilenceEnabled`), stereo channel balance slider (-1.0 Left to +1.0 Right), and mono downmix.
-- **Long-Audio Position Memory (Phase 5):** Auto-saves and restores exact seek position and playback speed for tracks >= 20 minutes (podcasts, DJ sets, audiobooks).
-- **Home Screen Widgets (Phase 6):** Native Android app widget (`SonaraWidgetProvider`) showing active track title, artist, play/pause status, and direct `MediaButtonReceiver` transport controls (Play/Pause, Next, Previous).
-- **Dynamic App Shortcuts (Phase 6):** Launcher dynamic shortcuts for quick actions (*Shuffle all*, *Liked*, *Recently played*, and *Search*) routed via `sonara://` deep links.
-- **Duplicate Audio Finder (Phase 6):** Detection engine grouping tracks by title, artist, and duration (±2s) with options to hide duplicates from library or delete with confirmation.
-- **Library Backup & Restore (Phase 6):** Complete offline JSON backup and restore for playlists, favorites, listening stats, and user settings with 3-tier track relinking cascade (path, URI, metadata).
-- **Storage Inspector & Cache Management (Phase 6):** Storage breakdown displaying database size, track counts, and artwork cache footprint, featuring one-tap thumbnail eviction and SQLite `VACUUM`.
-- **Audio Synthesis Tool:** Run `dart tool/seed_music.dart` to synthesize real tagged test tracks (MP3, FLAC, M4A, OGG) with sidecar artwork and push them directly to Android devices via ADB.
-- **Hardening & High-Density Accessibility (Phase 7):** Minimum 48×48dp touch targets on all interactive controls, full semantics labeling, and zero `RenderFlex` overflows at 200% system font scaling.
-- **Internationalization & Multi-Script (Phase 7):** Full localization supporting English, Arabic (RTL directionality), Bengali, and Chinese (Simplified CJK).
-- **Edge-to-Edge System Bars (Phase 7):** Android 10+ edge-to-edge layout with transparent status and navigation overlays (`window.setDecorFitsSystemWindows(false)`).
-- **Pure Offline Diagnostic Logger (Phase 7):** Local rotating buffered sink log (`LocalLogger`) without remote analytics or network calls.
-- **Zero-Network Invariant Enforcement (Phase 7):** Custom Gradle task `verifyNoInternetPermission` strictly verifies the absence of `android.permission.INTERNET` from the merged release manifest.
-- **R8 ProGuard Minification & Binary Size (Phase 7):** Production build size is <25MB per architecture (`app-arm64-v8a-release.apk` 23.0MB, `app-armeabi-v7a-release.apk` 20.7MB).
-- **Per-Output-Device Audio Profiles (Phase 8):** Dynamic hardware route detection (`audio_session.devicesChangedEventStream`) that automatically swaps EQ presets, crossfade, and loudness booster settings between Phone Speaker, Bluetooth headphones, Wired IEMs, and USB DACs.
-- **60 FPS Real-Time Audio Visualizer & Waveform Scrubber (Phase 8):** Hi-Fi animated visualizer with 3 styles (16-band Spectrum bars with peak holds, analog dual VU meters, fluid bezier waves) with 0-CPU paused decay, paired with an interactive `WaveformScrubber` amplitude peak seekbar.
-- **Musical Pitch Transposition & Key Controls (Phase 8):** Independent pitch shifting across $\pm 12$ semitones (full octave) using mathematical semitone multipliers ($2^{S/12}$) operating independently of playback tempo, with interval indicators and instant "Reset Key" control.
-- **In-App Tag & Artwork Editor (Phase 9):** In-place ID3v2.3 (MP3) and Vorbis Comment / PICTURE (FLAC) editing supporting Title, Artist, Album, Year, Track#, Disc#, Genre, and custom artwork replacement, compliant with Android 11+ Scoped Storage via `MediaStore.createWriteRequest`.
-- **CUE Sheet Parser & Virtual Track Splitting (Phase 9):** Non-destructive 75fps frame-accurate parsing of `.cue` sidecars for monolithic album rips, indexing tracks into Drift SQLite and playing seamlessly via `ClippingAudioSource`.
-- **Synchronized LRC Lyrics Studio (Phase 9):** Interactive tap-to-stamp timestamp recorder with 0.75x slow-mo playback, $\pm 100\text{ms}$ micro-adjustments, line navigation, and direct RFC-compliant sidecar `.lrc` file export.
-- **100% Offline "Wrapped" Recap (Phase 10):** Spotify-style recap story cards generated entirely from on-device SQLite listening statistics (top tracks, top artists, genre distribution, peak listening hour, listener persona badge, and skip percentage) with local high-resolution PNG export via `RepaintBoundary` and zero external cloud transmission.
-- **Offline "Track Radio" (Phase 10):** Multi-factor acoustic and metadata similarity clustering engine (genre matching, era proximity, artist affiliation, and duration similarity) accessible directly via track context menus for instant intelligent queues.
-- **Smart Sleep Gestures (Phase 10):** Native accelerometer event detection with zero idle battery overhead, featuring shake-to-extend (+15 minutes) during timer fadeouts and flip-face-down-to-pause.
-- **Custom Tactile Now Playing Skins (Phase 10):** Dynamic player skins including Default Modern, Spinning Vinyl Turntable with tone arm physics, Retro 90s Cassette Deck with spinning spools, and Minimalist OLED Pure Black with high-contrast battery saving layout.
-- **Android Auto Dashboard Support (Phase 10 & C):** Native `MediaBrowserServiceCompat` integration enabling vehicle touchscreen and steering-wheel navigation across Playlists, Artists, Albums, Liked Songs, and individual track resolution (`getMediaItem`).
-- **Expanded Home Screen Widget Suite (Phase 10):** Multi-form-factor widget choices including 2×1 Minimalist Pill widget, 4×1 Standard Player, and 4×2 Expanded Artwork Card widget with direct media controls.
-- **Audio Cutter & Ringtone Studio (Phase A):** Native lossless audio slicing engine via Android `MediaExtractor` and `MediaMuxer` with pure-Dart WAV fallback, interactive dual-handle `WaveformTrimmer`, A-B loop preview transport, system Ringtone / Notification / Alarm assignment via `RingtoneManager`, and direct sharing via Android Share Sheet.
-- **Isolate Architecture & Performance (Phase B):** Background worker isolates for tag scanning, indexed folder summaries, N+1 query elimination in smart radio and year-end wrapped recaps, memoized stream providers, and isolated progress bar rebuilds.
-- **Material 3 Quantized Palette & Crossfade (Phase C):** Real Material Design 3 palette extraction off the UI thread via `material_color_utilities` (`QuantizerCelebi`, `Score.score`) driving dynamic ambient theming in Now Playing, smooth cubic volume ramping and crossfades, LRU disk cache eviction for artwork (50MB / 300 files), and real waveform amplitude peak profiling (WAV PCM RMS and compressed frame energy).
-- **Premier Offline Features (Phase D):** Multi-select batch operations across library lists (batch Play, Add to Queue, Add to Playlist, Favorite, Delete/Remove) with dedicated `MultiSelectActionBar`, custom playlist cover art picker with gallery import and presets, embedded lyrics extraction hierarchy (.lrc sidecar > ID3v2 SYLT synced > USLT / Vorbis / MP4 lyrics), persistent playback speed & pitch key memory toggle, folder hierarchy navigation tree mode with interactive breadcrumbs, and sleep timer volume gentle fade curve selector (linear, logarithmic, exponential).
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for complete details.
 
-### 5. Build Release APKs
-```powershell
-# Build architecture-split release APKs (<25MB each)
-flutter build apk --release --split-per-abi
-```
-Release binaries are output to `build/app/outputs/flutter-apk/`.
+---
 
-
-
+<p align="center">
+  Built with ❤️ for music lovers everywhere • 100% Free, Private & Open Source
+</p>
