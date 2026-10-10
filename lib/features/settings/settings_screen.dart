@@ -1,13 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../app/theme/theme_provider.dart';
 import '../../app/theme/theme_tokens.dart';
+import '../../core/constants/licenses.dart';
 import '../../core/services/haptic_service.dart';
 import '../../data/db/database_provider.dart';
+import '../../shared/artwork/sonara_brand_logo.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -258,23 +261,129 @@ class SettingsScreen extends ConsumerWidget {
           const ListTile(
             leading: Icon(Icons.info_outline_rounded),
             title: Text('Sonara'),
-            subtitle: Text(
-              'Version 1.0.0 (Phase 0 Foundation) • 100% Offline & Private',
-            ),
+            subtitle: Text('Version 1.0.0 • 100% Offline & Private'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.verified_user_outlined),
+            title: const Text('Sonara License'),
+            subtitle: const Text('MIT License • Free & Open Source'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => _showSonaraLicenseDialog(context),
           ),
           ListTile(
             leading: const Icon(Icons.description_outlined),
-            title: const Text('Open Source Licenses'),
+            title: const Text('Third-Party Licenses'),
+            subtitle: const Text('Open-source libraries powering Sonara'),
+            trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () {
               showLicensePage(
                 context: context,
                 applicationName: 'Sonara',
                 applicationVersion: '1.0.0',
+                applicationIcon: const Padding(
+                  padding: EdgeInsets.all(AppSpacing.s),
+                  child: SonaraBrandLogo(size: 48),
+                ),
+                applicationLegalese: '© 2026 Sonara Contributors\nReleased under the MIT License',
               );
             },
           ),
         ],
       ),
+    );
+  }
+
+  void _showSonaraLicenseDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          icon: const Center(child: SonaraBrandLogo(size: 40)),
+          title: const Text('Sonara License', textAlign: TextAlign.center),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s,
+                    vertical: AppSpacing.xxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: AppRadii.pillRadius,
+                  ),
+                  child: Text(
+                    'MIT License • OSI Approved',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.m),
+              Text(
+                'Sonara is free and open-source software. You are free to use, modify, and distribute it in accordance with the terms below:',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s),
+              Flexible(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  padding: const EdgeInsets.all(AppSpacing.s),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.5,
+                    ),
+                    borderRadius: AppRadii.cardRadius,
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: const SingleChildScrollView(
+                    child: SelectableText(
+                      kSonaraMitLicense,
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton.icon(
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              label: const Text('Copy License'),
+              onPressed: () {
+                Clipboard.setData(const ClipboardData(text: kSonaraMitLicense));
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('MIT License copied to clipboard'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 

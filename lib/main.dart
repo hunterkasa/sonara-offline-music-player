@@ -13,6 +13,7 @@ import 'app/theme/app_theme.dart';
 import 'app/theme/theme_provider.dart';
 import 'audio/playback_controller.dart';
 import 'audio/sonara_audio_handler.dart';
+import 'core/constants/licenses.dart';
 import 'core/logging/local_logger.dart';
 import 'core/services/audio_intent_service.dart';
 import 'core/services/widget_service.dart';
@@ -24,6 +25,7 @@ import 'domain/services/queue_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerSonaraLicense();
 
   // Android 10+ and Android 15 edge-to-edge system chrome configuration
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

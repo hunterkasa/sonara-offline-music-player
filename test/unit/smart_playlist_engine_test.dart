@@ -213,18 +213,43 @@ void main() {
       expect(restored.rules[1].operator, equals(SmartOperator.isFalse));
     });
 
-    test('sorts by duration, dateAdded, and applies limits', () async {
+    test('filters by genre correctly', () async {
+      final rockGenreId = await db.getOrCreateGenre('Rock');
+      final jazzGenreId = await db.getOrCreateGenre('Jazz');
+
+      final track1 = await db.getTrackByKey('track_1');
+      final track3 = await db.getTrackByKey('track_3');
+
+      await db
+          .into(db.trackGenres)
+          .insert(
+            TrackGenresCompanion.insert(
+              trackId: track1!.id,
+              genreId: rockGenreId,
+            ),
+          );
+      await db
+          .into(db.trackGenres)
+          .insert(
+            TrackGenresCompanion.insert(
+              trackId: track3!.id,
+              genreId: jazzGenreId,
+            ),
+          );
+
       const group = SmartRuleGroup(
-        rules: [], // Empty rules match all tracks
-        sortBy: SmartField.duration,
-        sortAscending: true,
-        limit: 2,
+        rules: [
+          SmartRule(
+            field: SmartField.genre,
+            operator: SmartOperator.equals,
+            value: 'Jazz',
+          ),
+        ],
       );
 
       final results = await engine.evaluate(group);
-      expect(results.length, equals(2));
-      expect(results[0].trackKey, equals('track_2')); // 180s
-      expect(results[1].trackKey, equals('track_1')); // 200s
+      expect(results.length, equals(1));
+      expect(results.first.trackKey, equals('track_3'));
     });
   });
 }

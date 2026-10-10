@@ -88,13 +88,11 @@ class Playlists extends Table {
 }
 
 class PlaylistTracks extends Table {
+  IntColumn get id => integer().autoIncrement()();
   IntColumn get playlistId => integer()();
   TextColumn get trackKey => text()();
   IntColumn get position => integer()();
   IntColumn get addedAt => integer()();
-
-  @override
-  Set<Column> get primaryKey => {playlistId, trackKey};
 }
 
 class QueueStateTable extends Table {

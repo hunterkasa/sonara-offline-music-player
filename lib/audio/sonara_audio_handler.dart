@@ -179,12 +179,12 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     });
 
     // 3. Gapless sliding window progression
-    _player.currentIndexStream.listen((index) {
+    _player.currentIndexStream.listen((index) async {
       if (_isSwitchingSource || index == null) return;
       if (index > 0) {
         // Player smoothly finished current track and transitioned to next track in sliding window
         queueManager.advanceToNext();
-        _reloadSlidingWindow(resumePlaying: _player.playing);
+        await _advanceSlidingWindowInPlace();
       }
     });
   }
@@ -303,6 +303,52 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  AudioSource _buildAudioSourceForTrack(Track track) {
+    final uri = Uri.parse(
+      track.contentUri.isNotEmpty ? track.contentUri : track.path,
+    );
+    final item = MediaItem(
+      id: track.trackKey,
+      title: track.title,
+      artist: 'Unknown Artist',
+      duration: Duration(milliseconds: track.durationMs),
+    );
+
+    if (track.cueStartMs != null && track.cueEndMs != null) {
+      return ClippingAudioSource(
+        child: AudioSource.uri(uri),
+        start: Duration(milliseconds: track.cueStartMs!),
+        end: Duration(milliseconds: track.cueEndMs!),
+        tag: item,
+      );
+    } else {
+      return AudioSource.uri(uri, tag: item);
+    }
+  }
+
+  /// Advances sliding window in-place without resetting player or interrupting gapless playback
+  Future<void> _advanceSlidingWindowInPlace() async {
+    final source = _audioSource;
+    if (source != null && source.length > 0) {
+      _isSwitchingSource = true;
+      try {
+        await source.removeAt(0);
+        final window = queueManager.getSlidingWindow(windowSize: 5);
+        if (window.length > source.length) {
+          final nextTrack = window.last;
+          await source.add(_buildAudioSourceForTrack(nextTrack));
+        }
+      } catch (e) {
+        debugPrint('Failed to advance sliding window in place: $e');
+        await _reloadSlidingWindow(resumePlaying: _player.playing);
+      } finally {
+        _isSwitchingSource = false;
+      }
+    } else {
+      await _reloadSlidingWindow(resumePlaying: _player.playing);
+    }
+  }
+
   /// Reloads sliding window into just_audio player
   Future<void> _reloadSlidingWindow({
     bool resumePlaying = true,
@@ -317,31 +363,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
 
     _isSwitchingSource = true;
     try {
-      final children = <AudioSource>[];
-      for (final track in window) {
-        final uri = Uri.parse(
-          track.contentUri.isNotEmpty ? track.contentUri : track.path,
-        );
-        final mediaItem = MediaItem(
-          id: track.trackKey,
-          title: track.title,
-          artist: 'Unknown Artist',
-          duration: Duration(milliseconds: track.durationMs),
-        );
-
-        if (track.cueStartMs != null && track.cueEndMs != null) {
-          children.add(
-            ClippingAudioSource(
-              child: AudioSource.uri(uri),
-              start: Duration(milliseconds: track.cueStartMs!),
-              end: Duration(milliseconds: track.cueEndMs!),
-              tag: mediaItem,
-            ),
-          );
-        } else {
-          children.add(AudioSource.uri(uri, tag: mediaItem));
-        }
-      }
+      final children = window.map(_buildAudioSourceForTrack).toList();
 
       var targetPosition = initialPosition;
       if (targetPosition == null &&

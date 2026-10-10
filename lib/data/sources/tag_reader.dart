@@ -564,14 +564,29 @@ class TagReader {
     // bytes 1-3 is language (e.g. 'eng')
     // followed by null-terminated descriptor, then lyrics text
     var offset = 4;
-    while (offset < bytes.length && bytes[offset] != 0) {
-      offset++;
+    final isUtf16 = encoding == 0x01 || encoding == 0x02;
+    if (isUtf16) {
+      while (offset + 1 < bytes.length) {
+        if (bytes[offset] == 0 && bytes[offset + 1] == 0) {
+          offset += 2;
+          break;
+        }
+        offset += 2;
+      }
+    } else {
+      while (offset < bytes.length && bytes[offset] != 0) {
+        offset++;
+      }
+      offset++; // Skip descriptor null terminator
     }
-    offset++; // Skip descriptor null terminator
     if (offset >= bytes.length) return null;
 
     final lyricsBytes = bytes.sublist(offset);
-    if (encoding == 0x03) {
+    if (encoding == 0x01) {
+      return _decodeUtf16(lyricsBytes);
+    } else if (encoding == 0x02) {
+      return _decodeUtf16(lyricsBytes, isBigEndian: true);
+    } else if (encoding == 0x03) {
       return utf8.decode(lyricsBytes, allowMalformed: true).trim();
     }
     return latin1.decode(lyricsBytes).trim();
@@ -579,6 +594,7 @@ class TagReader {
 
   static (Uint8List, String)? _decodeApic(Uint8List bytes) {
     if (bytes.length < 10) return null;
+    final encoding = bytes[0];
     var offset = 1; // Skip encoding
 
     // Find null terminator for mime type
@@ -592,12 +608,24 @@ class TagReader {
     if (offset >= bytes.length) return null;
     // Skip picture type byte
     offset++;
+    if (offset >= bytes.length) return null;
 
     // Skip description null terminator
-    while (offset < bytes.length && bytes[offset] != 0) {
-      offset++;
+    final isUtf16 = encoding == 0x01 || encoding == 0x02;
+    if (isUtf16) {
+      while (offset + 1 < bytes.length) {
+        if (bytes[offset] == 0 && bytes[offset + 1] == 0) {
+          offset += 2;
+          break;
+        }
+        offset += 2;
+      }
+    } else {
+      while (offset < bytes.length && bytes[offset] != 0) {
+        offset++;
+      }
+      offset++; // Skip null terminator
     }
-    offset++; // Skip null terminator
     if (offset >= bytes.length) return null;
 
     final imageBytes = bytes.sublist(offset);

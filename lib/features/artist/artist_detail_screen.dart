@@ -21,40 +21,49 @@ class ArtistDetailScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final playback = ref.watch(playbackControllerProvider);
 
-    return Scaffold(
-      body: StreamBuilder<Artist?>(
-        stream: (db.select(
-          db.artists,
-        )..where((a) => a.id.equals(artistId))).watchSingleOrNull(),
-        builder: (context, artistSnap) {
-          if (!artistSnap.hasData || artistSnap.data == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return StreamBuilder<Artist?>(
+      stream: (db.select(
+        db.artists,
+      )..where((a) => a.id.equals(artistId))).watchSingleOrNull(),
+      builder: (context, artistSnap) {
+        if (artistSnap.connectionState == ConnectionState.waiting &&
+            !artistSnap.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (artistSnap.data == null) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(child: Text('Artist not found')),
+          );
+        }
 
-          final artist = artistSnap.data!;
+        final artist = artistSnap.data!;
 
-          return StreamBuilder<List<Track>>(
-            stream:
-                (db.select(db.tracks)
-                      ..where((t) => t.artistId.equals(artistId))
-                      ..orderBy([
-                        (t) => d.OrderingTerm.desc(t.playCount),
-                        (t) => d.OrderingTerm.asc(t.titleSort),
-                      ]))
-                    .watch(),
-            builder: (context, tracksSnap) {
-              final tracks = tracksSnap.data ?? [];
+        return StreamBuilder<List<Track>>(
+          stream:
+              (db.select(db.tracks)
+                    ..where((t) => t.artistId.equals(artistId))
+                    ..orderBy([
+                      (t) => d.OrderingTerm.desc(t.playCount),
+                      (t) => d.OrderingTerm.asc(t.titleSort),
+                    ]))
+                  .watch(),
+          builder: (context, tracksSnap) {
+            final tracks = tracksSnap.data ?? [];
 
-              return StreamBuilder<List<Album>>(
-                stream:
-                    (db.select(db.albums)
-                          ..where((a) => a.albumArtistId.equals(artistId))
-                          ..orderBy([(a) => d.OrderingTerm.desc(a.year)]))
-                        .watch(),
-                builder: (context, albumsSnap) {
-                  final albums = albumsSnap.data ?? [];
+            return StreamBuilder<List<Album>>(
+              stream:
+                  (db.select(db.albums)
+                        ..where((a) => a.albumArtistId.equals(artistId))
+                        ..orderBy([(a) => d.OrderingTerm.desc(a.year)]))
+                      .watch(),
+              builder: (context, albumsSnap) {
+                final albums = albumsSnap.data ?? [];
 
-                  return CustomScrollView(
+                return Scaffold(
+                  body: CustomScrollView(
                     slivers: [
                       SliverAppBar(
                         expandedHeight: 260.0,
@@ -252,13 +261,13 @@ class ArtistDetailScreen extends ConsumerWidget {
                         ),
                       const SliverToBoxAdapter(child: SizedBox(height: 96.0)),
                     ],
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

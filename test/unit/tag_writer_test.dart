@@ -105,4 +105,30 @@ void main() {
     final result = await TagWriter.writeTags(missingFile, metadata);
     expect(result, isFalse);
   });
+
+  test('TagWriter writes Unicode/multilingual ID3v2 tags (UTF-16) without corruption', () async {
+    final mp3File = File('${tempDir.path}/unicode_test.mp3');
+    final dummyData = Uint8List(500);
+    dummyData[0] = 0xFF;
+    dummyData[1] = 0xFB;
+    await mp3File.writeAsBytes(dummyData);
+
+    const metadata = EditableMetadata(
+      title: '夜に駆ける (Racing into the Night)',
+      artist: 'YOASOBI',
+      album: 'THE BOOK',
+      year: 2021,
+      genre: 'J-Pop',
+    );
+
+    final success = await TagWriter.writeTags(mp3File, metadata);
+    expect(success, isTrue);
+
+    final readBack = await TagReader.readFromFile(mp3File);
+    expect(readBack.title, '夜に駆ける (Racing into the Night)');
+    expect(readBack.artist, 'YOASOBI');
+    expect(readBack.album, 'THE BOOK');
+    expect(readBack.year, 2021);
+    expect(readBack.genres, contains('J-Pop'));
+  });
 }

@@ -7,7 +7,7 @@ import 'package:sonara/domain/services/wrapped_service.dart';
 import 'package:sonara/features/wrapped/wrapped_screen.dart';
 
 class FakeWrappedService extends WrappedService {
-  FakeWrappedService(this.data) : super(AppDatabase.inMemory());
+  FakeWrappedService(this.data, AppDatabase db) : super(db);
 
   final WrappedData data;
 
@@ -22,6 +22,16 @@ class FakeWrappedService extends WrappedService {
 }
 
 void main() {
+  late AppDatabase db;
+
+  setUp(() {
+    db = AppDatabase.inMemory();
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
   group('WrappedScreen Widget Tests', () {
     testWidgets('renders empty state when no data exists', (tester) async {
       const emptyData = WrappedData(
@@ -44,7 +54,7 @@ void main() {
         ProviderScope(
           overrides: [
             wrappedServiceProvider.overrideWithValue(
-              FakeWrappedService(emptyData),
+              FakeWrappedService(emptyData, db),
             ),
           ],
           child: const MaterialApp(home: WrappedScreen()),
@@ -109,7 +119,7 @@ void main() {
           ProviderScope(
             overrides: [
               wrappedServiceProvider.overrideWithValue(
-                FakeWrappedService(sampleData),
+                FakeWrappedService(sampleData, db),
               ),
             ],
             child: const MaterialApp(home: WrappedScreen()),

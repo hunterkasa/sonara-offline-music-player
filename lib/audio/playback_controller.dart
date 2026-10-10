@@ -41,6 +41,34 @@ class PlaybackSnapshot {
   final int pitchSemitones;
 
   bool get isPlaying => state == PlaybackState.playing;
+
+  PlaybackSnapshot copyWith({
+    String? currentTrackKey,
+    String? title,
+    String? artist,
+    String? artworkUri,
+    PlaybackState? state,
+    Duration? position,
+    Duration? duration,
+    bool? shuffleEnabled,
+    int? repeatMode,
+    double? speed,
+    int? pitchSemitones,
+  }) {
+    return PlaybackSnapshot(
+      currentTrackKey: currentTrackKey ?? this.currentTrackKey,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      artworkUri: artworkUri ?? this.artworkUri,
+      state: state ?? this.state,
+      position: position ?? this.position,
+      duration: duration ?? this.duration,
+      shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
+      repeatMode: repeatMode ?? this.repeatMode,
+      speed: speed ?? this.speed,
+      pitchSemitones: pitchSemitones ?? this.pitchSemitones,
+    );
+  }
 }
 
 abstract class PlaybackController {

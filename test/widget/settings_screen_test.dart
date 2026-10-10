@@ -69,4 +69,58 @@ void main() {
       await inMemoryDb.close();
     },
   );
+
+  testWidgets(
+    'SettingsScreen displays Sonara License dialog and third-party license tile',
+    (WidgetTester tester) async {
+      final inMemoryDb = AppDatabase.inMemory();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [databaseProvider.overrideWithValue(inMemoryDb)],
+          child: const MaterialApp(home: SettingsScreen()),
+        ),
+      );
+
+      // Verify About section items exist
+      final sonaraLicenseTile = find.text('Sonara License');
+      await tester.scrollUntilVisible(sonaraLicenseTile, 200);
+      await tester.pumpAndSettle();
+
+      expect(sonaraLicenseTile, findsOneWidget);
+      expect(find.text('MIT License • Free & Open Source'), findsOneWidget);
+      expect(find.text('Third-Party Licenses'), findsOneWidget);
+      expect(
+        find.text('Open-source libraries powering Sonara'),
+        findsOneWidget,
+      );
+
+      // Open Sonara License dialog
+      await tester.tap(sonaraLicenseTile);
+      await tester.pumpAndSettle();
+
+      // Dialog content verification
+      expect(find.text('Sonara License'), findsWidgets);
+      expect(find.text('MIT License • OSI Approved'), findsOneWidget);
+      expect(
+        find.textContaining('Copyright (c) 2026 Sonara Contributors'),
+        findsOneWidget,
+      );
+      expect(find.text('Copy License'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
+
+      // Tap Copy License
+      await tester.tap(find.text('Copy License'));
+      await tester.pump(); // Show snackbar
+      expect(find.text('MIT License copied to clipboard'), findsOneWidget);
+
+      // Dismiss dialog
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('MIT License • OSI Approved'), findsNothing);
+
+      await inMemoryDb.close();
+    },
+  );
 }

@@ -27,6 +27,24 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(MiniPlayer), findsOneWidget);
 
+    // Verify AppBar greeting, brand logo, and theme toggle button
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Text &&
+            (w.data == 'Good morning' ||
+                w.data == 'Good afternoon' ||
+                w.data == 'Good evening'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Tooltip && (w.message?.startsWith('Theme:') ?? false),
+      ),
+      findsOneWidget,
+    );
+
     // 2. Navigate to Search tab
     await tester.tap(find.text('Search'));
     await tester.pumpAndSettle();
@@ -53,6 +71,19 @@ void main() {
 
     expect(find.text('NOW PLAYING'), findsNothing);
     expect(find.text('Your Library'), findsOneWidget);
+
+    // 6. Tap MiniPlayer to expand Now Playing, then tap Home button in bottom nav
+    await tester.tap(find.byType(MiniPlayer));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NOW PLAYING'), findsOneWidget);
+
+    // Tapping Home button should minimize the player window and navigate to Home
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NOW PLAYING'), findsNothing);
+    expect(find.text('Liked Songs'), findsOneWidget);
 
     await inMemoryDb.close();
   });

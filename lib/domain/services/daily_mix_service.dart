@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -92,14 +93,69 @@ final dailyMixServiceProvider = Provider<DailyMixService>((ref) {
 final todaysPickProvider = StreamProvider<TodaysPick?>((ref) {
   final service = ref.watch(dailyMixServiceProvider);
   final db = ref.watch(databaseProvider);
-  return db.watchAllTracks().asyncMap((_) => service.getTodaysPick());
+  return db
+      .watchAllTracks()
+      .debounceAfterInitial(const Duration(milliseconds: 600))
+      .asyncMap((_) => service.getTodaysPick());
 });
 
 final dailyMixesStreamProvider = StreamProvider<List<DailyMix>>((ref) {
   final service = ref.watch(dailyMixServiceProvider);
   final db = ref.watch(databaseProvider);
-  return db.watchAllTracks().asyncMap((_) => service.getDailyMixes());
+  return db
+      .watchAllTracks()
+      .debounceAfterInitial(const Duration(milliseconds: 600))
+      .asyncMap((_) => service.getDailyMixes());
 });
+
+extension _StreamDebounce<T> on Stream<T> {
+  Stream<T> debounceAfterInitial(Duration duration) {
+    late final StreamController<T> controller;
+    StreamSubscription<T>? sub;
+    Timer? timer;
+    var hasEmittedFirst = false;
+
+    controller = StreamController<T>(
+      onListen: () {
+        sub = listen(
+          (data) {
+            if (!hasEmittedFirst) {
+              hasEmittedFirst = true;
+              if (!controller.isClosed) {
+                controller.add(data);
+              }
+            } else {
+              timer?.cancel();
+              timer = Timer(duration, () {
+                if (!controller.isClosed) {
+                  controller.add(data);
+                }
+              });
+            }
+          },
+          onError: (Object err, StackTrace st) {
+            if (!controller.isClosed) {
+              controller.addError(err, st);
+            }
+          },
+          onDone: () {
+            timer?.cancel();
+            if (!controller.isClosed) {
+              controller.close();
+            }
+          },
+        );
+      },
+      onCancel: () {
+        timer?.cancel();
+        sub?.cancel();
+      },
+      sync: true,
+    );
+
+    return controller.stream;
+  }
+}
 
 class DailyMixService {
   DailyMixService({required this.db, required this.radioService});

@@ -319,4 +319,23 @@ This log records non-obvious technical choices, architecture invariants, and dep
   7. *Library Scanner Yielding:* Added a 16ms cooperative yield delay (`Future.delayed(Duration(milliseconds: 16))`) between 100-track batches during library scans to prevent 100% CPU core pinning and maintain smooth 60 FPS UI responsiveness.
 - **Rationale:** Resolves reported device overheating and excessive battery/GPU drain, establishing zero-load idle behavior and low-overhead continuous playback.
 
+### ADR 10.13: Comprehensive Resolution of 14 Critical Bugs & Architectural Deficiencies
+- **Decision:**
+  1. *SQLite Parameter Limit (`getTracksByKeys`):* Batched track key lookups into chunks of 250 in `AppDatabase.getTracksByKeys`, reconstructing results in the exact requested order to avoid SQLite 999-variable crashes on large queues/playlists.
+  2. *Gapless Sliding Window In-Place Progression:* Refactored `SonaraAudioHandler` to maintain ExoPlayer's `ConcatenatingAudioSource` in-place using `removeAt(0)` and `add(upcomingTrack)` upon track completion, eliminating audio cuts, buffer clears, and re-initialization stutters.
+  3. *RemoteViews IPC Throttling:* Cached `_lastTitle`, `_lastArtist`, and `_lastIsPlaying` in `WidgetService` to deduplicate widget updates and eliminate 5 Hz IPC transactions to Android's `AppWidgetManager`.
+  4. *Accelerometer Sensor Lifecycle Management:* Implemented `onPause` and `onResume` lifecycle handling in `MainActivity.kt` to unregister and re-register accelerometer sensors during backgrounding, and guaranteed unregistration in `onDestroy`.
+  5. *Scoped Storage Deletion & Tag Writing:* Integrated `MediaStore.createDeleteRequest` channel API in `MainActivity.kt` and `ScopedStorageService`, used it in `DuplicateFinderService`, and updated `TagWriter` to write temporary files to `Directory.systemTemp` instead of shared storage.
+  6. *Compilation & Soundtrack Album Consolidation:* Resolved album artists in `LibraryScanner` (falling back to "Various Artists" for multi-artist albums) and linked tracks using `albumArtistId` in `AppDatabase.getOrCreateAlbum`.
+  7. *Composite Widget Keys in Queue & Playlist Details:* Replaced raw `trackKey` keys with composite `ValueKey('${track.trackKey}_$index')` in `QueueSheet` and `PlaylistDetailScreen` to eliminate duplicate key assertion exceptions.
+  8. *FTS5 Search Query Token Sanitization:* Tokenized and quoted search terms (`'"$token"*'`) in `AppDatabase.searchTrackKeysFts` to prevent SQLite syntax errors on hyphens, parentheses, colons, and wildcards.
+  9. *PlaylistTracks Auto-Increment Primary Key:* Added an auto-incrementing integer `id` column to `PlaylistTracks` in `tables.dart` to allow duplicate songs within playlists and updated database helper methods.
+  10. *ID3v2.3 Compliant Encoding:* Updated `TagWriter` to use ISO-8859-1 (`0x00`) for Latin strings and UTF-16 with BOM (`0x01`) for Unicode strings, adhering strictly to the ID3v2.3 specification.
+  11. *TagReader UTF-16 2-Byte Alignment:* Scanned 2-byte aligned null terminators (`0x00, 0x00`) in `TagReader` for APIC and USLT frames when encoding is UTF-16, preventing premature descriptor truncation.
+  12. *Smart Playlist Genre Filter Implementation:* Replaced the hardcoded no-op in `SmartPlaylistEngine` with batch genre mapping (`getAllTrackGenresMap()`) and evaluation against `SmartField.genre`.
+  13. *NowPlayingSheet Responsive Constrained Layout:* Wrapped sheet content in `LayoutBuilder` with `SingleChildScrollView` and dynamic artwork clamping for screens with height < 600px or accessibility text scales > 1.3x.
+  14. *Android 13+ Notification Permission:* Added notification permission checks and requests in `PermissionService` alongside audio permissions on Android 13+ (API 33+).
+- **Rationale:** Resolves all critical stability, data integrity, background battery, and audio playback defects identified during audit, verified with 100% passing tests and 0 analysis warnings.
+
+
 

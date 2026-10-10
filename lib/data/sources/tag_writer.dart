@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:path/path.dart' as p;
+
 /// Metadata fields editable by the user.
 class EditableMetadata {
   final String title;
@@ -45,13 +47,48 @@ class TagWriter {
   }
 
   // ---------------------------------------------------------------------------
+  static Future<void> _replaceFileSafely(File tempFile, File targetFile) async {
+    try {
+      await tempFile.rename(targetFile.path);
+    } catch (_) {
+      // If rename fails across filesystems or scoped storage, copy bytes stream
+      final outRaf = await targetFile.open(mode: FileMode.write);
+      final tempRaf = await tempFile.open(mode: FileMode.read);
+      try {
+        const chunkSize = 64 * 1024;
+        var rem = await tempRaf.length();
+        while (rem > 0) {
+          final toRead = rem > chunkSize ? chunkSize : rem;
+          final chunk = await tempRaf.read(toRead);
+          await outRaf.writeFrom(chunk);
+          rem -= chunk.length;
+        }
+      } finally {
+        await tempRaf.close();
+        await outRaf.close();
+      }
+    } finally {
+      try {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      } catch (_) {}
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // MP3 / ID3v2.3 tag writing
   // ---------------------------------------------------------------------------
   static Future<bool> _writeMp3Tags(
     File file,
     EditableMetadata metadata,
   ) async {
-    final tempFile = File('${file.path}.tmp');
+    final tempFile = File(
+      p.join(
+        Directory.systemTemp.path,
+        'sonara_mp3_${DateTime.now().microsecondsSinceEpoch}.tmp',
+      ),
+    );
     RandomAccessFile? inRaf;
     IOSink? outSink;
 
@@ -103,8 +140,8 @@ class TagWriter {
       await inRaf.close();
       inRaf = null;
 
-      // Atomic replace
-      await tempFile.rename(file.path);
+      // Safe replace
+      await _replaceFileSafely(tempFile, file);
       return true;
     } catch (_) {
       try {
@@ -123,13 +160,26 @@ class TagWriter {
     final framesBytes = BytesBuilder();
 
     // Text frames helper: ID3v2.3 frame structure
-    // 4 bytes ID + 4 bytes size + 2 bytes flags (0) + 1 byte encoding (0x03 UTF-8) + text
+    // 4 bytes ID + 4 bytes size + 2 bytes flags (0) + 1 byte encoding + text
     void addTextFrame(String frameId, String text) {
       if (text.isEmpty) return;
-      final encodedText = utf8.encode(text);
       final framePayload = BytesBuilder();
-      framePayload.addByte(0x03); // UTF-8 encoding
-      framePayload.add(encodedText);
+
+      final isAsciiOrLatin1 = text.runes.every((r) => r <= 255);
+      if (isAsciiOrLatin1) {
+        framePayload.addByte(0x00); // ISO-8859-1 (Latin-1)
+        framePayload.add(latin1.encode(text));
+      } else {
+        framePayload.addByte(0x01); // UTF-16 with BOM
+        framePayload.add([0xFF, 0xFE]); // Little-endian BOM
+        final codeUnits = text.codeUnits;
+        final utf16Bytes = Uint8List(codeUnits.length * 2);
+        for (var i = 0; i < codeUnits.length; i++) {
+          utf16Bytes[i * 2] = codeUnits[i] & 0xFF;
+          utf16Bytes[i * 2 + 1] = (codeUnits[i] >> 8) & 0xFF;
+        }
+        framePayload.add(utf16Bytes);
+      }
 
       final payloadBytes = framePayload.takeBytes();
       framesBytes.add(ascii.encode(frameId));
@@ -164,12 +214,14 @@ class TagWriter {
     // Artwork (APIC)
     if (metadata.artworkBytes != null && metadata.artworkBytes!.isNotEmpty) {
       final apicPayload = BytesBuilder();
-      apicPayload.addByte(0x03); // UTF-8
+      apicPayload.addByte(0x00); // ISO-8859-1
       final mime = metadata.artworkMime ?? 'image/jpeg';
       apicPayload.add(ascii.encode(mime));
       apicPayload.addByte(0x00); // Null terminator for mime
       apicPayload.addByte(0x03); // Picture type: Cover (front)
-      apicPayload.addByte(0x00); // Description (empty string null-terminated)
+      apicPayload.addByte(
+        0x00,
+      ); // Description (empty string null-terminated in Latin-1)
       apicPayload.add(metadata.artworkBytes!);
 
       final apicBytes = apicPayload.takeBytes();
@@ -214,7 +266,12 @@ class TagWriter {
     File file,
     EditableMetadata metadata,
   ) async {
-    final tempFile = File('${file.path}.tmp');
+    final tempFile = File(
+      p.join(
+        Directory.systemTemp.path,
+        'sonara_flac_${DateTime.now().microsecondsSinceEpoch}.tmp',
+      ),
+    );
     RandomAccessFile? inRaf;
     IOSink? outSink;
 
@@ -311,8 +368,8 @@ class TagWriter {
       await inRaf.close();
       inRaf = null;
 
-      // Replace original file
-      await tempFile.rename(file.path);
+      // Safe replace
+      await _replaceFileSafely(tempFile, file);
       return true;
     } catch (_) {
       try {

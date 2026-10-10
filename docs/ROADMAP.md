@@ -123,6 +123,21 @@ Status legend:
 - [x] MediaStore genre extraction (API 30+), batched scan reconciliation, genre detail screen (`/genre/:id`), and tab routing
 - [x] Expanded Home Screen widget suite (4×2 large artwork widget, 2×1 minimalist pill, scrollable favorites/recents widget)
 - [x] Thermal management & battery optimization (visualizer zero-idle ticker halt on rest, elimination of build-time SQLite queries in MiniPlayer, selective provider filtering, position stream throttling to 200ms, RepaintBoundary isolation, sensor delay throttling)
+- [x] Critical bugs & architectural deficiencies resolution (14/14 complete):
+  - Batched SQLite variable querying (`getTracksByKeys`) preventing 999-variable crashes
+  - In-place ExoPlayer `ConcatenatingAudioSource` sliding window progression (`removeAt(0)` / `add()`) eliminating gapless playback stutter
+  - RemoteViews IPC caching in `WidgetService` eliminating 5 Hz IPC battery thrashing
+  - Lifecycle management in `MainActivity.kt` pausing accelerometer listeners during backgrounding
+  - Android 11+ Scoped Storage deletion request channel & temp-dir tag writing
+  - Soundtrack and compilation multi-artist album grouping under Various Artists
+  - Composite widget keys in `QueueSheet` and `PlaylistDetailScreen` resolving duplicate key assertion crashes
+  - FTS5 token sanitization and quote escaping preventing crashes on special characters
+  - `PlaylistTracks` auto-incrementing ID primary key supporting duplicate songs in playlists
+  - ID3v2.3 compliant ISO-8859-1 (`0x00`) and UTF-16 BOM (`0x01`) text frame encoding
+  - 2-byte aligned null terminator scanning in `TagReader` preventing UTF-16 APIC/USLT truncation
+  - `SmartPlaylistEngine` genre filtering implementation matching active track genres
+  - Constrained screen height & high accessibility text scale responsive layout in `NowPlayingSheet`
+  - Android 13+ `POST_NOTIFICATIONS` runtime permission request integration
 
 ### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox

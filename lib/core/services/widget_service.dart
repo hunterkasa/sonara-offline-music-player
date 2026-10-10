@@ -11,11 +11,24 @@ class WidgetService {
   static const _channel = MethodChannel('com.example.sonara/mediastore');
   StreamSubscription<PlaybackSnapshot>? _subscription;
 
+  String? _lastTitle;
+  String? _lastArtist;
+  bool? _lastIsPlaying;
+
   WidgetService({required this.playbackController});
 
   void startListening() {
     _subscription?.cancel();
     _subscription = playbackController.snapshotStream.listen((snapshot) {
+      if (snapshot.title == _lastTitle &&
+          snapshot.artist == _lastArtist &&
+          snapshot.isPlaying == _lastIsPlaying) {
+        return;
+      }
+      _lastTitle = snapshot.title;
+      _lastArtist = snapshot.artist;
+      _lastIsPlaying = snapshot.isPlaying;
+
       updateWidget(
         title: snapshot.title,
         artist: snapshot.artist,

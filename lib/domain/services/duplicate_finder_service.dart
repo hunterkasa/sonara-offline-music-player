@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/scoped_storage_service.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
 
@@ -23,8 +24,9 @@ class DuplicateCluster {
 
 class DuplicateFinderService {
   final AppDatabase db;
+  final ScopedStorageService? scopedStorageService;
 
-  DuplicateFinderService(this.db);
+  DuplicateFinderService(this.db, {this.scopedStorageService});
 
   /// Scans all active tracks and groups duplicates into clusters
   Future<List<DuplicateCluster>> findDuplicates() async {
@@ -99,17 +101,24 @@ class DuplicateFinderService {
 
   /// Permanently removes track from DB and optionally deletes file
   Future<void> deleteTrack(Track track, {bool deleteFile = false}) async {
-    await db.deleteTrack(track.trackKey);
-    if (deleteFile && track.path.isNotEmpty) {
-      try {
-        final file = File(track.path);
-        if (await file.exists()) {
-          await file.delete();
+    if (deleteFile) {
+      var deletedViaMediaStore = false;
+      if (track.contentUri.isNotEmpty && scopedStorageService != null) {
+        deletedViaMediaStore = await scopedStorageService!
+            .requestDeletePermission(track.contentUri);
+      }
+      if (!deletedViaMediaStore && track.path.isNotEmpty) {
+        try {
+          final file = File(track.path);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (_) {
+          // Scoped storage or permission denial fallback
         }
-      } catch (_) {
-        // Scoped storage or permission denial fallback
       }
     }
+    await db.deleteTrack(track.trackKey);
   }
 
   static String _formatBytes(int bytes) {
@@ -123,5 +132,6 @@ class DuplicateFinderService {
 
 final duplicateFinderServiceProvider = Provider<DuplicateFinderService>((ref) {
   final db = ref.watch(databaseProvider);
-  return DuplicateFinderService(db);
+  final scopedStorage = ref.watch(scopedStorageServiceProvider);
+  return DuplicateFinderService(db, scopedStorageService: scopedStorage);
 });

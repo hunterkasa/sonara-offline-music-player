@@ -23,7 +23,9 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  late final AnimationController _playerAnimationController;
+  late final Animation<Offset> _slideAnimation;
   bool _isNowPlayingExpanded = false;
   final List<int> _tabHistory = [0];
   DateTime? _lastBackPressTime;
@@ -32,11 +34,25 @@ class _AppShellState extends ConsumerState<AppShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _playerAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+      reverseDuration: const Duration(milliseconds: 280),
+    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0.0, 1.0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _playerAnimationController,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          ),
+        );
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _playerAnimationController.dispose();
     super.dispose();
   }
 
@@ -52,22 +68,30 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   void _openNowPlaying() {
+    if (_isNowPlayingExpanded && _playerAnimationController.isCompleted) {
+      return;
+    }
     setState(() {
       _isNowPlayingExpanded = true;
     });
+    _playerAnimationController.forward();
   }
 
   void _collapseNowPlaying() {
+    if (!_isNowPlayingExpanded && _playerAnimationController.isDismissed) {
+      return;
+    }
     setState(() {
       _isNowPlayingExpanded = false;
     });
+    _playerAnimationController.reverse();
   }
 
   void _handlePop(bool didPop) {
     if (didPop) return;
 
-    // 1. If Now Playing is open, collapse it
-    if (_isNowPlayingExpanded) {
+    // 1. If Now Playing is open or animating, collapse it
+    if (_isNowPlayingExpanded || !_playerAnimationController.isDismissed) {
       _collapseNowPlaying();
       return;
     }
@@ -127,10 +151,21 @@ class _AppShellState extends ConsumerState<AppShell>
                 MiniPlayer(onTap: _openNowPlaying),
               ],
             ),
-            if (_isNowPlayingExpanded)
-              Positioned.fill(
-                child: NowPlayingSheet(onCollapse: _collapseNowPlaying),
-              ),
+            AnimatedBuilder(
+              animation: _playerAnimationController,
+              builder: (context, child) {
+                if (!_isNowPlayingExpanded &&
+                    _playerAnimationController.isDismissed) {
+                  return const SizedBox.shrink();
+                }
+                return Positioned.fill(
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: NowPlayingSheet(onCollapse: _collapseNowPlaying),
+                  ),
+                );
+              },
+            ),
           ],
         ),
         bottomNavigationBar: Container(
@@ -165,12 +200,15 @@ class _AppShellState extends ConsumerState<AppShell>
                         )
                       : null),
             onDestinationSelected: (index) {
+              if (_isNowPlayingExpanded) {
+                _collapseNowPlaying();
+              }
               if (index != currentIndex) {
                 _tabHistory.add(index);
               }
               widget.navigationShell.goBranch(
                 index,
-                initialLocation: index == currentIndex,
+                initialLocation: index == currentIndex || index == 0,
               );
             },
             destinations: [

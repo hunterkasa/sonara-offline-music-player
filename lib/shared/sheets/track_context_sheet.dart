@@ -14,6 +14,7 @@ import '../../features/playlist/add_to_playlist_sheet.dart';
 import '../../features/tag_editor/tag_editor_sheet.dart';
 import '../../features/track_info/track_info_sheet.dart';
 import '../artwork/artwork_widget.dart';
+import 'song_cover_picker_sheet.dart';
 
 class TrackContextSheet extends ConsumerWidget {
   const TrackContextSheet({super.key, required this.track, this.playlistId});
@@ -231,7 +232,7 @@ class TrackContextSheet extends ConsumerWidget {
               onTap: () {
                 haptics.selection();
                 Navigator.of(context).pop();
-                context.push('/library/album/${track.albumId}');
+                context.push('/album/${track.albumId}');
               },
             ),
           if (track.artistId != null)
@@ -241,9 +242,19 @@ class TrackContextSheet extends ConsumerWidget {
               onTap: () {
                 haptics.selection();
                 Navigator.of(context).pop();
-                context.push('/library/artist/${track.artistId}');
+                context.push('/artist/${track.artistId}');
               },
             ),
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: const Text('Change Song Artwork'),
+            subtitle: const Text('Custom photo or placeholder presets'),
+            onTap: () {
+              haptics.selection();
+              Navigator.of(context).pop();
+              SongCoverPickerSheet.show(context, track);
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.edit_note_rounded),
             title: const Text('Edit Tags & Artwork'),

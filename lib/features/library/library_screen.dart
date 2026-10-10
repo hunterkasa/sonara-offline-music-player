@@ -11,7 +11,9 @@ import 'package:sonara/data/db/database_provider.dart';
 import 'package:sonara/domain/services/library_scanner.dart';
 import 'package:sonara/core/services/haptic_service.dart';
 import 'package:sonara/domain/services/playlist_service.dart';
+import 'package:sonara/features/playlist/playlist_cover_picker_sheet.dart';
 import 'package:sonara/shared/artwork/artwork_widget.dart';
+import 'package:sonara/shared/artwork/playlist_artwork_widget.dart';
 import 'package:sonara/shared/cards/media_card.dart';
 import 'package:sonara/shared/track_tile/track_tile.dart';
 
@@ -651,6 +653,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // ---------------------------------------------------------------------------
   Widget _buildFoldersView() {
     final db = ref.watch(databaseProvider);
+    final haptics = ref.read(hapticServiceProvider);
 
     return StreamBuilder<List<Track>>(
       stream: (db.select(
@@ -698,9 +701,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: Text('${folder.value} tracks'),
+              subtitle: Text(
+                '${folder.value} ${folder.value == 1 ? 'song' : 'songs'}',
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {},
+              onTap: () {
+                haptics.selection();
+                context.push(
+                  '/folder?path=${Uri.encodeQueryComponent(folder.key)}',
+                );
+              },
             );
           },
         );
@@ -731,20 +741,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               children: [
                 // Pinned Liked Songs item
                 ListTile(
-                  leading: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.purple.shade400, Colors.pink.shade400],
-                      ),
-                      borderRadius: AppRadii.cardRadius,
-                    ),
-                    child: const Icon(
-                      Icons.favorite_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
+                  leading: const PlaylistArtworkWidget(
+                    size: 52,
+                    isLikedSongs: true,
                   ),
                   title: const Text(
                     'Liked Songs',
@@ -782,39 +781,43 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   onTap: () async {
                     haptics.selection();
                     final controller = TextEditingController();
-                    final name = await showDialog<String>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('New Playlist'),
-                        content: TextField(
-                          controller: controller,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            hintText: 'Playlist name',
-                            border: OutlineInputBorder(),
+                    try {
+                      final name = await showDialog<String>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('New Playlist'),
+                          content: TextField(
+                            controller: controller,
+                            autofocus: true,
+                            decoration: const InputDecoration(
+                              hintText: 'Playlist name',
+                              border: OutlineInputBorder(),
+                            ),
                           ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.of(ctx).pop(controller.text.trim()),
+                              child: const Text('Create'),
+                            ),
+                          ],
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () =>
-                                Navigator.of(ctx).pop(controller.text.trim()),
-                            child: const Text('Create'),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (name != null && name.isNotEmpty) {
-                      final id = await playlistService.createPlaylist(
-                        name: name,
                       );
-                      if (context.mounted) {
-                        unawaited(context.push('/playlist/$id'));
+
+                      if (name != null && name.isNotEmpty) {
+                        final id = await playlistService.createPlaylist(
+                          name: name,
+                        );
+                        if (context.mounted) {
+                          unawaited(context.push('/playlist/$id'));
+                        }
                       }
+                    } finally {
+                      controller.dispose();
                     }
                   },
                 ),
@@ -835,20 +838,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 else
                   ...playlists.map((p) {
                     return ListTile(
-                      leading: Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: AppRadii.cardRadius,
-                        ),
-                        child: Icon(
-                          p.isSmart
-                              ? Icons.auto_awesome_rounded
-                              : Icons.queue_music_rounded,
-                          color: colorScheme.primary,
-                          size: 28,
-                        ),
+                      leading: PlaylistArtworkWidget(
+                        coverUri: p.coverUri,
+                        size: 52,
+                        isSmart: p.isSmart,
                       ),
                       title: Text(
                         p.name,
@@ -984,6 +977,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
               if (!playlist.isSmart) ...[
                 ListTile(
+                  leading: const Icon(Icons.image_outlined),
+                  title: const Text('Change Cover'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    PlaylistCoverPickerSheet.show(context, playlist);
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.edit_rounded),
                   title: const Text('Rename'),
                   onTap: () async {
@@ -991,32 +992,36 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     final controller = TextEditingController(
                       text: playlist.name,
                     );
-                    final newName = await showDialog<String>(
-                      context: context,
-                      builder: (dCtx) => AlertDialog(
-                        title: const Text('Rename Playlist'),
-                        content: TextField(
-                          controller: controller,
-                          autofocus: true,
+                    try {
+                      final newName = await showDialog<String>(
+                        context: context,
+                        builder: (dCtx) => AlertDialog(
+                          title: const Text('Rename Playlist'),
+                          content: TextField(
+                            controller: controller,
+                            autofocus: true,
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dCtx),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.pop(dCtx, controller.text.trim()),
+                              child: const Text('Save'),
+                            ),
+                          ],
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(dCtx),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () =>
-                                Navigator.pop(dCtx, controller.text.trim()),
-                            child: const Text('Save'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (newName != null && newName.isNotEmpty) {
-                      await playlistService.renamePlaylist(
-                        playlist.id,
-                        newName,
                       );
+                      if (newName != null && newName.isNotEmpty) {
+                        await playlistService.renamePlaylist(
+                          playlist.id,
+                          newName,
+                        );
+                      }
+                    } finally {
+                      controller.dispose();
                     }
                   },
                 ),

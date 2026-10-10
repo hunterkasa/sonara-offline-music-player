@@ -44,6 +44,12 @@ class FakePermissionService implements PermissionService {
   Future<AudioPermissionStatus> requestAudioPermission() async => status;
 
   @override
+  Future<bool> checkNotificationPermission() async => true;
+
+  @override
+  Future<bool> requestNotificationPermission() async => true;
+
+  @override
   Future<bool> openSettings() async => true;
 }
 
@@ -239,5 +245,97 @@ void main() {
         expect(genresWithCount.firstWhere((g) => g.$1.name == 'Rock').$2, 1);
       },
     );
+
+    test(
+      'handles empty, invalid, and relative paths without crashing',
+      () async {
+        mediaStore.items = [
+          const MediaStoreItem(
+            id: 401,
+            contentUri: 'content://media/external/audio/media/401',
+            albumArtUri: '',
+            title: 'Empty Path Song',
+            artist: 'Ghost Artist',
+            album: 'Ghost Album',
+            durationMs: 120000,
+            path: '', // Scoped storage empty path
+            sizeBytes: 1000000,
+            dateAdded: 1600000000,
+            dateModified: 1600000000,
+            albumId: 5,
+            trackNumber: 1,
+            mimeType: 'audio/mpeg',
+            year: 2024,
+          ),
+          const MediaStoreItem(
+            id: 402,
+            contentUri: 'content://media/external/audio/media/402',
+            albumArtUri: '',
+            title: 'Relative Path Song',
+            artist: 'Ghost Artist',
+            album: 'Ghost Album',
+            durationMs: 140000,
+            path: 'relative/sub/song.mp3', // Relative path
+            sizeBytes: 1500000,
+            dateAdded: 1600000000,
+            dateModified: 1600000000,
+            albumId: 5,
+            trackNumber: 2,
+            mimeType: 'audio/mpeg',
+            year: 2024,
+          ),
+        ];
+        mediaStore.knownIds = [401, 402];
+
+        await scanner.scanLibrary(isFullScan: true);
+
+        final tracks = await db.select(db.tracks).get();
+        expect(tracks.length, 2);
+        expect(
+          tracks.map((t) => t.title),
+          containsAll({'Empty Path Song', 'Relative Path Song'}),
+        );
+      },
+    );
+
+    test('handles non-Latin metadata and UTF-8 artwork keys safely', () async {
+      mediaStore.items = [
+        const MediaStoreItem(
+          id: 501,
+          contentUri: 'content://media/external/audio/media/501',
+          albumArtUri: '',
+          title: '夜に駆ける (Yoru ni Kakeru)',
+          artist: 'YOASOBI - 幾田りら',
+          album: 'THE BOOK - 音のアルバム',
+          durationMs: 260000,
+          path: '/storage/emulated/0/Music/yoasobi.mp3',
+          sizeBytes: 8000000,
+          dateAdded: 1600000000,
+          dateModified: 1600000000,
+          albumId: 6,
+          trackNumber: 1,
+          mimeType: 'audio/mpeg',
+          year: 2021,
+          genre: 'J-Pop',
+        ),
+      ];
+      mediaStore.knownIds = [501];
+
+      await scanner.scanLibrary(isFullScan: true);
+
+      final tracks = await db.select(db.tracks).get();
+      expect(tracks.length, 1);
+      expect(tracks.first.title, '夜に駆ける (Yoru ni Kakeru)');
+
+      // Verify artwork key with non-Latin text doesn't throw
+      final key = ArtworkService.generateArtworkKey('YOASOBI - 幾田りら - 音のアルバム');
+      expect(key, isNotEmpty);
+
+      // Verify gradient fallback with extreme/negative seed
+      final gradient = ArtworkService.generateGradientFallback(
+        'extreme_seed_test_123',
+      );
+      expect(gradient.colors.length, 2);
+    });
   });
 }

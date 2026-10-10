@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sonara/data/sources/artwork_service.dart';
+import 'package:sonara/shared/artwork/song_artwork_presets.dart';
 
 class ArtworkWidget extends ConsumerStatefulWidget {
   final String? artworkKey;
@@ -46,6 +47,16 @@ class _ArtworkWidgetState extends ConsumerState<ArtworkWidget> {
   }
 
   Future<void> _resolveArtwork() async {
+    if (widget.artworkKey != null && widget.artworkKey!.startsWith('preset:')) {
+      if (mounted) {
+        setState(() {
+          _resolvedArt = null;
+          _hasChecked = true;
+        });
+      }
+      return;
+    }
+
     final artService = ref.read(artworkServiceProvider);
     final file = await artService.resolveArtworkFile(
       artworkKey: widget.artworkKey,
@@ -78,6 +89,25 @@ class _ArtworkWidgetState extends ConsumerState<ArtworkWidget> {
   }
 
   Widget _buildArtworkContent() {
+    if (widget.artworkKey != null && widget.artworkKey!.startsWith('preset:')) {
+      final preset = SongArtworkPresets.getPreset(widget.artworkKey);
+      if (preset != null) {
+        final iconSize = widget.size.isFinite
+            ? (widget.size * 0.45).clamp(14.0, 96.0)
+            : 36.0;
+        return Container(
+          decoration: BoxDecoration(gradient: preset.gradient),
+          child: Center(
+            child: Icon(
+              preset.icon,
+              size: iconSize,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
+        );
+      }
+    }
+
     if (_resolvedArt != null) {
       final cacheDim = widget.size.isFinite ? (widget.size * 2).toInt() : 256;
       return Image.file(

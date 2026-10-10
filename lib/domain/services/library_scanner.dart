@@ -99,6 +99,8 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
       statusMessage: 'Discovering audio files...',
     );
 
+    _nomediaCache.clear();
+
     try {
       var modifiedSince = 0;
       if (!isFullScan) {
@@ -220,12 +222,16 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
   }
 
   Future<void> _processChunk(List<MediaStoreItem> items) async {
+    final preparedTracks = <_PreparedTrackData>[];
+
+    // Phase 1: Heavy file I/O & tag parsing (off DB transaction)
     for (final item in items) {
       try {
-        final file = File(item.path);
+        final hasValidPath = item.path.isNotEmpty && p.isAbsolute(item.path);
+        final file = hasValidPath ? File(item.path) : null;
         ParsedMetadata metadata;
 
-        if (await file.exists()) {
+        if (file != null && await file.exists()) {
           metadata = await TagReader.readFromFile(file);
         } else {
           metadata = ParsedMetadata(
@@ -266,7 +272,7 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
             artworkKey,
             metadata.embeddedArtwork!,
           );
-        } else {
+        } else if (hasValidPath) {
           final sidecar = await _artworkService.resolveArtworkFile(
             artworkKey: null,
             filePath: item.path,
@@ -277,94 +283,43 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
         }
 
         // Check for sidecar CUE sheet
-        final withoutExt = p.withoutExtension(item.path);
-        File? cueFile = File('$withoutExt.cue');
-        if (!await cueFile.exists()) {
-          final upperCue = File('$withoutExt.CUE');
-          if (await upperCue.exists()) {
-            cueFile = upperCue;
-          } else {
-            cueFile = null;
+        var isCueMonolith = false;
+        if (hasValidPath) {
+          final withoutExt = p.withoutExtension(item.path);
+          File? cueFile = File('$withoutExt.cue');
+          if (!await cueFile.exists()) {
+            final upperCue = File('$withoutExt.CUE');
+            if (await upperCue.exists()) {
+              cueFile = upperCue;
+            } else {
+              cueFile = null;
+            }
+          }
+
+          if (cueFile != null) {
+            try {
+              final cueContent = await cueFile.readAsString();
+              final cueSheet = CueParser.parse(
+                cueContent,
+                parentDuration: Duration(milliseconds: duration),
+              );
+              if (cueSheet.tracks.isNotEmpty) {
+                await _db.importCueTracks(
+                  audioPath: item.path,
+                  contentUri: item.contentUri,
+                  cueTracks: cueSheet.tracks,
+                  artworkKey: artworkKey,
+                  parentMediaStoreId: item.id,
+                  parentFileSize: size,
+                );
+                isCueMonolith = true;
+              }
+            } catch (_) {}
           }
         }
 
-        if (cueFile != null) {
-          try {
-            final cueContent = await cueFile.readAsString();
-            final cueSheet = CueParser.parse(
-              cueContent,
-              parentDuration: Duration(milliseconds: duration),
-            );
-            if (cueSheet.tracks.isNotEmpty) {
-              await _db.importCueTracks(
-                audioPath: item.path,
-                contentUri: item.contentUri,
-                cueTracks: cueSheet.tracks,
-                artworkKey: artworkKey,
-                parentMediaStoreId: item.id,
-                parentFileSize: size,
-              );
-              continue; // Virtual sub-tracks imported, skip inserting monolith rip
-            }
-          } catch (_) {}
-        }
+        if (isCueMonolith) continue;
 
-        // Resolve or create Artist
-        final artistId = await _getOrCreateArtist(artistName);
-
-        // Resolve or create Album
-        final albumId = await _getOrCreateAlbum(
-          title: albumTitle,
-          artistId: artistId,
-          year: metadata.year ?? (item.year > 0 ? item.year : null),
-          artworkKey: artworkKey,
-        );
-
-        // Upsert Track
-        await _db
-            .into(_db.tracks)
-            .insertOnConflictUpdate(
-              TracksCompanion(
-                trackKey: Value(trackKey),
-                mediaStoreId: Value(item.id),
-                contentUri: Value(item.contentUri),
-                path: Value(item.path),
-                relativeDir: Value(p.dirname(item.path)),
-                title: Value(title),
-                titleSort: Value(MetadataUtils.normalizeSortName(title)),
-                artistId: Value(artistId),
-                albumId: Value(albumId),
-                albumArtistId: Value(artistId),
-                trackNo: Value(
-                  metadata.trackNumber ??
-                      (item.trackNumber > 0 ? item.trackNumber : null),
-                ),
-                discNo: Value(metadata.discNumber),
-                year: Value(
-                  metadata.year ?? (item.year > 0 ? item.year : null),
-                ),
-                durationMs: Value(duration),
-                mime: Value(
-                  item.mimeType.isNotEmpty ? item.mimeType : metadata.codec,
-                ),
-                sizeBytes: Value(size),
-                dateAdded: Value(item.dateAdded),
-                dateModified: Value(item.dateModified),
-                artworkKey: Value(artworkKey),
-                replayGainTrackDb: Value(metadata.replayGainTrackDb),
-                replayGainAlbumDb: Value(metadata.replayGainAlbumDb),
-                hasLyrics: Value(
-                  metadata.lyrics != null && metadata.lyrics!.isNotEmpty,
-                ),
-              ),
-            );
-
-        // Fetch track for genre association
-        final insertedTrack = await (_db.select(
-          _db.tracks,
-        )..where((t) => t.trackKey.equals(trackKey))).getSingleOrNull();
-
-        // Collect genres from tags or MediaStore
         final genresList = <String>{};
         for (final g in metadata.genres) {
           final trimmed = g.trim();
@@ -374,87 +329,193 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
           genresList.add(item.genre.trim());
         }
 
-        if (insertedTrack != null) {
-          for (final genreName in genresList) {
-            final genreId = await _db.getOrCreateGenre(genreName);
-            await _db
-                .into(_db.trackGenres)
-                .insertOnConflictUpdate(
-                  TrackGenresCompanion(
-                    trackId: Value(insertedTrack.id),
-                    genreId: Value(genreId),
-                  ),
-                );
-          }
-        }
-
-        // Sync FTS
-        await _db.customStatement(
-          'INSERT OR REPLACE INTO tracks_fts(track_key, title, artist, album, genre) VALUES (?, ?, ?, ?, ?)',
-          [trackKey, title, artistName, albumTitle, genresList.join(' ')],
+        preparedTracks.add(
+          _PreparedTrackData(
+            item: item,
+            metadata: metadata,
+            trackKey: trackKey,
+            title: title,
+            artistName: artistName,
+            albumTitle: albumTitle,
+            duration: duration,
+            size: size,
+            artworkKey: artworkKey,
+            genresList: genresList.toList(),
+            hasValidPath: hasValidPath,
+          ),
         );
       } catch (_) {
-        // Individual track processing error must never break the whole library scan
         continue;
       }
     }
+
+    if (preparedTracks.isEmpty) return;
+
+    final albumArtistsMap = <String, Set<String>>{};
+    for (final p in preparedTracks) {
+      albumArtistsMap
+          .putIfAbsent(p.albumTitle, () => <String>{})
+          .add(p.artistName);
+    }
+
+    // Phase 2: Atomic batched database insertion in a single transaction
+    await _db.transaction(() async {
+      for (final pData in preparedTracks) {
+        try {
+          final artistId = await _db.getOrCreateArtist(pData.artistName);
+
+          final String albumArtistName;
+          if (pData.metadata.albumArtist.isNotEmpty) {
+            albumArtistName = pData.metadata.albumArtist;
+          } else if ((albumArtistsMap[pData.albumTitle]?.length ?? 0) > 1) {
+            albumArtistName = 'Various Artists';
+          } else {
+            albumArtistName = pData.artistName;
+          }
+
+          final albumArtistId = await _db.getOrCreateArtist(albumArtistName);
+          final albumId = await _db.getOrCreateAlbum(
+            title: pData.albumTitle,
+            artistId: albumArtistId,
+            year:
+                pData.metadata.year ??
+                (pData.item.year > 0 ? pData.item.year : null),
+            artworkKey: pData.artworkKey,
+          );
+
+          await _db
+              .into(_db.tracks)
+              .insertOnConflictUpdate(
+                TracksCompanion(
+                  trackKey: Value(pData.trackKey),
+                  mediaStoreId: Value(pData.item.id),
+                  contentUri: Value(pData.item.contentUri),
+                  path: Value(pData.item.path),
+                  relativeDir: Value(
+                    pData.hasValidPath ? p.dirname(pData.item.path) : '',
+                  ),
+                  title: Value(pData.title),
+                  titleSort: Value(
+                    MetadataUtils.normalizeSortName(pData.title),
+                  ),
+                  artistId: Value(artistId),
+                  albumId: Value(albumId),
+                  albumArtistId: Value(albumArtistId),
+                  trackNo: Value(
+                    pData.metadata.trackNumber ??
+                        (pData.item.trackNumber > 0
+                            ? pData.item.trackNumber
+                            : null),
+                  ),
+                  discNo: Value(pData.metadata.discNumber),
+                  year: Value(
+                    pData.metadata.year ??
+                        (pData.item.year > 0 ? pData.item.year : null),
+                  ),
+                  durationMs: Value(pData.duration),
+                  mime: Value(
+                    pData.item.mimeType.isNotEmpty
+                        ? pData.item.mimeType
+                        : pData.metadata.codec,
+                  ),
+                  sizeBytes: Value(pData.size),
+                  dateAdded: Value(pData.item.dateAdded),
+                  dateModified: Value(pData.item.dateModified),
+                  artworkKey: Value(pData.artworkKey),
+                  replayGainTrackDb: Value(pData.metadata.replayGainTrackDb),
+                  replayGainAlbumDb: Value(pData.metadata.replayGainAlbumDb),
+                  hasLyrics: Value(
+                    pData.metadata.lyrics != null &&
+                        pData.metadata.lyrics!.isNotEmpty,
+                  ),
+                ),
+              );
+
+          final insertedTrack = await (_db.select(
+            _db.tracks,
+          )..where((t) => t.trackKey.equals(pData.trackKey))).getSingleOrNull();
+
+          if (insertedTrack != null) {
+            for (final genreName in pData.genresList) {
+              final genreId = await _db.getOrCreateGenre(genreName);
+              await _db
+                  .into(_db.trackGenres)
+                  .insertOnConflictUpdate(
+                    TrackGenresCompanion(
+                      trackId: Value(insertedTrack.id),
+                      genreId: Value(genreId),
+                    ),
+                  );
+            }
+          }
+
+          await _db.customStatement(
+            'INSERT OR REPLACE INTO tracks_fts(track_key, title, artist, album, genre) VALUES (?, ?, ?, ?, ?)',
+            [
+              pData.trackKey,
+              pData.title,
+              pData.artistName,
+              pData.albumTitle,
+              pData.genresList.join(' '),
+            ],
+          );
+        } catch (_) {
+          continue;
+        }
+      }
+    });
   }
 
-  Future<int> _getOrCreateArtist(String name) async {
-    final existing = await (_db.select(
-      _db.artists,
-    )..where((a) => a.name.equals(name))).getSingleOrNull();
-    if (existing != null) return existing.id;
-
-    return await _db
-        .into(_db.artists)
-        .insert(
-          ArtistsCompanion(
-            name: Value(name),
-            nameSort: Value(MetadataUtils.normalizeSortName(name)),
-          ),
-        );
-  }
-
-  Future<int> _getOrCreateAlbum({
-    required String title,
-    required int artistId,
-    int? year,
-    String? artworkKey,
-  }) async {
-    final existing =
-        await (_db.select(_db.albums)..where(
-              (a) => a.title.equals(title) & a.albumArtistId.equals(artistId),
-            ))
-            .getSingleOrNull();
-    if (existing != null) return existing.id;
-
-    return await _db
-        .into(_db.albums)
-        .insert(
-          AlbumsCompanion(
-            title: Value(title),
-            titleSort: Value(MetadataUtils.normalizeSortName(title)),
-            albumArtistId: Value(artistId),
-            year: Value(year),
-            artworkKey: Value(artworkKey),
-          ),
-        );
-  }
+  final Map<String, bool> _nomediaCache = {};
 
   bool _hasNomedia(String filePath) {
+    if (filePath.isEmpty || !p.isAbsolute(filePath)) {
+      return false;
+    }
     try {
       var dir = Directory(p.dirname(filePath));
-      while (dir.path != dir.parent.path) {
-        final nomedia = File(p.join(dir.path, '.nomedia'));
-        if (nomedia.existsSync()) {
-          return true;
+      while (dir.path.length > 1 && dir.path != dir.parent.path) {
+        if (_nomediaCache.containsKey(dir.path)) {
+          if (_nomediaCache[dir.path]!) return true;
+        } else {
+          final nomedia = File(p.join(dir.path, '.nomedia'));
+          final exists = nomedia.existsSync();
+          _nomediaCache[dir.path] = exists;
+          if (exists) return true;
         }
         dir = dir.parent;
       }
     } catch (_) {}
     return false;
   }
+}
+
+class _PreparedTrackData {
+  final MediaStoreItem item;
+  final ParsedMetadata metadata;
+  final String trackKey;
+  final String title;
+  final String artistName;
+  final String albumTitle;
+  final int duration;
+  final int size;
+  final String? artworkKey;
+  final List<String> genresList;
+  final bool hasValidPath;
+
+  const _PreparedTrackData({
+    required this.item,
+    required this.metadata,
+    required this.trackKey,
+    required this.title,
+    required this.artistName,
+    required this.albumTitle,
+    required this.duration,
+    required this.size,
+    required this.artworkKey,
+    required this.genresList,
+    required this.hasValidPath,
+  });
 }
 
 final libraryScannerProvider =

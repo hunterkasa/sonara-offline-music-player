@@ -30,22 +30,31 @@ class GenreDetailScreen extends ConsumerWidget {
     final playback = ref.watch(playbackControllerProvider);
     final haptics = ref.watch(hapticServiceProvider);
 
-    return Scaffold(
-      body: StreamBuilder<Genre?>(
-        stream: db.watchGenre(genreId),
-        builder: (context, genreSnap) {
-          if (!genreSnap.hasData || genreSnap.data == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return StreamBuilder<Genre?>(
+      stream: db.watchGenre(genreId),
+      builder: (context, genreSnap) {
+        if (genreSnap.connectionState == ConnectionState.waiting &&
+            !genreSnap.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (genreSnap.data == null) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(child: Text('Genre not found')),
+          );
+        }
 
-          final genre = genreSnap.data!;
+        final genre = genreSnap.data!;
 
-          return StreamBuilder<List<Track>>(
-            stream: db.watchTracksForGenre(genreId),
-            builder: (context, tracksSnap) {
-              final tracks = tracksSnap.data ?? [];
+        return StreamBuilder<List<Track>>(
+          stream: db.watchTracksForGenre(genreId),
+          builder: (context, tracksSnap) {
+            final tracks = tracksSnap.data ?? [];
 
-              return CustomScrollView(
+            return Scaffold(
+              body: CustomScrollView(
                 slivers: [
                   SliverAppBar(
                     expandedHeight: 240.0,
@@ -191,11 +200,11 @@ class GenreDetailScreen extends ConsumerWidget {
                     ),
                   const SliverToBoxAdapter(child: SizedBox(height: 96.0)),
                 ],
-              );
-            },
-          );
-        },
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

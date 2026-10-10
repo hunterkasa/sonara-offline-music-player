@@ -5,8 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../features/album/album_detail_screen.dart';
 import '../../features/artist/artist_detail_screen.dart';
 import '../../features/audio_settings/audio_settings_screen.dart';
-import '../../features/genre/genre_detail_screen.dart';
 import '../../features/audio_settings/equalizer_screen.dart';
+import '../../features/folder/folder_detail_screen.dart';
+import '../../features/genre/genre_detail_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/library/library_screen.dart';
 import '../../features/library_tools/backup_restore_screen.dart';
@@ -17,6 +18,7 @@ import '../../features/playlist/playlist_detail_screen.dart';
 import '../../features/search/search_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/wrapped/wrapped_screen.dart';
+import '../shell/animated_branch_container.dart';
 import '../shell/app_shell.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -50,7 +52,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
+        navigatorContainerBuilder: (context, navigationShell, children) {
+          return AnimatedBranchContainer(
+            currentIndex: navigationShell.currentIndex,
+            children: children,
+          );
+        },
         builder: (context, state, navigationShell) {
           return AppShell(navigationShell: navigationShell);
         },
@@ -109,6 +117,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '0') ?? 0;
           return GenreDetailScreen(genreId: id);
+        },
+      ),
+      GoRoute(
+        path: '/folder',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final folderPath = state.uri.queryParameters['path'] ?? 'Root';
+          return FolderDetailScreen(folderPath: folderPath);
         },
       ),
       GoRoute(

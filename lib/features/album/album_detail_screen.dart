@@ -30,32 +30,41 @@ class AlbumDetailScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final playback = ref.watch(playbackControllerProvider);
 
-    return Scaffold(
-      body: StreamBuilder<Album?>(
-        stream: (db.select(
-          db.albums,
-        )..where((a) => a.id.equals(albumId))).watchSingleOrNull(),
-        builder: (context, albumSnap) {
-          if (!albumSnap.hasData || albumSnap.data == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return StreamBuilder<Album?>(
+      stream: (db.select(
+        db.albums,
+      )..where((a) => a.id.equals(albumId))).watchSingleOrNull(),
+      builder: (context, albumSnap) {
+        if (albumSnap.connectionState == ConnectionState.waiting &&
+            !albumSnap.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (albumSnap.data == null) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(child: Text('Album not found')),
+          );
+        }
 
-          final album = albumSnap.data!;
+        final album = albumSnap.data!;
 
-          return StreamBuilder<List<Track>>(
-            stream:
-                (db.select(db.tracks)
-                      ..where((t) => t.albumId.equals(albumId))
-                      ..orderBy([
-                        (t) => d.OrderingTerm.asc(t.discNo),
-                        (t) => d.OrderingTerm.asc(t.trackNo),
-                        (t) => d.OrderingTerm.asc(t.titleSort),
-                      ]))
-                    .watch(),
-            builder: (context, tracksSnap) {
-              final tracks = tracksSnap.data ?? [];
+        return StreamBuilder<List<Track>>(
+          stream:
+              (db.select(db.tracks)
+                    ..where((t) => t.albumId.equals(albumId))
+                    ..orderBy([
+                      (t) => d.OrderingTerm.asc(t.discNo),
+                      (t) => d.OrderingTerm.asc(t.trackNo),
+                      (t) => d.OrderingTerm.asc(t.titleSort),
+                    ]))
+                  .watch(),
+          builder: (context, tracksSnap) {
+            final tracks = tracksSnap.data ?? [];
 
-              return CustomScrollView(
+            return Scaffold(
+              body: CustomScrollView(
                 slivers: [
                   SliverAppBar(
                     expandedHeight: 280.0,
@@ -188,11 +197,11 @@ class AlbumDetailScreen extends ConsumerWidget {
                     ),
                   const SliverToBoxAdapter(child: SizedBox(height: 96.0)),
                 ],
-              );
-            },
-          );
-        },
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

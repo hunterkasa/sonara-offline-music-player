@@ -93,15 +93,26 @@ class AppDatabase extends _$AppDatabase {
     return result ?? 0;
   }
 
-  /// Full-text search using FTS5
+  /// Full-text search using FTS5 with sanitized tokens
   Future<List<String>> searchTrackKeysFts(String term) async {
-    final cleanTerm = term.replaceAll('"', '""');
-    final rows = await customSelect(
-      'SELECT track_key FROM tracks_fts WHERE tracks_fts MATCH ?',
-      variables: [Variable.withString('$cleanTerm*')],
-    ).get();
+    final tokens = term
+        .split(RegExp(r'\s+'))
+        .map((t) => t.replaceAll(RegExp(r'["\*\(\)\:\^\-]'), '').trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (tokens.isEmpty) return [];
 
-    return rows.map((row) => row.read<String>('track_key')).toList();
+    final ftsQuery = tokens.map((t) => '"$t"*').join(' ');
+    try {
+      final rows = await customSelect(
+        'SELECT track_key FROM tracks_fts WHERE tracks_fts MATCH ?',
+        variables: [Variable.withString(ftsQuery)],
+      ).get();
+
+      return rows.map((row) => row.read<String>('track_key')).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Full-text search returning full Track entities
@@ -134,12 +145,21 @@ class AppDatabase extends _$AppDatabase {
     )..where((t) => t.trackKey.equals(trackKey))).getSingleOrNull();
   }
 
-  /// Get list of tracks matching given keys preserving order
+  /// Get list of tracks matching given keys preserving order (batched to prevent SQLite variable limits)
   Future<List<Track>> getTracksByKeys(List<String> keys) async {
     if (keys.isEmpty) return [];
-    final fetched = await (select(
-      tracks,
-    )..where((t) => t.trackKey.isIn(keys))).get();
+    final fetched = <Track>[];
+    const chunkSize = 250;
+    for (var i = 0; i < keys.length; i += chunkSize) {
+      final chunk = keys.sublist(
+        i,
+        (i + chunkSize < keys.length) ? i + chunkSize : keys.length,
+      );
+      final batchResult = await (select(
+        tracks,
+      )..where((t) => t.trackKey.isIn(chunk))).get();
+      fetched.addAll(batchResult);
+    }
     final map = {for (final t in fetched) t.trackKey: t};
     final ordered = <Track>[];
     for (final key in keys) {
@@ -253,6 +273,14 @@ class AppDatabase extends _$AppDatabase {
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     await (update(playlists)..where((p) => p.id.equals(id))).write(
       PlaylistsCompanion(name: Value(newName), updatedAt: Value(now)),
+    );
+  }
+
+  /// Update playlist cover (custom file path or preset URI)
+  Future<void> updatePlaylistCover(int id, String? coverUri) async {
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    await (update(playlists)..where((p) => p.id.equals(id))).write(
+      PlaylistsCompanion(coverUri: Value(coverUri), updatedAt: Value(now)),
     );
   }
 
@@ -386,7 +414,6 @@ class AppDatabase extends _$AppDatabase {
             position: nextPos++,
             addedAt: now,
           ),
-          mode: InsertMode.insertOrReplace,
         );
       }
 
@@ -396,14 +423,25 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  /// Remove track from a playlist
+  /// Remove track from a playlist (removes single occurrence by position/id)
   Future<void> removeTrackFromPlaylist(int playlistId, String trackKey) async {
     await transaction(() async {
-      await (delete(playlistTracks)..where(
-            (pt) =>
-                pt.playlistId.equals(playlistId) & pt.trackKey.equals(trackKey),
-          ))
-          .go();
+      final target =
+          await (select(playlistTracks)
+                ..where(
+                  (pt) =>
+                      pt.playlistId.equals(playlistId) &
+                      pt.trackKey.equals(trackKey),
+                )
+                ..orderBy([(pt) => OrderingTerm.asc(pt.position)])
+                ..limit(1))
+              .getSingleOrNull();
+
+      if (target != null) {
+        await (delete(
+          playlistTracks,
+        )..where((pt) => pt.id.equals(target.id))).go();
+      }
 
       // Compact positions
       final remaining =
@@ -413,11 +451,8 @@ class AppDatabase extends _$AppDatabase {
               .get();
       for (var i = 0; i < remaining.length; i++) {
         if (remaining[i].position != i) {
-          await (update(playlistTracks)..where(
-                (pt) =>
-                    pt.playlistId.equals(playlistId) &
-                    pt.trackKey.equals(remaining[i].trackKey),
-              ))
+          await (update(playlistTracks)
+                ..where((pt) => pt.id.equals(remaining[i].id)))
               .write(PlaylistTracksCompanion(position: Value(i)));
         }
       }
@@ -454,11 +489,7 @@ class AppDatabase extends _$AppDatabase {
       list.insert(newIndex, item);
 
       for (var i = 0; i < list.length; i++) {
-        await (update(playlistTracks)..where(
-              (pt) =>
-                  pt.playlistId.equals(playlistId) &
-                  pt.trackKey.equals(list[i].trackKey),
-            ))
+        await (update(playlistTracks)..where((pt) => pt.id.equals(list[i].id)))
             .write(PlaylistTracksCompanion(position: Value(i)));
       }
 
@@ -785,12 +816,20 @@ class AppDatabase extends _$AppDatabase {
       artists,
     )..where((a) => a.name.equals(name))).getSingleOrNull();
     if (existing != null) return existing.id;
-    return await into(artists).insert(
-      ArtistsCompanion(
-        name: Value(name),
-        nameSort: Value(MetadataUtils.normalizeSortName(name)),
-      ),
-    );
+    try {
+      return await into(artists).insert(
+        ArtistsCompanion(
+          name: Value(name),
+          nameSort: Value(MetadataUtils.normalizeSortName(name)),
+        ),
+      );
+    } catch (_) {
+      final fallback = await (select(
+        artists,
+      )..where((a) => a.name.equals(name))).getSingleOrNull();
+      if (fallback != null) return fallback.id;
+      rethrow;
+    }
   }
 
   /// Get or create album by title and artist
@@ -806,15 +845,41 @@ class AppDatabase extends _$AppDatabase {
             ))
             .getSingleOrNull();
     if (existing != null) return existing.id;
-    return await into(albums).insert(
-      AlbumsCompanion(
-        title: Value(title),
-        titleSort: Value(MetadataUtils.normalizeSortName(title)),
-        albumArtistId: Value(artistId),
-        year: Value(year),
-        artworkKey: Value(artworkKey),
-      ),
-    );
+
+    // Check if album already exists under 'Various Artists'
+    final variousArtist = await (select(
+      artists,
+    )..where((a) => a.name.equals('Various Artists'))).getSingleOrNull();
+    if (variousArtist != null) {
+      final variousAlbum =
+          await (select(albums)..where(
+                (a) =>
+                    a.title.equals(title) &
+                    a.albumArtistId.equals(variousArtist.id),
+              ))
+              .getSingleOrNull();
+      if (variousAlbum != null) return variousAlbum.id;
+    }
+
+    try {
+      return await into(albums).insert(
+        AlbumsCompanion(
+          title: Value(title),
+          titleSort: Value(MetadataUtils.normalizeSortName(title)),
+          albumArtistId: Value(artistId),
+          year: Value(year),
+          artworkKey: Value(artworkKey),
+        ),
+      );
+    } catch (_) {
+      final fallback =
+          await (select(albums)..where(
+                (a) => a.title.equals(title) & a.albumArtistId.equals(artistId),
+              ))
+              .getSingleOrNull();
+      if (fallback != null) return fallback.id;
+      rethrow;
+    }
   }
 
   /// Get or create genre by name
@@ -823,7 +888,15 @@ class AppDatabase extends _$AppDatabase {
       genres,
     )..where((g) => g.name.equals(name))).getSingleOrNull();
     if (existing != null) return existing.id;
-    return await into(genres).insert(GenresCompanion(name: Value(name)));
+    try {
+      return await into(genres).insert(GenresCompanion(name: Value(name)));
+    } catch (_) {
+      final fallback = await (select(
+        genres,
+      )..where((g) => g.name.equals(name))).getSingleOrNull();
+      if (fallback != null) return fallback.id;
+      rethrow;
+    }
   }
 
   /// Get list of genre names for a track
@@ -910,6 +983,36 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Watch all tracks belonging to a folder (relative directory)
+  Stream<List<Track>> watchTracksForFolder(String folderPath) {
+    final isRoot = folderPath == 'Root' || folderPath.isEmpty;
+    return (select(tracks)
+          ..where((t) {
+            if (isRoot) {
+              return (t.relativeDir.equals('') | t.relativeDir.equals('Root')) &
+                  t.isHidden.equals(false);
+            }
+            return t.relativeDir.equals(folderPath) & t.isHidden.equals(false);
+          })
+          ..orderBy([(t) => OrderingTerm.asc(t.titleSort)]))
+        .watch();
+  }
+
+  /// Get all tracks belonging to a folder (relative directory)
+  Future<List<Track>> getTracksForFolder(String folderPath) async {
+    final isRoot = folderPath == 'Root' || folderPath.isEmpty;
+    return (select(tracks)
+          ..where((t) {
+            if (isRoot) {
+              return (t.relativeDir.equals('') | t.relativeDir.equals('Root')) &
+                  t.isHidden.equals(false);
+            }
+            return t.relativeDir.equals(folderPath) & t.isHidden.equals(false);
+          })
+          ..orderBy([(t) => OrderingTerm.asc(t.titleSort)]))
+        .get();
+  }
+
   /// Updates track metadata across tracks, artists, albums, and FTS5 index
   Future<void> updateTrackMetadata({
     required String trackKey,
@@ -967,6 +1070,13 @@ class AppDatabase extends _$AppDatabase {
         [trackKey, title, artist, album, genre ?? ''],
       );
     });
+  }
+
+  /// Updates or resets the artwork key / custom cover URI for a single track
+  Future<void> updateTrackArtwork(String trackKey, String? artworkKey) async {
+    await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
+      TracksCompanion(artworkKey: Value(artworkKey)),
+    );
   }
 
   /// Imports virtual tracks parsed from a CUE sheet

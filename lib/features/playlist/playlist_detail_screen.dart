@@ -11,7 +11,9 @@ import 'package:sonara/data/db/app_database.dart';
 import 'package:sonara/domain/services/daily_mix_service.dart';
 import 'package:sonara/domain/services/m3u_service.dart';
 import 'package:sonara/domain/services/playlist_service.dart';
+import 'package:sonara/features/playlist/playlist_cover_picker_sheet.dart';
 import 'package:sonara/features/playlist/playlist_track_picker_sheet.dart';
+import 'package:sonara/shared/artwork/playlist_artwork_widget.dart';
 import 'package:sonara/shared/sheets/track_context_sheet.dart';
 import 'package:sonara/shared/track_tile/track_tile.dart';
 
@@ -122,7 +124,12 @@ class PlaylistDetailScreen extends ConsumerWidget {
                     PopupMenuButton<String>(
                       onSelected: (value) async {
                         haptics.selection();
-                        if (value == 'rename') {
+                        if (value == 'change_cover') {
+                          await PlaylistCoverPickerSheet.show(
+                            context,
+                            playlist,
+                          );
+                        } else if (value == 'rename') {
                           await _showRenameDialog(context, ref, playlist);
                         } else if (value == 'duplicate') {
                           final newId = await playlistService.duplicatePlaylist(
@@ -153,6 +160,16 @@ class PlaylistDetailScreen extends ConsumerWidget {
                         }
                       },
                       itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'change_cover',
+                          child: Row(
+                            children: [
+                              Icon(Icons.image_outlined, size: 20),
+                              SizedBox(width: 12),
+                              Text('Change Cover'),
+                            ],
+                          ),
+                        ),
                         const PopupMenuItem(
                           value: 'rename',
                           child: Text('Rename Playlist'),
@@ -197,92 +214,82 @@ class PlaylistDetailScreen extends ConsumerWidget {
                                     )
                                   : isDailyMix
                                   ? mixGradient!.$1.withValues(alpha: 0.7)
-                                  : colorScheme.primaryContainer.withValues(
-                                      alpha: 0.6,
-                                    ),
+                                  : (PlaylistCoverPresets.getPreset(
+                                              playlist?.coverUri,
+                                            ) !=
+                                            null
+                                        ? PlaylistCoverPresets.getPreset(
+                                                playlist?.coverUri,
+                                              )!.gradient.colors.first
+                                              .withValues(alpha: 0.6)
+                                        : colorScheme.primaryContainer
+                                              .withValues(alpha: 0.6)),
                               colorScheme.surface,
                             ],
                           ),
                         ),
                       ),
                       Center(
-                        child: Hero(
-                          tag: 'playlist_art_$playlistId',
-                          child: Container(
-                            width: 110,
-                            height: 110,
-                            decoration: BoxDecoration(
-                              color: isLikedSongs
-                                  ? Colors.purple.shade600
-                                  : isDailyMix
-                                  ? mixGradient!.$1
-                                  : colorScheme.surfaceContainerHighest,
-                              gradient: isDailyMix
-                                  ? LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [mixGradient!.$1, mixGradient.$2],
-                                    )
-                                  : null,
-                              borderRadius: AppRadii.cardRadius,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 8),
+                        child: GestureDetector(
+                          onTap:
+                              (!isLikedSongs &&
+                                  !isDailyMix &&
+                                  playlist != null &&
+                                  playlist.id > 0)
+                              ? () {
+                                  haptics.selection();
+                                  PlaylistCoverPickerSheet.show(
+                                    context,
+                                    playlist,
+                                  );
+                                }
+                              : null,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              Container(
+                                width: 110,
+                                height: 110,
+                                decoration: BoxDecoration(
+                                  borderRadius: AppRadii.cardRadius,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: isDailyMix
-                                ? Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'DAILY',
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.8,
-                                              ),
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: 2.0,
-                                              fontSize: 10,
-                                            ),
-                                      ),
-                                      Text(
-                                        '${mixIndex + 1}',
-                                        style: theme.textTheme.displayMedium
-                                            ?.copyWith(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w900,
-                                              height: 1.0,
-                                            ),
-                                      ),
-                                      Text(
-                                        'MIX',
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.8,
-                                              ),
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: 2.0,
-                                              fontSize: 10,
-                                            ),
-                                      ),
-                                    ],
-                                  )
-                                : Icon(
-                                    isLikedSongs
-                                        ? Icons.favorite_rounded
-                                        : (isSmart
-                                              ? Icons.auto_awesome_rounded
-                                              : Icons.queue_music_rounded),
-                                    size: 54,
-                                    color: isLikedSongs
-                                        ? Colors.white
-                                        : colorScheme.primary,
+                                child: PlaylistArtworkWidget(
+                                  coverUri: playlist?.coverUri,
+                                  size: 110,
+                                  isLikedSongs: isLikedSongs,
+                                  isDailyMix: isDailyMix,
+                                  dailyMixIndex: mixIndex,
+                                  isSmart: isSmart,
+                                  heroTag: 'playlist_art_$playlistId',
+                                ),
+                              ),
+                              if (!isLikedSongs &&
+                                  !isDailyMix &&
+                                  playlist != null &&
+                                  playlist.id > 0)
+                                Container(
+                                  padding: const EdgeInsets.all(5),
+                                  margin: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.65),
+                                    shape: BoxShape.circle,
                                   ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -511,11 +518,14 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   },
                   onReorderItem: (oldIndex, newIndex) {
                     haptics.light();
+                    final targetIndex = oldIndex < newIndex
+                        ? newIndex - 1
+                        : newIndex;
                     unawaited(
                       playlistService.reorderTracks(
                         playlist!.id,
                         oldIndex,
-                        newIndex,
+                        targetIndex,
                       ),
                     );
                   },
@@ -523,7 +533,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                     final track = tracks[index];
                     return Material(
                       key: ValueKey(
-                        'playlist_${playlist!.id}_${track.trackKey}',
+                        'playlist_${playlist!.id}_${track.trackKey}_$index',
                       ),
                       color: Colors.transparent,
                       child: TrackTile(
@@ -637,32 +647,36 @@ class PlaylistDetailScreen extends ConsumerWidget {
     Playlist playlist,
   ) async {
     final controller = TextEditingController(text: playlist.name);
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename Playlist'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Playlist Name'),
+    try {
+      final newName = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Rename Playlist'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Playlist Name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
+      );
 
-    if (newName != null && newName.isNotEmpty) {
-      await ref
-          .read(playlistServiceProvider)
-          .renamePlaylist(playlist.id, newName);
+      if (newName != null && newName.isNotEmpty) {
+        await ref
+            .read(playlistServiceProvider)
+            .renamePlaylist(playlist.id, newName);
+      }
+    } finally {
+      controller.dispose();
     }
   }
 

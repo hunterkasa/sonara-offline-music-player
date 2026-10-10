@@ -9,6 +9,8 @@ enum AudioPermissionStatus { granted, denied, permanentlyDenied, restricted }
 abstract class PermissionService {
   Future<AudioPermissionStatus> checkAudioPermission();
   Future<AudioPermissionStatus> requestAudioPermission();
+  Future<bool> checkNotificationPermission();
+  Future<bool> requestNotificationPermission();
   Future<bool> openSettings();
 }
 
@@ -41,12 +43,35 @@ class SystemPermissionService implements PermissionService {
   }
 
   @override
+  Future<bool> checkNotificationPermission() async {
+    if (!Platform.isAndroid) return true;
+    final androidInfo = await _deviceInfo.androidInfo;
+    if (androidInfo.version.sdkInt < 33) return true;
+    return Permission.notification.isGranted;
+  }
+
+  @override
+  Future<bool> requestNotificationPermission() async {
+    if (!Platform.isAndroid) return true;
+    final androidInfo = await _deviceInfo.androidInfo;
+    if (androidInfo.version.sdkInt < 33) return true;
+    final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
+  @override
   Future<AudioPermissionStatus> requestAudioPermission() async {
     if (!Platform.isAndroid && !Platform.isIOS) {
       return AudioPermissionStatus.granted;
     }
     final permission = await _getRequiredPermission();
     final status = await permission.request();
+    if (Platform.isAndroid) {
+      final androidInfo = await _deviceInfo.androidInfo;
+      if (androidInfo.version.sdkInt >= 33) {
+        await Permission.notification.request();
+      }
+    }
     return _mapStatus(status);
   }
 

@@ -20,3 +20,8 @@ linter:
     - close_sinks
     - avoid_print
     - prefer_single_quotes
+    - unreachable_from_main
+    - avoid_unused_constructor_parameters
+    - use_build_context_synchronously
+    - unnecessary_statements
+    - avoid_unnecessary_containers

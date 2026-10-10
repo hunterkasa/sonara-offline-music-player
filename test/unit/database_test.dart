@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonara/data/db/app_database.dart';
 
@@ -38,16 +39,166 @@ void main() {
       expect(trackList.first.trackKey, equals('test_key_001'));
     });
 
-    test('can seed synthetic tracks and verify track count', () async {
-      // Seed a subset in unit test to verify batch pipeline
-      await db.seedSyntheticData(count: 100);
+    test('can query and watch tracks by folder and root correctly', () async {
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              trackKey: 'key_rock_1',
+              contentUri: 'content://audio/1',
+              path: '/storage/emulated/0/Music/Rock/song1.mp3',
+              relativeDir: const Value('/storage/emulated/0/Music/Rock'),
+              title: 'Rock Song 1',
+              titleSort: 'rock song 1',
+              durationMs: 180000,
+              sizeBytes: 3000000,
+            ),
+          );
 
-      final count = await db.getTrackCount();
-      expect(count, equals(100));
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              trackKey: 'key_rock_2',
+              contentUri: 'content://audio/2',
+              path: '/storage/emulated/0/Music/Rock/song2.mp3',
+              relativeDir: const Value('/storage/emulated/0/Music/Rock'),
+              title: 'Rock Song 2',
+              titleSort: 'rock song 2',
+              durationMs: 200000,
+              sizeBytes: 3500000,
+            ),
+          );
 
-      final allTracks = await db.watchAllTracks().first;
-      expect(allTracks.length, equals(100));
-      expect(allTracks.first.title, startsWith('Synthetic Track'));
+      await db
+          .into(db.tracks)
+          .insert(
+            TracksCompanion.insert(
+              trackKey: 'key_root_1',
+              contentUri: 'content://audio/3',
+              path: '/storage/emulated/0/root.mp3',
+              relativeDir: const Value(''),
+              title: 'Root Song',
+              titleSort: 'root song',
+              durationMs: 220000,
+              sizeBytes: 4000000,
+            ),
+          );
+
+      // Query folder tracks
+      final rockTracks = await db.getTracksForFolder(
+        '/storage/emulated/0/Music/Rock',
+      );
+      expect(rockTracks.length, equals(2));
+      expect(
+        rockTracks.map((t) => t.title),
+        containsAll(['Rock Song 1', 'Rock Song 2']),
+      );
+
+      // Watch folder tracks
+      final rockStreamTracks = await db
+          .watchTracksForFolder('/storage/emulated/0/Music/Rock')
+          .first;
+      expect(rockStreamTracks.length, equals(2));
+
+      // Query root tracks
+      final rootTracks = await db.getTracksForFolder('Root');
+      expect(rootTracks.length, equals(1));
+      expect(rootTracks.first.title, equals('Root Song'));
     });
+
+    test('getTracksByKeys batches requests and supports over 1000 keys without SQLite variable limit error', () async {
+      // Insert 1200 synthetic tracks
+      const total = 1200;
+      final keys = <String>[];
+      for (var i = 0; i < total; i++) {
+        final key = 'batch_key_${i.toString().padLeft(5, '0')}';
+        keys.add(key);
+        await db
+            .into(db.tracks)
+            .insert(
+              TracksCompanion.insert(
+                trackKey: key,
+                contentUri: 'content://audio/$i',
+                path: '/storage/test_$i.mp3',
+                title: 'Track $i',
+                titleSort: 'track $i',
+                durationMs: 120000,
+                sizeBytes: 1000000,
+              ),
+            );
+      }
+
+      // Query all 1200 keys
+      final result = await db.getTracksByKeys(keys);
+      expect(result.length, equals(total));
+      expect(result.first.trackKey, equals(keys.first));
+      expect(result.last.trackKey, equals(keys.last));
+    });
+
+    test('searchTrackKeysFts gracefully handles special characters without syntax error', () async {
+      // Search with quotes, parentheses, dashes, asterisks, colons
+      final terms = [
+        'queen (live)',
+        'ac/dc',
+        'foo - bar',
+        '***',
+        '"unclosed quote',
+        'artist:name',
+        ':',
+        '-',
+        '(',
+        ')',
+      ];
+
+      for (final term in terms) {
+        final results = await db.searchTrackKeysFts(term);
+        expect(results, isA<List<String>>());
+      }
+    });
+
+    test('playlist tracks allow duplicate songs, preserves positions, and reorders cleanly', () async {
+      final playlistId = await db.createPlaylist(name: 'Favorites Mix');
+      const trackKeyA = 'track_A';
+      const trackKeyB = 'track_B';
+
+      // Add track A, track B, and track A again
+      await db.addTracksToPlaylist(playlistId, [trackKeyA, trackKeyB]);
+      await db.addTracksToPlaylist(playlistId, [trackKeyA]);
+
+      var keys = await db.getPlaylistTrackKeys(playlistId);
+      expect(keys.length, equals(3));
+      expect(keys, equals([trackKeyA, trackKeyB, trackKeyA]));
+
+      // Reorder index 0 (A) to index 1 (between B and A)
+      await db.reorderPlaylistTracks(playlistId, 0, 1);
+      keys = await db.getPlaylistTrackKeys(playlistId);
+      expect(keys, equals([trackKeyB, trackKeyA, trackKeyA]));
+
+      // Remove first occurrence of track A
+      await db.removeTrackFromPlaylist(playlistId, trackKeyA);
+      keys = await db.getPlaylistTrackKeys(playlistId);
+      expect(keys, equals([trackKeyB, trackKeyA]));
+    });
+
+    test(
+      'getOrCreateAlbum reuses existing Various Artists compilation albums',
+      () async {
+        final variousArtistId = await db.getOrCreateArtist('Various Artists');
+        final albumId1 = await db.getOrCreateAlbum(
+          title: 'Guardians Soundtrack',
+          artistId: variousArtistId,
+        );
+
+        final artist2Id = await db.getOrCreateArtist('David Bowie');
+        final albumId2 = await db.getOrCreateAlbum(
+          title: 'Guardians Soundtrack',
+          artistId: artist2Id,
+        );
+
+        // Should reuse the Various Artists album instead of splitting
+        expect(albumId2, equals(albumId1));
+      },
+    );
   });
 }

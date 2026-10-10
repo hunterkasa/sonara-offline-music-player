@@ -26,11 +26,13 @@ class MainActivity : AudioServiceActivity() {
     private val EVENT_CHANNEL = "com.example.sonara/mediastore_observer"
     private val SENSOR_EVENT_CHANNEL = "com.example.sonara/sensors"
     private val REQUEST_CODE_WRITE = 1001
+    private val REQUEST_CODE_DELETE = 1002
 
     private var contentObserver: ContentObserver? = null
     private var eventSink: EventChannel.EventSink? = null
     private var initialAudioUri: String? = null
     private var pendingWriteResult: MethodChannel.Result? = null
+    private var pendingDeleteResult: MethodChannel.Result? = null
 
     private var sensorManager: SensorManager? = null
     private var sensorSink: EventChannel.EventSink? = null
@@ -122,6 +124,36 @@ class MainActivity : AudioServiceActivity() {
                         }
                     } else {
                         result.success(true)
+                    }
+                }
+                "requestDeletePermission" -> {
+                    val uriString = call.argument<String>("uri")
+                    if (uriString == null) {
+                        result.success(false)
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        try {
+                            val uri = Uri.parse(uriString)
+                            val pendingIntent = MediaStore.createDeleteRequest(contentResolver, listOf(uri))
+                            pendingDeleteResult = result
+                            startIntentSenderForResult(
+                                pendingIntent.intentSender,
+                                REQUEST_CODE_DELETE,
+                                null,
+                                0,
+                                0,
+                                0
+                            )
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    } else {
+                        try {
+                            val uri = Uri.parse(uriString)
+                            val count = contentResolver.delete(uri, null, null)
+                            result.success(count > 0)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
                     }
                 }
                 else -> result.notImplemented()
@@ -286,18 +318,18 @@ class MainActivity : AudioServiceActivity() {
             selectionArgs.toTypedArray(),
             sortOrder
         )?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-            val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-            val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-            val durCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-            val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-            val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
-            val addedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
-            val modCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
-            val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
-            val trackCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
-            val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
+            val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+            val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+            val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+            val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+            val durCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+            val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+            val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
+            val addedCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)
+            val modCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATE_MODIFIED)
+            val albumIdCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
+            val trackCol = cursor.getColumnIndex(MediaStore.Audio.Media.TRACK)
+            val mimeCol = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE)
             val yearCol = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
             } else -1
@@ -305,27 +337,29 @@ class MainActivity : AudioServiceActivity() {
                 cursor.getColumnIndex(MediaStore.Audio.Media.GENRE)
             } else -1
 
+            if (idCol == -1) return trackList
+
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
-                val albumId = cursor.getLong(albumIdCol)
+                val albumId = if (albumIdCol >= 0 && !cursor.isNull(albumIdCol)) cursor.getLong(albumIdCol) else 0L
                 val contentUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id).toString()
-                val albumArtUri = "content://media/external/audio/albumart/$albumId"
+                val albumArtUri = if (albumId > 0) "content://media/external/audio/albumart/$albumId" else ""
 
                 val item = mapOf(
                     "id" to id,
                     "contentUri" to contentUri,
                     "albumArtUri" to albumArtUri,
-                    "title" to (cursor.getString(titleCol) ?: ""),
-                    "artist" to (cursor.getString(artistCol) ?: ""),
-                    "album" to (cursor.getString(albumCol) ?: ""),
-                    "durationMs" to cursor.getLong(durCol),
-                    "path" to (cursor.getString(dataCol) ?: ""),
-                    "sizeBytes" to cursor.getLong(sizeCol),
-                    "dateAdded" to cursor.getLong(addedCol),
-                    "dateModified" to cursor.getLong(modCol),
+                    "title" to if (titleCol >= 0 && !cursor.isNull(titleCol)) (cursor.getString(titleCol) ?: "") else "",
+                    "artist" to if (artistCol >= 0 && !cursor.isNull(artistCol)) (cursor.getString(artistCol) ?: "") else "",
+                    "album" to if (albumCol >= 0 && !cursor.isNull(albumCol)) (cursor.getString(albumCol) ?: "") else "",
+                    "durationMs" to if (durCol >= 0 && !cursor.isNull(durCol)) cursor.getLong(durCol) else 0L,
+                    "path" to if (dataCol >= 0 && !cursor.isNull(dataCol)) (cursor.getString(dataCol) ?: "") else "",
+                    "sizeBytes" to if (sizeCol >= 0 && !cursor.isNull(sizeCol)) cursor.getLong(sizeCol) else 0L,
+                    "dateAdded" to if (addedCol >= 0 && !cursor.isNull(addedCol)) cursor.getLong(addedCol) else 0L,
+                    "dateModified" to if (modCol >= 0 && !cursor.isNull(modCol)) cursor.getLong(modCol) else 0L,
                     "albumId" to albumId,
-                    "trackNumber" to cursor.getInt(trackCol),
-                    "mimeType" to (cursor.getString(mimeCol) ?: ""),
+                    "trackNumber" to if (trackCol >= 0 && !cursor.isNull(trackCol)) cursor.getInt(trackCol) else 0,
+                    "mimeType" to if (mimeCol >= 0 && !cursor.isNull(mimeCol)) (cursor.getString(mimeCol) ?: "") else "",
                     "year" to if (yearCol >= 0 && !cursor.isNull(yearCol)) cursor.getInt(yearCol) else 0,
                     "genre" to if (genreCol >= 0 && !cursor.isNull(genreCol)) (cursor.getString(genreCol) ?: "") else ""
                 )
@@ -342,9 +376,11 @@ class MainActivity : AudioServiceActivity() {
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
 
         contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            while (cursor.moveToNext()) {
-                ids.add(cursor.getLong(idCol))
+            val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+            if (idCol >= 0) {
+                while (cursor.moveToNext()) {
+                    ids.add(cursor.getLong(idCol))
+                }
             }
         }
         return ids
@@ -355,11 +391,32 @@ class MainActivity : AudioServiceActivity() {
         if (requestCode == REQUEST_CODE_WRITE) {
             pendingWriteResult?.success(resultCode == Activity.RESULT_OK)
             pendingWriteResult = null
+        } else if (requestCode == REQUEST_CODE_DELETE) {
+            pendingDeleteResult?.success(resultCode == Activity.RESULT_OK)
+            pendingDeleteResult = null
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sensorListener?.let {
+            sensorManager?.unregisterListener(it)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (sensorSink != null && sensorListener != null) {
+            val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            accelerometer?.let {
+                sensorManager?.registerListener(sensorListener, it, SensorManager.SENSOR_DELAY_NORMAL)
+            }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        stopSensorListening()
         unregisterMediaStoreObserver()
     }
 }

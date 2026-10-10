@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/theme/theme_tokens.dart';
 import '../../core/services/haptic_service.dart';
@@ -12,6 +13,7 @@ import '../../data/db/database_provider.dart';
 import '../../data/sources/artwork_service.dart';
 import '../../data/sources/tag_writer.dart';
 import '../../shared/artwork/artwork_widget.dart';
+import '../../shared/sheets/song_cover_picker_sheet.dart';
 
 class TagEditorSheet extends ConsumerStatefulWidget {
   const TagEditorSheet({super.key, required this.track});
@@ -252,6 +254,35 @@ class _TagEditorSheetState extends ConsumerState<TagEditorSheet> {
     }
   }
 
+  Future<void> _pickImage() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      setState(() {
+        _newArtworkBytes = _validSamplePng;
+        _artworkRemoved = false;
+      });
+      return;
+    }
+
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        if (mounted) {
+          setState(() {
+            _newArtworkBytes = bytes;
+            _artworkRemoved = false;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -314,14 +345,17 @@ class _TagEditorSheetState extends ConsumerState<TagEditorSheet> {
                     OutlinedButton.icon(
                       icon: const Icon(Icons.image_outlined, size: 18),
                       label: const Text('Pick Image'),
+                      onPressed: _pickImage,
+                    ),
+                    const SizedBox(width: AppSpacing.s),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.palette_outlined, size: 18),
+                      label: const Text('Presets'),
                       onPressed: () {
-                        setState(() {
-                          _newArtworkBytes = _validSamplePng;
-                          _artworkRemoved = false;
-                        });
+                        SongCoverPickerSheet.show(context, widget.track);
                       },
                     ),
-                    const SizedBox(width: AppSpacing.m),
+                    const SizedBox(width: AppSpacing.s),
                     if (widget.track.artworkKey != null ||
                         _newArtworkBytes != null)
                       TextButton.icon(

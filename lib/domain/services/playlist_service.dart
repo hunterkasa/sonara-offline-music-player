@@ -267,6 +267,11 @@ class PlaylistService {
     return _db.renamePlaylist(id, trimmed);
   }
 
+  Future<void> updatePlaylistCover(int id, String? coverUri) {
+    if (id <= 0) return Future.value();
+    return _db.updatePlaylistCover(id, coverUri);
+  }
+
   Future<void> deletePlaylist(int id) {
     if (id <= 0) return Future.value();
     return _db.deletePlaylist(id);

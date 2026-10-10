@@ -6,11 +6,27 @@ import '../../audio/playback_controller.dart';
 import '../../core/services/haptic_service.dart';
 import '../../shared/artwork/artwork_widget.dart';
 
-class QueueSheet extends ConsumerWidget {
+class QueueSheet extends ConsumerStatefulWidget {
   const QueueSheet({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QueueSheet> createState() => _QueueSheetState();
+}
+
+class _QueueSheetState extends ConsumerState<QueueSheet> {
+  double _pullDistance = 0.0;
+  bool _isDismissing = false;
+
+  void _handleDismiss() {
+    if (!_isDismissing && mounted) {
+      _isDismissing = true;
+      ref.read(hapticServiceProvider).light();
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final queue = ref.watch(queueListProvider).value ?? const [];
     final snapshot =
@@ -27,63 +43,87 @@ class QueueSheet extends ConsumerWidget {
     return SafeArea(
       child: Column(
         children: [
-          // Drag handle
-          Padding(
-            padding: const EdgeInsets.only(
-              top: AppSpacing.s,
-              bottom: AppSpacing.xs,
-            ),
-            child: Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(
-                    alpha: 0.4,
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-          ),
-          // Header Row
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.l,
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Drag handle & Header Row with ultra-responsive pull-down dismiss
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onVerticalDragUpdate: (details) {
+              if (details.primaryDelta != null && details.primaryDelta! > 0) {
+                _pullDistance += details.primaryDelta!;
+                if (_pullDistance > 20.0) {
+                  _handleDismiss();
+                }
+              }
+            },
+            onVerticalDragEnd: (details) {
+              if (details.primaryVelocity != null &&
+                  details.primaryVelocity! > 60.0) {
+                _handleDismiss();
+              }
+              _pullDistance = 0.0;
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'PLAY QUEUE',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        letterSpacing: 1.5,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurfaceVariant,
+                // Top drag pill handle
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: AppSpacing.s,
+                    bottom: AppSpacing.xs,
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 40,
+                      height: 4.5,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.4,
+                        ),
+                        borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
-                    Text(
-                      '${queue.length} ${queue.length == 1 ? 'track' : 'tracks'}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                TextButton.icon(
-                  icon: const Icon(Icons.clear_all_rounded, size: 20),
-                  label: const Text('Clear'),
-                  onPressed: queue.isEmpty
-                      ? null
-                      : () {
-                          haptics.medium();
-                          playback.clearQueue();
-                          Navigator.of(context).pop();
-                        },
+                // Header Row
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.l,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PLAY QUEUE',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              letterSpacing: 1.5,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            '${queue.length} ${queue.length == 1 ? 'track' : 'tracks'}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.clear_all_rounded, size: 20),
+                        label: const Text('Clear'),
+                        onPressed: queue.isEmpty
+                            ? null
+                            : () {
+                                haptics.medium();
+                                playback.clearQueue();
+                                Navigator.of(context).pop();
+                              },
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -174,6 +214,27 @@ class QueueSheet extends ConsumerWidget {
                 : ReorderableListView.builder(
                     itemCount: queue.length,
                     padding: const EdgeInsets.only(bottom: AppSpacing.l),
+                    buildDefaultDragHandles: false,
+                    itemExtent: 56.0,
+                    proxyDecorator: (child, index, animation) {
+                      return AnimatedBuilder(
+                        animation: animation,
+                        builder: (context, child) {
+                          final elevation = Tween<double>(
+                            begin: 0,
+                            end: 6,
+                          ).evaluate(animation);
+                          return Material(
+                            elevation: elevation,
+                            color: theme.colorScheme.surfaceContainerHigh,
+                            shadowColor: Colors.black.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(10),
+                            child: child,
+                          );
+                        },
+                        child: child,
+                      );
+                    },
                     onReorderItem: (oldIndex, newIndex) {
                       haptics.selection();
                       playback.reorderQueue(oldIndex, newIndex);
@@ -183,7 +244,7 @@ class QueueSheet extends ConsumerWidget {
                       final isCurrent = index == currentIndex;
 
                       return Dismissible(
-                        key: ValueKey(track.trackKey),
+                        key: ValueKey('${track.trackKey}_$index'),
                         direction: DismissDirection.endToStart,
                         background: Container(
                           alignment: Alignment.centerRight,
@@ -198,45 +259,64 @@ class QueueSheet extends ConsumerWidget {
                           haptics.light();
                           playback.removeFromQueue(index);
                         },
-                        child: ListTile(
-                          key: ValueKey('tile_${track.trackKey}'),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.l,
-                            vertical: 2,
-                          ),
-                          leading: ArtworkWidget(
-                            artworkKey: track.artworkKey,
-                            filePath: track.path,
-                            title: track.title,
-                            size: 40,
-                          ),
-                          title: Text(
-                            track.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: isCurrent
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isCurrent
-                                  ? theme.colorScheme.primary
-                                  : null,
+                        child: SizedBox(
+                          height: 56.0,
+                          child: ListTile(
+                            dense: true,
+                            key: ValueKey('tile_${track.trackKey}'),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.l,
+                              vertical: 0,
                             ),
-                          ),
-                          subtitle: Text(
-                            _formatDuration(
-                              Duration(milliseconds: track.durationMs),
+                            leading: ArtworkWidget(
+                              artworkKey: track.artworkKey,
+                              filePath: track.path,
+                              title: track.title,
+                              size: 38,
+                              borderRadius: 6.0,
                             ),
-                            style: theme.textTheme.bodySmall,
+                            title: Text(
+                              track.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: isCurrent
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isCurrent
+                                    ? theme.colorScheme.primary
+                                    : null,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: Text(
+                              _formatDuration(
+                                Duration(milliseconds: track.durationMs),
+                              ),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 11,
+                              ),
+                            ),
+                            trailing: ReorderableDragStartListener(
+                              index: index,
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                alignment: Alignment.center,
+                                color: Colors.transparent,
+                                child: Icon(
+                                  Icons.drag_handle_rounded,
+                                  color: theme.colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.7),
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                            onTap: () {
+                              haptics.selection();
+                              playback.playTrack(track.trackKey);
+                            },
                           ),
-                          trailing: ReorderableDragStartListener(
-                            index: index,
-                            child: const Icon(Icons.drag_handle_rounded),
-                          ),
-                          onTap: () {
-                            haptics.selection();
-                            playback.playTrack(track.trackKey);
-                          },
                         ),
                       );
                     },

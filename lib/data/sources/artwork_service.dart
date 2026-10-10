@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -25,7 +26,7 @@ class ArtworkService {
 
   /// Generates a stable key for artwork caching from content/bytes or album title
   static String generateArtworkKey(String input) {
-    return md5.convert(input.codeUnits).toString();
+    return md5.convert(utf8.encode(input)).toString();
   }
 
   /// Caches embedded artwork bytes to disk and returns the cached file path.
@@ -49,8 +50,20 @@ class ArtworkService {
     required String? artworkKey,
     required String? filePath,
   }) async {
-    // 1. Check disk cache
+    // If artworkKey is a preset identifier, it is rendered directly via widgets (not a file)
+    if (artworkKey != null && artworkKey.startsWith('preset:')) {
+      return null;
+    }
+
+    // 1. Check direct file path (custom gallery image) or disk cache
     if (artworkKey != null && artworkKey.isNotEmpty) {
+      try {
+        final directFile = File(artworkKey);
+        if (await directFile.exists()) {
+          return directFile;
+        }
+      } catch (_) {}
+
       final dir = await _getCacheDirectory();
       final cachedFile = File(p.join(dir.path, 'art_$artworkKey.jpg'));
       if (await cachedFile.exists()) {
@@ -89,8 +102,8 @@ class ArtworkService {
   /// Generates a deterministic gradient placeholder for missing artwork
   static LinearGradient generateGradientFallback(String seed) {
     final hash = seed.hashCode.abs();
-    final hue1 = (hash % 360).toDouble();
-    final hue2 = ((hash + 60) % 360).toDouble();
+    final hue1 = ((hash % 360) + 360) % 360.0;
+    final hue2 = (((hash + 60) % 360) + 360) % 360.0;
 
     final color1 = HSLColor.fromAHSL(1.0, hue1, 0.65, 0.40).toColor();
     final color2 = HSLColor.fromAHSL(1.0, hue2, 0.70, 0.25).toColor();

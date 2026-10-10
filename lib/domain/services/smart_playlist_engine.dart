@@ -44,7 +44,12 @@ class SmartRule {
     );
   }
 
-  bool evaluate(Track track, {String? artistName, String? albumTitle}) {
+  bool evaluate(
+    Track track, {
+    String? artistName,
+    String? albumTitle,
+    List<String> genres = const [],
+  }) {
     switch (field) {
       case SmartField.title:
         return _evaluateString(track.title, operator, value?.toString() ?? '');
@@ -61,7 +66,8 @@ class SmartRule {
           value?.toString() ?? '',
         );
       case SmartField.genre:
-        return true;
+        final target = value?.toString() ?? '';
+        return genres.any((g) => _evaluateString(g, operator, target));
       case SmartField.year:
         final y = track.year ?? 0;
         final target = int.tryParse(value?.toString() ?? '') ?? 0;
@@ -165,11 +171,13 @@ class SmartPlaylistEngine {
   /// Evaluate rule group against all tracks and return matched tracks
   Future<List<Track>> evaluate(SmartRuleGroup group) async {
     final allTracks = await _db.watchAllTracks().first;
+    final allGenresMap = await _db.getAllTrackGenresMap();
     final matched = <Track>[];
 
     for (final track in allTracks) {
       final artistName = await _db.getArtistName(track.artistId);
       final albumTitle = await _db.getAlbumTitle(track.albumId);
+      final trackGenres = allGenresMap[track.id] ?? const [];
 
       if (group.rules.isEmpty) {
         matched.add(track);
@@ -182,6 +190,7 @@ class SmartPlaylistEngine {
           track,
           artistName: artistName,
           albumTitle: albumTitle,
+          genres: trackGenres,
         );
         if (group.matchAll) {
           if (!result) {

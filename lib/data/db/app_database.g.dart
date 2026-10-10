@@ -3594,6 +3594,19 @@ class $PlaylistTracksTable extends PlaylistTracks
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $PlaylistTracksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
   static const VerificationMeta _playlistIdMeta = const VerificationMeta(
     'playlistId',
   );
@@ -3640,6 +3653,7 @@ class $PlaylistTracksTable extends PlaylistTracks
   );
   @override
   List<GeneratedColumn> get $columns => [
+    id,
     playlistId,
     trackKey,
     position,
@@ -3657,6 +3671,9 @@ class $PlaylistTracksTable extends PlaylistTracks
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
     if (data.containsKey('playlist_id')) {
       context.handle(
         _playlistIdMeta,
@@ -3693,11 +3710,15 @@ class $PlaylistTracksTable extends PlaylistTracks
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {playlistId, trackKey};
+  Set<GeneratedColumn> get $primaryKey => {id};
   @override
   PlaylistTrack map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return PlaylistTrack(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
       playlistId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}playlist_id'],
@@ -3724,11 +3745,13 @@ class $PlaylistTracksTable extends PlaylistTracks
 }
 
 class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
+  final int id;
   final int playlistId;
   final String trackKey;
   final int position;
   final int addedAt;
   const PlaylistTrack({
+    required this.id,
     required this.playlistId,
     required this.trackKey,
     required this.position,
@@ -3737,6 +3760,7 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
     map['playlist_id'] = Variable<int>(playlistId);
     map['track_key'] = Variable<String>(trackKey);
     map['position'] = Variable<int>(position);
@@ -3746,6 +3770,7 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
 
   PlaylistTracksCompanion toCompanion(bool nullToAbsent) {
     return PlaylistTracksCompanion(
+      id: Value(id),
       playlistId: Value(playlistId),
       trackKey: Value(trackKey),
       position: Value(position),
@@ -3759,6 +3784,7 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PlaylistTrack(
+      id: serializer.fromJson<int>(json['id']),
       playlistId: serializer.fromJson<int>(json['playlistId']),
       trackKey: serializer.fromJson<String>(json['trackKey']),
       position: serializer.fromJson<int>(json['position']),
@@ -3769,6 +3795,7 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
       'playlistId': serializer.toJson<int>(playlistId),
       'trackKey': serializer.toJson<String>(trackKey),
       'position': serializer.toJson<int>(position),
@@ -3777,11 +3804,13 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
   }
 
   PlaylistTrack copyWith({
+    int? id,
     int? playlistId,
     String? trackKey,
     int? position,
     int? addedAt,
   }) => PlaylistTrack(
+    id: id ?? this.id,
     playlistId: playlistId ?? this.playlistId,
     trackKey: trackKey ?? this.trackKey,
     position: position ?? this.position,
@@ -3789,6 +3818,7 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
   );
   PlaylistTrack copyWithCompanion(PlaylistTracksCompanion data) {
     return PlaylistTrack(
+      id: data.id.present ? data.id.value : this.id,
       playlistId: data.playlistId.present
           ? data.playlistId.value
           : this.playlistId,
@@ -3801,6 +3831,7 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
   @override
   String toString() {
     return (StringBuffer('PlaylistTrack(')
+          ..write('id: $id, ')
           ..write('playlistId: $playlistId, ')
           ..write('trackKey: $trackKey, ')
           ..write('position: $position, ')
@@ -3810,11 +3841,12 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
   }
 
   @override
-  int get hashCode => Object.hash(playlistId, trackKey, position, addedAt);
+  int get hashCode => Object.hash(id, playlistId, trackKey, position, addedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PlaylistTrack &&
+          other.id == this.id &&
           other.playlistId == this.playlistId &&
           other.trackKey == this.trackKey &&
           other.position == this.position &&
@@ -3822,63 +3854,66 @@ class PlaylistTrack extends DataClass implements Insertable<PlaylistTrack> {
 }
 
 class PlaylistTracksCompanion extends UpdateCompanion<PlaylistTrack> {
+  final Value<int> id;
   final Value<int> playlistId;
   final Value<String> trackKey;
   final Value<int> position;
   final Value<int> addedAt;
-  final Value<int> rowid;
   const PlaylistTracksCompanion({
+    this.id = const Value.absent(),
     this.playlistId = const Value.absent(),
     this.trackKey = const Value.absent(),
     this.position = const Value.absent(),
     this.addedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
   });
   PlaylistTracksCompanion.insert({
+    this.id = const Value.absent(),
     required int playlistId,
     required String trackKey,
     required int position,
     required int addedAt,
-    this.rowid = const Value.absent(),
   }) : playlistId = Value(playlistId),
        trackKey = Value(trackKey),
        position = Value(position),
        addedAt = Value(addedAt);
   static Insertable<PlaylistTrack> custom({
+    Expression<int>? id,
     Expression<int>? playlistId,
     Expression<String>? trackKey,
     Expression<int>? position,
     Expression<int>? addedAt,
-    Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (id != null) 'id': id,
       if (playlistId != null) 'playlist_id': playlistId,
       if (trackKey != null) 'track_key': trackKey,
       if (position != null) 'position': position,
       if (addedAt != null) 'added_at': addedAt,
-      if (rowid != null) 'rowid': rowid,
     });
   }
 
   PlaylistTracksCompanion copyWith({
+    Value<int>? id,
     Value<int>? playlistId,
     Value<String>? trackKey,
     Value<int>? position,
     Value<int>? addedAt,
-    Value<int>? rowid,
   }) {
     return PlaylistTracksCompanion(
+      id: id ?? this.id,
       playlistId: playlistId ?? this.playlistId,
       trackKey: trackKey ?? this.trackKey,
       position: position ?? this.position,
       addedAt: addedAt ?? this.addedAt,
-      rowid: rowid ?? this.rowid,
     );
   }
 
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
     if (playlistId.present) {
       map['playlist_id'] = Variable<int>(playlistId.value);
     }
@@ -3891,20 +3926,17 @@ class PlaylistTracksCompanion extends UpdateCompanion<PlaylistTrack> {
     if (addedAt.present) {
       map['added_at'] = Variable<int>(addedAt.value);
     }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
     return map;
   }
 
   @override
   String toString() {
     return (StringBuffer('PlaylistTracksCompanion(')
+          ..write('id: $id, ')
           ..write('playlistId: $playlistId, ')
           ..write('trackKey: $trackKey, ')
           ..write('position: $position, ')
-          ..write('addedAt: $addedAt, ')
-          ..write('rowid: $rowid')
+          ..write('addedAt: $addedAt')
           ..write(')'))
         .toString();
   }
@@ -7062,19 +7094,19 @@ typedef $$PlaylistsTableProcessedTableManager =
     >;
 typedef $$PlaylistTracksTableCreateCompanionBuilder =
     PlaylistTracksCompanion Function({
+      Value<int> id,
       required int playlistId,
       required String trackKey,
       required int position,
       required int addedAt,
-      Value<int> rowid,
     });
 typedef $$PlaylistTracksTableUpdateCompanionBuilder =
     PlaylistTracksCompanion Function({
+      Value<int> id,
       Value<int> playlistId,
       Value<String> trackKey,
       Value<int> position,
       Value<int> addedAt,
-      Value<int> rowid,
     });
 
 class $$PlaylistTracksTableFilterComposer
@@ -7086,6 +7118,11 @@ class $$PlaylistTracksTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get playlistId => $composableBuilder(
     column: $table.playlistId,
     builder: (column) => ColumnFilters(column),
@@ -7116,6 +7153,11 @@ class $$PlaylistTracksTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get playlistId => $composableBuilder(
     column: $table.playlistId,
     builder: (column) => ColumnOrderings(column),
@@ -7146,6 +7188,9 @@ class $$PlaylistTracksTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
   GeneratedColumn<int> get playlistId => $composableBuilder(
     column: $table.playlistId,
     builder: (column) => column,
@@ -7194,31 +7239,31 @@ class $$PlaylistTracksTableTableManager
               $$PlaylistTracksTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<int> id = const Value.absent(),
                 Value<int> playlistId = const Value.absent(),
                 Value<String> trackKey = const Value.absent(),
                 Value<int> position = const Value.absent(),
                 Value<int> addedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
               }) => PlaylistTracksCompanion(
+                id: id,
                 playlistId: playlistId,
                 trackKey: trackKey,
                 position: position,
                 addedAt: addedAt,
-                rowid: rowid,
               ),
           createCompanionCallback:
               ({
+                Value<int> id = const Value.absent(),
                 required int playlistId,
                 required String trackKey,
                 required int position,
                 required int addedAt,
-                Value<int> rowid = const Value.absent(),
               }) => PlaylistTracksCompanion.insert(
+                id: id,
                 playlistId: playlistId,
                 trackKey: trackKey,
                 position: position,
                 addedAt: addedAt,
-                rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map(

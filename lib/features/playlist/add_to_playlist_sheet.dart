@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sonara/app/theme/theme_tokens.dart';
 import 'package:sonara/core/services/haptic_service.dart';
 import 'package:sonara/domain/services/playlist_service.dart';
+import 'package:sonara/shared/artwork/playlist_artwork_widget.dart';
 
 class AddToPlaylistSheet extends ConsumerWidget {
   const AddToPlaylistSheet({super.key, required this.trackKeys});
@@ -90,19 +91,10 @@ class AddToPlaylistSheet extends ConsumerWidget {
                     itemBuilder: (context, index) {
                       final p = playlists[index];
                       return ListTile(
-                        leading: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            p.isSmart
-                                ? Icons.auto_awesome_rounded
-                                : Icons.queue_music_rounded,
-                            color: theme.colorScheme.primary,
-                          ),
+                        leading: PlaylistArtworkWidget(
+                          coverUri: p.coverUri,
+                          size: 40,
+                          isSmart: p.isSmart,
                         ),
                         title: Text(p.name),
                         subtitle: p.isSmart
@@ -141,46 +133,50 @@ class AddToPlaylistSheet extends ConsumerWidget {
     WidgetRef ref,
   ) async {
     final controller = TextEditingController();
-    final playlistService = ref.read(playlistServiceProvider);
+    try {
+      final playlistService = ref.read(playlistServiceProvider);
 
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New Playlist'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Playlist name',
-            border: OutlineInputBorder(),
+      final name = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('New Playlist'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Playlist name',
+              border: OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.sentences,
           ),
-          textCapitalization: TextCapitalization.sentences,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+              child: const Text('Create'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
+      );
 
-    if (name != null && name.isNotEmpty && context.mounted) {
-      final id = await playlistService.createPlaylist(name: name);
-      await playlistService.addTracksToPlaylist(id, trackKeys);
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Created "$name" and added track'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+      if (name != null && name.isNotEmpty && context.mounted) {
+        final id = await playlistService.createPlaylist(name: name);
+        await playlistService.addTracksToPlaylist(id, trackKeys);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Created "$name" and added track'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
+    } finally {
+      controller.dispose();
     }
   }
 }

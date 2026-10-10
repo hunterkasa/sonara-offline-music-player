@@ -28,6 +28,24 @@ class ScopedStorageService {
       return true;
     }
   }
+
+  /// Requests delete permission for a content URI via native MediaStore dialog on Android 11-15.
+  /// On older Android or non-Android platforms, returns true immediately.
+  Future<bool> requestDeletePermission(String contentUri) async {
+    if (!Platform.isAndroid || contentUri.isEmpty) {
+      return true;
+    }
+
+    try {
+      final granted = await _channel.invokeMethod<bool>(
+        'requestDeletePermission',
+        {'uri': contentUri},
+      );
+      return granted ?? false;
+    } catch (_) {
+      return true;
+    }
+  }
 }
 
 final scopedStorageServiceProvider = Provider<ScopedStorageService>((ref) {

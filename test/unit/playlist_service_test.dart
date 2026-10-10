@@ -79,6 +79,32 @@ void main() {
       expect(playlist!.name, equals('New Name'));
     });
 
+    test(
+      'updatePlaylistCover updates coverUri to preset, file path, and null',
+      () async {
+        final id = await playlistService.createPlaylist(
+          name: 'Cover Test',
+          coverUri: 'preset:neon_synth',
+        );
+
+        var playlist = await playlistService.getPlaylist(id);
+        expect(playlist!.coverUri, equals('preset:neon_synth'));
+
+        // Update to custom file path
+        await playlistService.updatePlaylistCover(
+          id,
+          '/data/covers/my_art.jpg',
+        );
+        playlist = await playlistService.getPlaylist(id);
+        expect(playlist!.coverUri, equals('/data/covers/my_art.jpg'));
+
+        // Reset to null
+        await playlistService.updatePlaylistCover(id, null);
+        playlist = await playlistService.getPlaylist(id);
+        expect(playlist!.coverUri, isNull);
+      },
+    );
+
     test('deletePlaylist removes playlist and its associated tracks', () async {
       final id = await playlistService.createPlaylist(name: 'To Delete');
       await playlistService.addTracksToPlaylist(id, ['track_1', 'track_2']);
@@ -146,6 +172,11 @@ void main() {
       await playlistService.reorderTracks(id, 2, 0);
       keys = await playlistService.getPlaylistTrackKeys(id);
       expect(keys, equals(['track_3', 'track_2', 'track_1']));
+
+      // Move track_2 (index 1) to index 2 (end of list)
+      await playlistService.reorderTracks(id, 1, 2);
+      keys = await playlistService.getPlaylistTrackKeys(id);
+      expect(keys, equals(['track_3', 'track_1', 'track_2']));
     });
   });
 }

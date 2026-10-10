@@ -14,6 +14,7 @@ import 'package:sonara/data/db/database_provider.dart';
 import 'package:sonara/domain/services/daily_mix_service.dart';
 import 'package:sonara/domain/services/library_scanner.dart';
 import 'package:sonara/domain/services/playlist_service.dart';
+import 'package:sonara/shared/artwork/playlist_artwork_widget.dart';
 import 'package:sonara/shared/artwork/sonara_brand_logo.dart';
 import 'package:sonara/shared/cards/daily_mix_card.dart';
 import 'package:sonara/shared/cards/media_card.dart';
@@ -45,13 +46,19 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const SonaraBrandLogo(size: 28),
-            const SizedBox(width: 10),
-            Text(
-              _getGreeting(),
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+            const SonaraBrandLogo(size: 24),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                _getGreeting(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.2,
+                ),
               ),
             ),
           ],
@@ -79,14 +86,24 @@ class HomeScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.sync_rounded),
-            tooltip: 'Rescan Library',
-            onPressed: () {
-              haptics.light();
-              ref
-                  .read(libraryScannerProvider.notifier)
-                  .scanLibrary(isFullScan: true);
-            },
+            icon: scanProgress.isScanning
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync_rounded),
+            tooltip: scanProgress.isScanning
+                ? 'Discovering audio files...'
+                : 'Rescan Library',
+            onPressed: scanProgress.isScanning
+                ? null
+                : () {
+                    haptics.light();
+                    ref
+                        .read(libraryScannerProvider.notifier)
+                        .scanLibrary(isFullScan: true);
+                  },
           ),
           IconButton(
             icon: const Icon(Icons.settings_rounded),
@@ -313,9 +330,7 @@ class HomeScreen extends ConsumerWidget {
                           title: 'Liked Songs',
                           subtitle: 'Favorites',
                           icon: Icons.favorite_rounded,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
-                          ),
+                          isLikedSongs: true,
                           onTap: () {
                             haptics.selection();
                             context.push('/playlist/-1');
@@ -329,9 +344,7 @@ class HomeScreen extends ConsumerWidget {
                           title: 'Recently Added',
                           subtitle: 'Latest additions',
                           icon: Icons.history_rounded,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF00B4DB), Color(0xFF0083B0)],
-                          ),
+                          coverUri: 'preset:cyber_pulse',
                           onTap: () {
                             haptics.selection();
                             context.push('/playlist/-2');
@@ -354,6 +367,8 @@ class HomeScreen extends ConsumerWidget {
                               icon: pl.isSmart
                                   ? Icons.auto_awesome_rounded
                                   : Icons.queue_music_rounded,
+                              coverUri: pl.coverUri,
+                              isSmart: pl.isSmart,
                               onTap: () {
                                 haptics.selection();
                                 context.push('/playlist/${pl.id}');
@@ -372,42 +387,46 @@ class HomeScreen extends ConsumerWidget {
                           onTap: () async {
                             haptics.selection();
                             final controller = TextEditingController();
-                            final name = await showDialog<String>(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('New Playlist'),
-                                content: TextField(
-                                  controller: controller,
-                                  autofocus: true,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Playlist name',
-                                    border: OutlineInputBorder(),
+                            try {
+                              final name = await showDialog<String>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('New Playlist'),
+                                  content: TextField(
+                                    controller: controller,
+                                    autofocus: true,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Playlist name',
+                                      border: OutlineInputBorder(),
+                                    ),
                                   ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(ctx).pop(),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx)
+                                              .pop(controller.text.trim()),
+                                      child: const Text('Create'),
+                                    ),
+                                  ],
                                 ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.of(ctx).pop(),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  FilledButton(
-                                    onPressed: () =>
-                                        Navigator.of(ctx)
-                                            .pop(controller.text.trim()),
-                                    child: const Text('Create'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (name != null && name.isNotEmpty) {
-                              final playlistService = ref.read(
-                                playlistServiceProvider,
                               );
-                              final id = await playlistService.createPlaylist(
-                                name: name,
-                              );
-                              if (context.mounted) {
-                                unawaited(context.push('/playlist/$id'));
+                              if (name != null && name.isNotEmpty) {
+                                final playlistService = ref.read(
+                                  playlistServiceProvider,
+                                );
+                                final id = await playlistService.createPlaylist(
+                                  name: name,
+                                );
+                                if (context.mounted) {
+                                  unawaited(context.push('/playlist/$id'));
+                                }
                               }
+                            } finally {
+                              controller.dispose();
                             }
                           },
                         ),
@@ -624,7 +643,9 @@ class HomeScreen extends ConsumerWidget {
     required String subtitle,
     required IconData icon,
     required VoidCallback onTap,
-    Gradient? gradient,
+    String? coverUri,
+    bool isLikedSongs = false,
+    bool isSmart = false,
     bool isAction = false,
   }) {
     final theme = Theme.of(context);
@@ -638,36 +659,31 @@ class HomeScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 120.0,
-              height: 100.0,
-              decoration: BoxDecoration(
-                gradient: gradient,
-                color: gradient == null
-                    ? (isAction
-                          ? colorScheme.surfaceContainerHighest.withValues(
-                              alpha: 0.6,
-                            )
-                          : colorScheme.surfaceContainerHighest)
-                    : null,
-                borderRadius: AppRadii.cardRadius,
-                border: isAction
-                    ? Border.all(
-                        color: colorScheme.primary.withValues(alpha: 0.4),
-                        width: 1.5,
-                      )
-                    : null,
+            if (isAction)
+              Container(
+                width: 120.0,
+                height: 100.0,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.6,
+                  ),
+                  borderRadius: AppRadii.cardRadius,
+                  border: Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(icon, size: 38, color: colorScheme.primary),
+              )
+            else
+              PlaylistArtworkWidget(
+                coverUri: coverUri,
+                width: 120.0,
+                height: 100.0,
+                isLikedSongs: isLikedSongs,
+                isSmart: isSmart,
+                fallbackIcon: icon,
               ),
-              child: Icon(
-                icon,
-                size: 38,
-                color: gradient != null
-                    ? Colors.white
-                    : (isAction
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant),
-              ),
-            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               title,

@@ -20,6 +20,7 @@ import '../../features/sleep_timer/sleep_timer_sheet.dart';
 import '../../features/speed/speed_sheet.dart';
 import '../../features/track_info/track_info_sheet.dart';
 import '../../shared/artwork/artwork_widget.dart';
+import '../../shared/sheets/song_cover_picker_sheet.dart';
 import '../../shared/sheets/track_context_sheet.dart';
 import '../../shared/visualizer/audio_visualizer.dart';
 import '../../shared/waveform/waveform_scrubber.dart';
@@ -62,6 +63,8 @@ class NowPlayingSheet extends ConsumerWidget {
     final dominantColor = PaletteService.fromSeed(seed).primary;
     final isMinimalistOled =
         audioSettings.nowPlayingSkin == NowPlayingSkin.minimalistOled;
+    final isBlackBg =
+        isMinimalistOled || theme.scaffoldBackgroundColor == Colors.black;
     final effectiveAccent = isMinimalistOled ? Colors.white : dominantColor;
 
     return PopScope(
@@ -148,16 +151,16 @@ class NowPlayingSheet extends ConsumerWidget {
                   );
                 },
               ),
-              IconButton(
-                icon: Icon(
-                  visualizerMode == 'off'
-                      ? Icons.graphic_eq_outlined
-                      : Icons.graphic_eq_rounded,
-                  color: visualizerMode != 'off'
-                      ? theme.colorScheme.primary
-                      : null,
-                ),
+              _NowPlayingToggleButton(
+                isActive: visualizerMode != 'off',
+                isBlackBg: isBlackBg,
+                icon: visualizerMode == 'off'
+                    ? Icons.graphic_eq_outlined
+                    : Icons.graphic_eq_rounded,
                 tooltip: 'Visualizer',
+                showActiveDot: false,
+                size: 40,
+                iconSize: 22,
                 onPressed: () {
                   haptics.selection();
                   final nextMode = switch (visualizerMode) {
@@ -184,9 +187,14 @@ class NowPlayingSheet extends ConsumerWidget {
                   );
                 },
               ),
-              IconButton(
-                icon: const Icon(Icons.equalizer_rounded),
+              _NowPlayingToggleButton(
+                isActive: audioSettings.equalizerEnabled,
+                isBlackBg: isBlackBg,
+                icon: Icons.equalizer_rounded,
                 tooltip: 'Equalizer',
+                showActiveDot: false,
+                size: 40,
+                iconSize: 22,
                 onPressed: () {
                   haptics.light();
                   context.push('/equalizer');
@@ -213,105 +221,118 @@ class NowPlayingSheet extends ConsumerWidget {
             ],
           ),
           body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
-              child: Column(
-                children: [
-                  // Artwork / Active Player Skin
-                  Expanded(
-                    flex: 5,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 350),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.06, 0.0),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: KeyedSubtree(
-                        key: ValueKey<String>(trackKey ?? snapshot.title),
-                        child: switch (audioSettings.nowPlayingSkin) {
-                          NowPlayingSkin.spinningVinyl => SpinningVinylSkin(
-                            snapshot: snapshot,
-                            artworkKey: track?.artworkKey,
-                            filePath: track?.path,
-                            title: track?.title ?? snapshot.title,
-                          ),
-                          NowPlayingSkin.retroCassette => RetroCassetteSkin(
-                            snapshot: snapshot,
-                          ),
-                          NowPlayingSkin.minimalistOled => MinimalistOledSkin(
-                            snapshot: snapshot,
-                            artworkKey: track?.artworkKey,
-                            filePath: track?.path,
-                            title: track?.title ?? snapshot.title,
-                          ),
-                          NowPlayingSkin.defaultModern => Center(
-                            child: GestureDetector(
-                              onHorizontalDragEnd: (details) {
-                                if (details.primaryVelocity != null) {
-                                  if (details.primaryVelocity! < -200) {
-                                    haptics.selection();
-                                    unawaited(playback.skipToNext());
-                                  } else if (details.primaryVelocity! > 200) {
-                                    haptics.selection();
-                                    unawaited(playback.skipToPrevious());
-                                  }
-                                }
-                              },
-                              onVerticalDragEnd: (details) {
-                                if (details.primaryVelocity != null &&
-                                    details.primaryVelocity! > 200) {
-                                  haptics.light();
-                                  onCollapse();
-                                }
-                              },
-                              onTap: () {
-                                haptics.light();
-                                if (visualizerMode != 'off') {
-                                  final nextMode = switch (visualizerMode) {
-                                    'spectrum' => 'vuMeter',
-                                    'vuMeter' => 'fluidWave',
-                                    _ => 'off',
-                                  };
-                                  ref
-                                      .read(audioSettingsProvider.notifier)
-                                      .setVisualizerMode(nextMode);
-                                } else {
-                                  playback.togglePlayPause();
-                                }
-                              },
-                              child: AnimatedScale(
-                                scale: snapshot.isPlaying ? 1.0 : 0.88,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOutCubic,
-                                child: RepaintBoundary(
-                                  child: AspectRatio(
-                                    aspectRatio: 1.0,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.35,
-                                            ),
-                                            blurRadius: 24,
-                                            offset: const Offset(0, 12),
-                                          ),
-                                        ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxHeight < 600;
+
+                final artworkWidget = AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 350),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.06, 0.0),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey<String>(trackKey ?? snapshot.title),
+                    child: switch (audioSettings.nowPlayingSkin) {
+                      NowPlayingSkin.spinningVinyl => SpinningVinylSkin(
+                        snapshot: snapshot,
+                        artworkKey: track?.artworkKey,
+                        filePath: track?.path,
+                        title: track?.title ?? snapshot.title,
+                      ),
+                      NowPlayingSkin.retroCassette => RetroCassetteSkin(
+                        snapshot: snapshot,
+                      ),
+                      NowPlayingSkin.minimalistOled => MinimalistOledSkin(
+                        snapshot: snapshot,
+                        artworkKey: track?.artworkKey,
+                        filePath: track?.path,
+                        title: track?.title ?? snapshot.title,
+                      ),
+                      NowPlayingSkin.defaultModern => Center(
+                        child: GestureDetector(
+                          onHorizontalDragEnd: (details) {
+                            if (details.primaryVelocity != null) {
+                              if (details.primaryVelocity! < -200) {
+                                haptics.selection();
+                                unawaited(playback.skipToNext());
+                              } else if (details.primaryVelocity! > 200) {
+                                haptics.selection();
+                                unawaited(playback.skipToPrevious());
+                              }
+                            }
+                          },
+                          onVerticalDragEnd: (details) {
+                            if (details.primaryVelocity != null &&
+                                details.primaryVelocity! > 200) {
+                              haptics.light();
+                              onCollapse();
+                            }
+                          },
+                          onTap: () {
+                            haptics.light();
+                            if (visualizerMode != 'off') {
+                              final nextMode = switch (visualizerMode) {
+                                'spectrum' => 'vuMeter',
+                                'vuMeter' => 'fluidWave',
+                                _ => 'off',
+                              };
+                              ref
+                                  .read(audioSettingsProvider.notifier)
+                                  .setVisualizerMode(nextMode);
+                            } else {
+                              playback.togglePlayPause();
+                            }
+                          },
+                          onLongPress: () {
+                            if (track != null) {
+                              haptics.medium();
+                              SongCoverPickerSheet.show(context, track);
+                            }
+                          },
+                          child: AnimatedScale(
+                            scale: snapshot.isPlaying ? 1.0 : 0.88,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                            child: RepaintBoundary(
+                              child: AspectRatio(
+                                aspectRatio: 1.0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                        blurRadius: 24,
+                                        offset: const Offset(0, 12),
                                       ),
-                                      clipBehavior: Clip.antiAlias,
-                                      child: visualizerMode == 'off'
-                                          ? ArtworkWidget(
+                                    ],
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: visualizerMode == 'off'
+                                      ? ArtworkWidget(
+                                          artworkKey: track?.artworkKey,
+                                          filePath: track?.path,
+                                          title: track?.title ?? snapshot.title,
+                                          size: double.infinity,
+                                          borderRadius: 16.0,
+                                        )
+                                      : Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            ArtworkWidget(
                                               artworkKey: track?.artworkKey,
                                               filePath: track?.path,
                                               title:
@@ -319,112 +340,97 @@ class NowPlayingSheet extends ConsumerWidget {
                                                   snapshot.title,
                                               size: double.infinity,
                                               borderRadius: 16.0,
-                                            )
-                                          : Stack(
-                                              fit: StackFit.expand,
-                                              children: [
-                                                ArtworkWidget(
-                                                  artworkKey: track?.artworkKey,
-                                                  filePath: track?.path,
-                                                  title:
-                                                      track?.title ??
-                                                      snapshot.title,
-                                                  size: double.infinity,
-                                                  borderRadius: 16.0,
-                                                ),
-                                                Container(
-                                                  color: Colors.black
-                                                      .withValues(alpha: 0.82),
-                                                  padding: const EdgeInsets.all(
-                                                    16,
-                                                  ),
-                                                  alignment: Alignment.center,
-                                                  child: AudioVisualizer(
-                                                    isPlaying:
-                                                        snapshot.isPlaying,
-                                                    position: snapshot.position,
-                                                    duration: snapshot.duration,
-                                                    speed: snapshot.speed,
-                                                    trackKey: snapshot
-                                                        .currentTrackKey,
-                                                    bandGains:
-                                                        audioSettings.bandGains,
-                                                    bassBoost:
-                                                        audioSettings.bassBoost,
-                                                    style:
-                                                        switch (visualizerMode) {
-                                                          'vuMeter' =>
-                                                            VisualizerStyle
-                                                                .vuMeter,
-                                                          'fluidWave' =>
-                                                            VisualizerStyle
-                                                                .fluidWave,
-                                                          _ =>
-                                                            VisualizerStyle
-                                                                .spectrum,
-                                                        },
-                                                    accentColor: dominantColor,
-                                                    height: double.infinity,
-                                                  ),
-                                                ),
-                                                Positioned(
-                                                  top: 12,
-                                                  right: 12,
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 10,
-                                                          vertical: 5,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.black87,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            10,
-                                                          ),
-                                                      border: Border.all(
-                                                        color: dominantColor
-                                                            .withValues(
-                                                              alpha: 0.5,
-                                                            ),
-                                                        width: 1,
-                                                      ),
-                                                    ),
-                                                    child: Text(
-                                                      switch (visualizerMode) {
-                                                        'vuMeter' =>
-                                                          'VU METERS',
-                                                        'fluidWave' =>
-                                                          'FLUID WAVE',
-                                                        _ => 'SPECTRUM',
-                                                      },
-                                                      style: theme
-                                                          .textTheme
-                                                          .labelSmall
-                                                          ?.copyWith(
-                                                            color:
-                                                                dominantColor,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 10,
-                                                            letterSpacing: 1.1,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
                                             ),
-                                    ),
-                                  ),
+                                            Container(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.82,
+                                              ),
+                                              padding: const EdgeInsets.all(16),
+                                              alignment: Alignment.center,
+                                              child: AudioVisualizer(
+                                                isPlaying: snapshot.isPlaying,
+                                                position: snapshot.position,
+                                                duration: snapshot.duration,
+                                                speed: snapshot.speed,
+                                                trackKey:
+                                                    snapshot.currentTrackKey,
+                                                bandGains:
+                                                    audioSettings.bandGains,
+                                                bassBoost:
+                                                    audioSettings.bassBoost,
+                                                style: switch (visualizerMode) {
+                                                  'vuMeter' =>
+                                                    VisualizerStyle.vuMeter,
+                                                  'fluidWave' =>
+                                                    VisualizerStyle.fluidWave,
+                                                  _ => VisualizerStyle.spectrum,
+                                                },
+                                                accentColor: dominantColor,
+                                                height: double.infinity,
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 12,
+                                              right: 12,
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 5,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black87,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: dominantColor
+                                                        .withValues(alpha: 0.5),
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  switch (visualizerMode) {
+                                                    'vuMeter' => 'VU METERS',
+                                                    'fluidWave' => 'FLUID WAVE',
+                                                    _ => 'SPECTRUM',
+                                                  },
+                                                  style: theme
+                                                      .textTheme
+                                                      .labelSmall
+                                                      ?.copyWith(
+                                                        color: dominantColor,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 10,
+                                                        letterSpacing: 1.1,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                 ),
                               ),
                             ),
                           ),
-                        },
+                        ),
                       ),
-                    ),
+                    },
                   ),
-                  const SizedBox(height: AppSpacing.m),
+                );
+
+                final content = <Widget>[
+                  if (isCompact)
+                    SizedBox(
+                      height: (constraints.maxHeight * 0.38).clamp(
+                        160.0,
+                        260.0,
+                      ),
+                      child: artworkWidget,
+                    )
+                  else
+                    Expanded(flex: 5, child: artworkWidget),
+                  SizedBox(height: isCompact ? AppSpacing.s : AppSpacing.m),
 
                   // Title, Artist, Favorite Row
                   Row(
@@ -479,13 +485,20 @@ class NowPlayingSheet extends ConsumerWidget {
                         ),
                       ),
                       // Favorite Toggle
-                      IconButton(
-                        icon: Icon(
-                          isFav
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: isFav ? theme.colorScheme.primary : null,
-                        ),
+                      _NowPlayingToggleButton(
+                        isActive: isFav,
+                        isBlackBg: isBlackBg,
+                        icon: isFav
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        customActiveColor: const Color(0xFFFF3366),
+                        customInactiveColor: isBlackBg
+                            ? Colors.white60
+                            : theme.colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.6,
+                              ),
+                        showActiveDot: false,
+                        size: 44,
                         iconSize: 28,
                         tooltip: isFav
                             ? 'Remove from Favorites'
@@ -596,17 +609,10 @@ class NowPlayingSheet extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons.shuffle_rounded,
-                          color: snapshot.shuffleEnabled
-                              ? (isMinimalistOled
-                                    ? Colors.white
-                                    : theme.colorScheme.primary)
-                              : (isMinimalistOled
-                                    ? Colors.white38
-                                    : theme.colorScheme.onSurfaceVariant),
-                        ),
+                      _NowPlayingToggleButton(
+                        isActive: snapshot.shuffleEnabled,
+                        isBlackBg: isBlackBg,
+                        icon: Icons.shuffle_rounded,
                         tooltip: 'Shuffle',
                         onPressed: () {
                           haptics.selection();
@@ -616,7 +622,9 @@ class NowPlayingSheet extends ConsumerWidget {
                       IconButton(
                         icon: Icon(
                           Icons.skip_previous_rounded,
-                          color: isMinimalistOled ? Colors.white : null,
+                          color: isBlackBg
+                              ? Colors.white
+                              : theme.colorScheme.onSurface,
                         ),
                         iconSize: 36,
                         tooltip: 'Previous',
@@ -629,7 +637,7 @@ class NowPlayingSheet extends ConsumerWidget {
                         width: 64,
                         height: 64,
                         decoration: BoxDecoration(
-                          color: isMinimalistOled
+                          color: isBlackBg
                               ? Colors.white
                               : theme.colorScheme.primary,
                           shape: BoxShape.circle,
@@ -639,7 +647,7 @@ class NowPlayingSheet extends ConsumerWidget {
                             snapshot.isPlaying
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
-                            color: isMinimalistOled
+                            color: isBlackBg
                                 ? Colors.black
                                 : theme.colorScheme.onPrimary,
                           ),
@@ -654,7 +662,9 @@ class NowPlayingSheet extends ConsumerWidget {
                       IconButton(
                         icon: Icon(
                           Icons.skip_next_rounded,
-                          color: isMinimalistOled ? Colors.white : null,
+                          color: isBlackBg
+                              ? Colors.white
+                              : theme.colorScheme.onSurface,
                         ),
                         iconSize: 36,
                         tooltip: 'Next',
@@ -663,19 +673,12 @@ class NowPlayingSheet extends ConsumerWidget {
                           playback.skipToNext();
                         },
                       ),
-                      IconButton(
-                        icon: Icon(
-                          snapshot.repeatMode == 2
-                              ? Icons.repeat_one_rounded
-                              : Icons.repeat_rounded,
-                          color: snapshot.repeatMode > 0
-                              ? (isMinimalistOled
-                                    ? Colors.white
-                                    : theme.colorScheme.primary)
-                              : (isMinimalistOled
-                                    ? Colors.white38
-                                    : theme.colorScheme.onSurfaceVariant),
-                        ),
+                      _NowPlayingToggleButton(
+                        isActive: snapshot.repeatMode > 0,
+                        isBlackBg: isBlackBg,
+                        icon: snapshot.repeatMode == 2
+                            ? Icons.repeat_one_rounded
+                            : Icons.repeat_rounded,
                         tooltip: 'Repeat',
                         onPressed: () {
                           haptics.selection();
@@ -693,7 +696,11 @@ class NowPlayingSheet extends ConsumerWidget {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.lyrics_outlined),
-                        color: isMinimalistOled ? Colors.white70 : null,
+                        color: isBlackBg
+                            ? Colors.white70
+                            : theme.colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
                         tooltip: 'Lyrics',
                         onPressed: () async {
                           haptics.light();
@@ -709,7 +716,11 @@ class NowPlayingSheet extends ConsumerWidget {
                       ),
                       IconButton(
                         icon: const Icon(Icons.queue_music_rounded),
-                        color: isMinimalistOled ? Colors.white70 : null,
+                        color: isBlackBg
+                            ? Colors.white70
+                            : theme.colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
                         tooltip: 'Queue',
                         onPressed: () {
                           haptics.light();
@@ -723,17 +734,12 @@ class NowPlayingSheet extends ConsumerWidget {
                           );
                         },
                       ),
-                      IconButton(
-                        icon: Icon(
-                          timerState.isActive
-                              ? Icons.timer_rounded
-                              : Icons.timer_outlined,
-                          color: timerState.isActive
-                              ? (isMinimalistOled
-                                    ? Colors.white
-                                    : theme.colorScheme.primary)
-                              : (isMinimalistOled ? Colors.white70 : null),
-                        ),
+                      _NowPlayingToggleButton(
+                        isActive: timerState.isActive,
+                        isBlackBg: isBlackBg,
+                        icon: timerState.isActive
+                            ? Icons.timer_rounded
+                            : Icons.timer_outlined,
                         tooltip: 'Sleep Timer',
                         onPressed: () {
                           haptics.light();
@@ -747,8 +753,14 @@ class NowPlayingSheet extends ConsumerWidget {
                           );
                         },
                       ),
-                      IconButton(
-                        icon:
+                      _NowPlayingToggleButton(
+                        isActive:
+                            snapshot.speed != 1.0 ||
+                            snapshot.pitchSemitones != 0,
+                        isBlackBg: isBlackBg,
+                        icon: Icons.speed_rounded,
+                        tooltip: 'Playback Speed',
+                        customChild:
                             (snapshot.speed != 1.0 ||
                                 snapshot.pitchSemitones != 0)
                             ? Column(
@@ -761,8 +773,8 @@ class NowPlayingSheet extends ConsumerWidget {
                                       ),
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: isMinimalistOled
-                                            ? Colors.white
+                                        color: isBlackBg
+                                            ? const Color(0xFF00E5FF)
                                             : theme.colorScheme.primary,
                                         fontSize: 9,
                                       ),
@@ -771,8 +783,8 @@ class NowPlayingSheet extends ConsumerWidget {
                                     '${snapshot.speed}x',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: isMinimalistOled
-                                          ? Colors.white
+                                      color: isBlackBg
+                                          ? const Color(0xFF00E5FF)
                                           : theme.colorScheme.primary,
                                       fontSize: snapshot.pitchSemitones != 0
                                           ? 9
@@ -781,11 +793,7 @@ class NowPlayingSheet extends ConsumerWidget {
                                   ),
                                 ],
                               )
-                            : Icon(
-                                Icons.speed_rounded,
-                                color: isMinimalistOled ? Colors.white70 : null,
-                              ),
-                        tooltip: 'Playback Speed',
+                            : null,
                         onPressed: () {
                           haptics.light();
                           unawaited(
@@ -800,7 +808,11 @@ class NowPlayingSheet extends ConsumerWidget {
                       ),
                       IconButton(
                         icon: const Icon(Icons.info_outline_rounded),
-                        color: isMinimalistOled ? Colors.white70 : null,
+                        color: isBlackBg
+                            ? Colors.white70
+                            : theme.colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.7,
+                              ),
                         tooltip: 'Track Info',
                         onPressed: () {
                           haptics.light();
@@ -820,8 +832,25 @@ class NowPlayingSheet extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.s),
-                ],
-              ),
+                ];
+
+                if (isCompact) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.l,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: content,
+                    ),
+                  );
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
+                  child: Column(children: content),
+                );
+              },
             ),
           ),
         ),
@@ -843,5 +872,119 @@ class NowPlayingSheet extends ConsumerWidget {
     final minutes = duration.inMinutes;
     final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
+  }
+}
+
+class _NowPlayingToggleButton extends StatelessWidget {
+  const _NowPlayingToggleButton({
+    required this.isActive,
+    required this.isBlackBg,
+    required this.onPressed,
+    required this.tooltip,
+    this.icon,
+    this.customChild,
+    this.customActiveColor,
+    this.customInactiveColor,
+    this.showActiveDot = true,
+    this.size = 48.0,
+    this.iconSize = 24.0,
+  });
+
+  final bool isActive;
+  final bool isBlackBg;
+  final VoidCallback? onPressed;
+  final String tooltip;
+  final IconData? icon;
+  final Widget? customChild;
+  final Color? customActiveColor;
+  final Color? customInactiveColor;
+  final bool showActiveDot;
+  final double size;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Active color: high-contrast, vibrant, punchy in all themes
+    final activeColor =
+        customActiveColor ??
+        (isBlackBg
+            ? const Color(0xFF00E5FF) // Electric cyan on pure black OLED/AMOLED
+            : (isDark
+                  ? (theme.colorScheme.primary.computeLuminance() < 0.2
+                        ? const Color(0xFF64B5F6)
+                        : theme.colorScheme.primary)
+                  : theme.colorScheme.primary));
+
+    // Inactive color: muted and distinctly low-emphasis
+    final inactiveColor =
+        customInactiveColor ??
+        (isBlackBg
+            ? Colors.white38
+            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45));
+
+    final currentColor = isActive ? activeColor : inactiveColor;
+    final currentBg = isActive
+        ? activeColor.withValues(
+            alpha: isBlackBg ? 0.22 : (isDark ? 0.20 : 0.14),
+          )
+        : Colors.transparent;
+
+    return Semantics(
+      selected: isActive,
+      label: tooltip,
+      button: true,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: currentBg,
+          shape: BoxShape.circle,
+          border: isActive
+              ? Border.all(
+                  color: activeColor.withValues(alpha: 0.45),
+                  width: 1.2,
+                )
+              : null,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints(minWidth: size, minHeight: size),
+              icon:
+                  customChild ??
+                  Icon(icon, color: currentColor, size: iconSize),
+              tooltip: tooltip,
+              onPressed: onPressed,
+            ),
+            if (showActiveDot && isActive)
+              Positioned(
+                bottom: 3,
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: activeColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: activeColor.withValues(alpha: 0.6),
+                        blurRadius: 3,
+                        spreadRadius: 0.5,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
