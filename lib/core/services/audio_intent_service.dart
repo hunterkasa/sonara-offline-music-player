@@ -49,11 +49,14 @@ class AudioIntentService {
       }
 
       // 1. Search if track exists in DB by contentUri or path
-      final allTracks = await db.watchAllTracks().first;
-      final match = allTracks.cast<Track?>().firstWhere(
-        (t) => t?.contentUri == uriString || t?.path == uriString,
-        orElse: () => null,
-      );
+      final match =
+          await (db.select(db.tracks)
+                ..where(
+                  (t) =>
+                      t.contentUri.equals(uriString) | t.path.equals(uriString),
+                )
+                ..limit(1))
+              .getSingleOrNull();
 
       if (match != null) {
         await playbackController.playTrack(match.trackKey);

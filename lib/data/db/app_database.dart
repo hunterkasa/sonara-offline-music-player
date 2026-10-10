@@ -496,11 +496,18 @@ class AppDatabase extends _$AppDatabase {
   ) async {
     if (trackKeys.isEmpty) return;
     await transaction(() async {
-      await (delete(playlistTracks)..where(
-            (pt) =>
-                pt.playlistId.equals(playlistId) & pt.trackKey.isIn(trackKeys),
-          ))
-          .go();
+      const chunkSize = 250;
+      for (var i = 0; i < trackKeys.length; i += chunkSize) {
+        final chunk = trackKeys.sublist(
+          i,
+          (i + chunkSize < trackKeys.length) ? i + chunkSize : trackKeys.length,
+        );
+        await (delete(playlistTracks)..where(
+              (pt) =>
+                  pt.playlistId.equals(playlistId) & pt.trackKey.isIn(chunk),
+            ))
+            .go();
+      }
 
       // Compact positions
       final remaining =
@@ -1194,6 +1201,7 @@ class AppDatabase extends _$AppDatabase {
     int? discNo,
     String? genre,
     String? artworkKey,
+    bool clearArtwork = false,
   }) async {
     await transaction(() async {
       final currentTrack = await (select(
@@ -1206,7 +1214,9 @@ class AppDatabase extends _$AppDatabase {
         title: album,
         artistId: artistId,
         year: year,
-        artworkKey: artworkKey ?? currentTrack.artworkKey,
+        artworkKey: clearArtwork
+            ? null
+            : (artworkKey ?? currentTrack.artworkKey),
       );
 
       await (update(tracks)..where((t) => t.trackKey.equals(trackKey))).write(
@@ -1219,9 +1229,9 @@ class AppDatabase extends _$AppDatabase {
           year: Value(year),
           trackNo: Value(trackNo),
           discNo: Value(discNo),
-          artworkKey: artworkKey != null
-              ? Value(artworkKey)
-              : const Value.absent(),
+          artworkKey: clearArtwork
+              ? const Value(null)
+              : (artworkKey != null ? Value(artworkKey) : const Value.absent()),
         ),
       );
 
@@ -1276,26 +1286,36 @@ class AppDatabase extends _$AppDatabase {
           sizeBytes: parentFileSize ?? 0,
         );
 
-        await into(tracks).insertOnConflictUpdate(
-          TracksCompanion(
-            trackKey: Value(cueTrackKey),
-            mediaStoreId: Value(parentMediaStoreId),
-            contentUri: Value(contentUri),
-            path: Value(audioPath),
-            relativeDir: Value(p.dirname(audioPath)),
-            title: Value(ct.title),
-            titleSort: Value(MetadataUtils.normalizeSortName(ct.title)),
-            artistId: Value(artistId),
-            albumId: Value(albumId),
-            albumArtistId: Value(artistId),
-            trackNo: Value(ct.trackNumber),
-            durationMs: Value(ct.duration?.inMilliseconds ?? 0),
-            sizeBytes: Value(parentFileSize ?? 0),
-            artworkKey: Value(artworkKey),
-            cueStartMs: Value(ct.startTime.inMilliseconds),
-            cueEndMs: Value(ct.endTime?.inMilliseconds),
-          ),
+        final companion = TracksCompanion(
+          trackKey: Value(cueTrackKey),
+          mediaStoreId: Value(parentMediaStoreId),
+          contentUri: Value(contentUri),
+          path: Value(audioPath),
+          relativeDir: Value(p.dirname(audioPath)),
+          title: Value(ct.title),
+          titleSort: Value(MetadataUtils.normalizeSortName(ct.title)),
+          artistId: Value(artistId),
+          albumId: Value(albumId),
+          albumArtistId: Value(artistId),
+          trackNo: Value(ct.trackNumber),
+          durationMs: Value(ct.duration?.inMilliseconds ?? 0),
+          sizeBytes: Value(parentFileSize ?? 0),
+          artworkKey: Value(artworkKey),
+          cueStartMs: Value(ct.startTime.inMilliseconds),
+          cueEndMs: Value(ct.endTime?.inMilliseconds),
         );
+
+        final existingTrack = await (select(
+          tracks,
+        )..where((t) => t.trackKey.equals(cueTrackKey))).getSingleOrNull();
+
+        if (existingTrack != null) {
+          await (update(
+            tracks,
+          )..where((t) => t.id.equals(existingTrack.id))).write(companion);
+        } else {
+          await into(tracks).insert(companion);
+        }
 
         await customStatement(
           'INSERT OR REPLACE INTO tracks_fts(track_key, title, artist, album, genre) VALUES (?, ?, ?, ?, ?)',

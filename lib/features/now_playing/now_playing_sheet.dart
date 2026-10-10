@@ -52,11 +52,6 @@ class NowPlayingSheet extends ConsumerWidget {
     final track = trackAsync.value;
     final isFav = track?.isFavorite ?? false;
 
-    final progressRatio = snapshot.duration.inMilliseconds > 0
-        ? (snapshot.position.inMilliseconds / snapshot.duration.inMilliseconds)
-              .clamp(0.0, 1.0)
-        : 0.0;
-
     final paletteAsync = ref.watch(paletteForTrackProvider(trackKey ?? ''));
     final dominantColor =
         paletteAsync.value?.primary ??
@@ -536,31 +531,14 @@ class NowPlayingSheet extends ConsumerWidget {
                   const SizedBox(height: 2),
 
                   // Seek Bar
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 5,
-                      ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 12,
-                      ),
-                      activeTrackColor: effectiveAccent,
-                      inactiveTrackColor: theme.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.25),
-                      thumbColor: effectiveAccent,
-                    ),
-                    child: Slider(
-                      value: progressRatio,
-                      onChanged: (val) {
-                        final targetMs =
-                            (val * snapshot.duration.inMilliseconds).round();
-                        playback.seek(Duration(milliseconds: targetMs));
-                      },
-                      onChangeEnd: (val) {
-                        haptics.light();
-                      },
-                    ),
+                  _SmoothSeekBar(
+                    position: snapshot.position,
+                    duration: snapshot.duration,
+                    accentColor: effectiveAccent,
+                    onSeek: (pos) {
+                      haptics.light();
+                      playback.seek(pos);
+                    },
                   ),
 
                   // Elapsed & Remaining time + Quality badge
@@ -986,6 +964,65 @@ class _NowPlayingToggleButton extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SmoothSeekBar extends StatefulWidget {
+  const _SmoothSeekBar({
+    required this.position,
+    required this.duration,
+    required this.accentColor,
+    required this.onSeek,
+  });
+
+  final Duration position;
+  final Duration duration;
+  final Color accentColor;
+  final ValueChanged<Duration> onSeek;
+
+  @override
+  State<_SmoothSeekBar> createState() => _SmoothSeekBarState();
+}
+
+class _SmoothSeekBarState extends State<_SmoothSeekBar> {
+  double? _dragValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final totalMs = widget.duration.inMilliseconds;
+    final currentRatio = totalMs > 0
+        ? (widget.position.inMilliseconds / totalMs).clamp(0.0, 1.0)
+        : 0.0;
+    final displayValue = (_dragValue ?? currentRatio).clamp(0.0, 1.0);
+
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        trackHeight: 3,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+        activeTrackColor: widget.accentColor,
+        inactiveTrackColor: theme.colorScheme.onSurfaceVariant.withValues(
+          alpha: 0.25,
+        ),
+        thumbColor: widget.accentColor,
+      ),
+      child: Slider(
+        value: displayValue,
+        onChanged: (val) {
+          setState(() {
+            _dragValue = val;
+          });
+        },
+        onChangeEnd: (val) {
+          final targetMs = (val * totalMs).round();
+          widget.onSeek(Duration(milliseconds: targetMs));
+          setState(() {
+            _dragValue = null;
+          });
+        },
       ),
     );
   }

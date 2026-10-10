@@ -226,6 +226,7 @@ class _TagEditorSheetState extends ConsumerState<TagEditorSheet> {
         discNo: newDiscNo,
         genre: newGenre.isNotEmpty ? newGenre : null,
         artworkKey: newArtworkKey,
+        clearArtwork: _artworkRemoved,
       );
 
       if (mounted) {

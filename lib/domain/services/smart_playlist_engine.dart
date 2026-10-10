@@ -170,13 +170,17 @@ class SmartPlaylistEngine {
 
   /// Evaluate rule group against all tracks and return matched tracks
   Future<List<Track>> evaluate(SmartRuleGroup group) async {
-    final allTracks = await _db.watchAllTracks().first;
+    final allTracks = await _db.getAllTracks(includeHidden: false);
     final allGenresMap = await _db.getAllTrackGenresMap();
+    final allArtists = await _db.getAllArtists();
+    final allAlbums = await _db.getAllAlbums();
+    final artistMap = {for (final a in allArtists) a.id: a.name};
+    final albumMap = {for (final a in allAlbums) a.id: a.title};
     final matched = <Track>[];
 
     for (final track in allTracks) {
-      final artistName = await _db.getArtistName(track.artistId);
-      final albumTitle = await _db.getAlbumTitle(track.albumId);
+      final artistName = artistMap[track.artistId];
+      final albumTitle = albumMap[track.albumId];
       final trackGenres = allGenresMap[track.id] ?? const [];
 
       if (group.rules.isEmpty) {

@@ -49,6 +49,7 @@ class LyricsService {
   }
 
   Future<String?> _findSidecarLrc(String audioPath) async {
+    if (audioPath.isEmpty) return null;
     try {
       final withoutExt = p.withoutExtension(audioPath);
       final lrcPath = '$withoutExt.lrc';
@@ -70,6 +71,7 @@ class LyricsService {
 
   /// Saves lyrics to sidecar .lrc file, updates the database hasLyrics state, and refreshes the in-memory cache.
   Future<bool> saveLyrics(Track track, String lrcContent) async {
+    if (track.path.isEmpty) return false;
     try {
       final withoutExt = p.withoutExtension(track.path);
       final lrcFile = File('$withoutExt.lrc');

@@ -381,57 +381,65 @@ class LibraryScanner extends StateNotifier<ScanProgress> {
             artworkKey: pData.artworkKey,
           );
 
-          await _db
-              .into(_db.tracks)
-              .insertOnConflictUpdate(
-                TracksCompanion(
-                  trackKey: Value(pData.trackKey),
-                  mediaStoreId: Value(pData.item.id),
-                  contentUri: Value(pData.item.contentUri),
-                  path: Value(pData.item.path),
-                  relativeDir: Value(
-                    pData.hasValidPath ? p.dirname(pData.item.path) : '',
-                  ),
-                  title: Value(pData.title),
-                  titleSort: Value(
-                    MetadataUtils.normalizeSortName(pData.title),
-                  ),
-                  artistId: Value(artistId),
-                  albumId: Value(albumId),
-                  albumArtistId: Value(albumArtistId),
-                  trackNo: Value(
-                    pData.metadata.trackNumber ??
-                        (pData.item.trackNumber > 0
-                            ? pData.item.trackNumber
-                            : null),
-                  ),
-                  discNo: Value(pData.metadata.discNumber),
-                  year: Value(
-                    pData.metadata.year ??
-                        (pData.item.year > 0 ? pData.item.year : null),
-                  ),
-                  durationMs: Value(pData.duration),
-                  mime: Value(
-                    pData.item.mimeType.isNotEmpty
-                        ? pData.item.mimeType
-                        : pData.metadata.codec,
-                  ),
-                  sizeBytes: Value(pData.size),
-                  dateAdded: Value(pData.item.dateAdded),
-                  dateModified: Value(pData.item.dateModified),
-                  artworkKey: Value(pData.artworkKey),
-                  replayGainTrackDb: Value(pData.metadata.replayGainTrackDb),
-                  replayGainAlbumDb: Value(pData.metadata.replayGainAlbumDb),
-                  hasLyrics: Value(
-                    pData.metadata.lyrics != null &&
-                        pData.metadata.lyrics!.isNotEmpty,
-                  ),
-                ),
-              );
+          final companion = TracksCompanion(
+            trackKey: Value(pData.trackKey),
+            mediaStoreId: Value(pData.item.id),
+            contentUri: Value(pData.item.contentUri),
+            path: Value(pData.item.path),
+            relativeDir: Value(
+              pData.hasValidPath ? p.dirname(pData.item.path) : '',
+            ),
+            title: Value(pData.title),
+            titleSort: Value(MetadataUtils.normalizeSortName(pData.title)),
+            artistId: Value(artistId),
+            albumId: Value(albumId),
+            albumArtistId: Value(albumArtistId),
+            trackNo: Value(
+              pData.metadata.trackNumber ??
+                  (pData.item.trackNumber > 0 ? pData.item.trackNumber : null),
+            ),
+            discNo: Value(pData.metadata.discNumber),
+            year: Value(
+              pData.metadata.year ??
+                  (pData.item.year > 0 ? pData.item.year : null),
+            ),
+            durationMs: Value(pData.duration),
+            mime: Value(
+              pData.item.mimeType.isNotEmpty
+                  ? pData.item.mimeType
+                  : pData.metadata.codec,
+            ),
+            sizeBytes: Value(pData.size),
+            dateAdded: Value(pData.item.dateAdded),
+            dateModified: Value(pData.item.dateModified),
+            artworkKey: Value(pData.artworkKey),
+            replayGainTrackDb: Value(pData.metadata.replayGainTrackDb),
+            replayGainAlbumDb: Value(pData.metadata.replayGainAlbumDb),
+            hasLyrics: Value(
+              pData.metadata.lyrics != null &&
+                  pData.metadata.lyrics!.isNotEmpty,
+            ),
+            isMissing: const Value(false),
+          );
 
-          final insertedTrack = await (_db.select(
+          final existingTrack = await (_db.select(
             _db.tracks,
           )..where((t) => t.trackKey.equals(pData.trackKey))).getSingleOrNull();
+
+          final Track? insertedTrack;
+          if (existingTrack != null) {
+            await (_db.update(
+              _db.tracks,
+            )..where((t) => t.id.equals(existingTrack.id))).write(companion);
+            insertedTrack = await (_db.select(
+              _db.tracks,
+            )..where((t) => t.id.equals(existingTrack.id))).getSingleOrNull();
+          } else {
+            final newId = await _db.into(_db.tracks).insert(companion);
+            insertedTrack = await (_db.select(
+              _db.tracks,
+            )..where((t) => t.id.equals(newId))).getSingleOrNull();
+          }
 
           if (insertedTrack != null) {
             for (final genreName in pData.genresList) {

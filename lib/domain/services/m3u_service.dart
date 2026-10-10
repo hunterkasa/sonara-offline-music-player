@@ -82,7 +82,7 @@ class M3uService {
 
   /// Resolve M3U entries to existing tracks in the database
   Future<List<String>> matchEntriesToTrackKeys(List<M3uEntry> entries) async {
-    final allTracks = await _db.watchAllTracks().first;
+    final allTracks = await _db.getAllTracks(includeHidden: true);
     final pathMap = <String, Track>{};
     final basenameMap = <String, Track>{};
     final titleMap = <String, Track>{};

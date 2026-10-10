@@ -337,5 +337,46 @@ void main() {
       );
       expect(gradient.colors.length, 2);
     });
+
+    test(
+      'resets isMissing to false when previously missing track is rescanned',
+      () async {
+        mediaStore.items = [
+          const MediaStoreItem(
+            id: 601,
+            contentUri: 'content://media/external/audio/media/601',
+            albumArtUri: '',
+            title: 'Restored Song',
+            artist: 'Artist R',
+            album: 'Album R',
+            durationMs: 200000,
+            path: '/storage/emulated/0/Music/restored.mp3',
+            sizeBytes: 4000000,
+            dateAdded: 1600000000,
+            dateModified: 1600000000,
+            albumId: 7,
+            trackNumber: 1,
+            mimeType: 'audio/mpeg',
+            year: 2024,
+          ),
+        ];
+        mediaStore.knownIds = [601];
+
+        // Initial scan
+        await scanner.scanLibrary(isFullScan: true);
+        var track = (await db.select(db.tracks).get()).first;
+        expect(track.isMissing, isFalse);
+
+        // Simulate track missing (e.g. unmounted SD card)
+        await db.markTrackMissing(track.trackKey);
+        track = (await db.select(db.tracks).get()).first;
+        expect(track.isMissing, isTrue);
+
+        // Rescan with track present again
+        await scanner.scanLibrary(isFullScan: true);
+        track = (await db.select(db.tracks).get()).first;
+        expect(track.isMissing, isFalse);
+      },
+    );
   });
 }

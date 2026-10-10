@@ -372,5 +372,70 @@ void main() {
         expect(t2, isNull);
       },
     );
+
+    test(
+      'updateTrackMetadata with clearArtwork clears artwork in DB',
+      () async {
+        await db
+            .into(db.tracks)
+            .insert(
+              TracksCompanion.insert(
+                trackKey: 'art_track_1',
+                contentUri: 'content://m/art1',
+                path: '/Music/art1.mp3',
+                title: 'Art Song',
+                titleSort: 'art song',
+                durationMs: 120000,
+                sizeBytes: 2000,
+                artworkKey: const Value('artwork_original_key'),
+              ),
+            );
+
+        var track = await db.getTrackByKey('art_track_1');
+        expect(track?.artworkKey, equals('artwork_original_key'));
+
+        await db.updateTrackMetadata(
+          trackKey: 'art_track_1',
+          title: 'Art Song Updated',
+          artist: 'Test Artist',
+          album: 'Test Album',
+          clearArtwork: true,
+        );
+
+        track = await db.getTrackByKey('art_track_1');
+        expect(track?.artworkKey, isNull);
+        expect(track?.title, equals('Art Song Updated'));
+      },
+    );
+
+    test('removeTracksFromPlaylist chunks removal properly', () async {
+      final plId = await db.createPlaylist(name: 'Large Chunk Playlist');
+      final trackKeys = <String>[];
+      for (var i = 0; i < 300; i++) {
+        final key = 'large_track_$i';
+        trackKeys.add(key);
+        await db
+            .into(db.tracks)
+            .insert(
+              TracksCompanion.insert(
+                trackKey: key,
+                contentUri: 'content://m/$i',
+                path: '/Music/$i.mp3',
+                title: 'Song $i',
+                titleSort: 'song $i',
+                durationMs: 100000,
+                sizeBytes: 1000,
+              ),
+            );
+      }
+      await db.addTracksToPlaylist(plId, trackKeys);
+      var currentTracks = await db.getPlaylistTracks(plId);
+      expect(currentTracks.length, equals(300));
+
+      // Remove all 300 tracks in batch (verifies chunking > 250)
+      await db.removeTracksFromPlaylist(plId, trackKeys);
+      currentTracks = await db.getPlaylistTracks(plId);
+      expect(currentTracks, isEmpty);
+    });
   });
 }

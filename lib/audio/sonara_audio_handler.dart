@@ -101,7 +101,9 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
         if (event.begin) {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              _player.setVolume(0.3);
+              _player.setVolume(
+                (_currentVolumeMultiplier * 0.3).clamp(0.0, 1.0),
+              );
               break;
             case AudioInterruptionType.pause:
             case AudioInterruptionType.unknown:
@@ -112,7 +114,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
         } else {
           switch (event.type) {
             case AudioInterruptionType.duck:
-              _player.setVolume(1.0);
+              _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
               break;
             case AudioInterruptionType.pause:
               if (_wasPlayingBeforeInterruption) {
@@ -261,9 +263,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       }
 
       // Synchronize shuffle changes without interrupting currently playing track
-      if (_lastShuffleEnabled != null &&
-          _lastShuffleEnabled != state.shuffleEnabled &&
-          _player.playing) {
+      if (_lastShuffleEnabled != state.shuffleEnabled) {
         _lastShuffleEnabled = state.shuffleEnabled;
         final source = _audioSource;
         if (source != null && source.length > 1 && !_isSwitchingSource) {
@@ -282,8 +282,6 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
             _isSwitchingSource = false;
           }
         }
-      } else {
-        _lastShuffleEnabled = state.shuffleEnabled;
       }
     });
   }
@@ -397,9 +395,9 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   AudioSource _buildAudioSourceForTrack(Track track) {
-    final uri = Uri.parse(
-      track.contentUri.isNotEmpty ? track.contentUri : track.path,
-    );
+    final uri = track.contentUri.isNotEmpty
+        ? Uri.parse(track.contentUri)
+        : Uri.file(track.path);
     final item = MediaItem(
       id: track.trackKey,
       title: track.title,
