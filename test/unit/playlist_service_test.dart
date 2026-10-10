@@ -152,6 +152,25 @@ void main() {
       },
     );
 
+    test('removeTracksFromPlaylist removes multiple tracks in batch', () async {
+      final id = await playlistService.createPlaylist(name: 'Batch Remove');
+      await playlistService.addTracksToPlaylist(id, [
+        'track_1',
+        'track_2',
+        'track_3',
+      ]);
+
+      var keys = await playlistService.getPlaylistTrackKeys(id);
+      expect(keys, equals(['track_1', 'track_2', 'track_3']));
+
+      await playlistService.removeTracksFromPlaylist(id, [
+        'track_1',
+        'track_3',
+      ]);
+      keys = await playlistService.getPlaylistTrackKeys(id);
+      expect(keys, equals(['track_2']));
+    });
+
     test('reorderTracks updates positions cleanly', () async {
       final id = await playlistService.createPlaylist(name: 'Reorder Test');
       await playlistService.addTracksToPlaylist(id, [

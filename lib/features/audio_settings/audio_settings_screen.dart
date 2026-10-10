@@ -272,6 +272,18 @@ class AudioSettingsScreen extends ConsumerWidget {
               notifier.setLongAudioPositionMemory(val);
             },
           ),
+          SwitchListTile(
+            secondary: const Icon(Icons.speed_rounded),
+            title: const Text('Remember Speed & Pitch'),
+            subtitle: const Text(
+              'Persist custom playback speed and musical pitch key across app restarts instead of resetting to 1.0x',
+            ),
+            value: settings.rememberSpeedAndPitch,
+            onChanged: (val) {
+              haptics.selection();
+              notifier.setRememberSpeedAndPitch(val);
+            },
+          ),
           const Divider(),
 
           // PER-OUTPUT-DEVICE PROFILES SECTION

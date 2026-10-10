@@ -6,6 +6,7 @@ import '../../app/theme/theme_tokens.dart';
 import '../../audio/sleep_timer.dart';
 import '../../core/services/gesture_sensor_service.dart';
 import '../../core/services/haptic_service.dart';
+import '../../domain/models/audio_settings.dart';
 
 class SleepTimerSheet extends ConsumerStatefulWidget {
   const SleepTimerSheet({super.key});
@@ -205,6 +206,38 @@ class _SleepTimerSheetState extends ConsumerState<SleepTimerSheet> {
                 ],
               ),
             ),
+            Text(
+              'Fade-Out Curve',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            SegmentedButton<SleepTimerFadeCurve>(
+              segments: const [
+                ButtonSegment(
+                  value: SleepTimerFadeCurve.linear,
+                  label: Text('Linear'),
+                  icon: Icon(Icons.show_chart_rounded, size: 16),
+                ),
+                ButtonSegment(
+                  value: SleepTimerFadeCurve.logarithmic,
+                  label: Text('Logarithmic'),
+                  icon: Icon(Icons.trending_down_rounded, size: 16),
+                ),
+                ButtonSegment(
+                  value: SleepTimerFadeCurve.exponential,
+                  label: Text('Exponential'),
+                  icon: Icon(Icons.water_drop_outlined, size: 16),
+                ),
+              ],
+              selected: {timerState.fadeCurve},
+              onSelectionChanged: (set) {
+                haptics.selection();
+                timerController.setFadeCurve(set.first);
+              },
+            ),
+            const SizedBox(height: AppSpacing.m),
             FilledButton(
               onPressed: () {
                 haptics.selection();

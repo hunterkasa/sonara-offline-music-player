@@ -9,6 +9,8 @@ enum NowPlayingSkin {
   minimalistOled,
 }
 
+enum SleepTimerFadeCurve { linear, logarithmic, exponential }
+
 class AudioSettings {
   final bool equalizerEnabled;
   final String equalizerPreset;
@@ -30,6 +32,9 @@ class AudioSettings {
   final String visualizerMode; // 'off', 'spectrum', 'vu', 'fluid'
   final NowPlayingSkin nowPlayingSkin;
   final bool backgroundPlayback;
+  final bool rememberSpeedAndPitch;
+  final double playbackSpeed;
+  final SleepTimerFadeCurve sleepTimerFadeCurve;
 
   const AudioSettings({
     this.equalizerEnabled = false,
@@ -52,6 +57,9 @@ class AudioSettings {
     this.visualizerMode = 'off',
     this.nowPlayingSkin = NowPlayingSkin.defaultModern,
     this.backgroundPlayback = true,
+    this.rememberSpeedAndPitch = true,
+    this.playbackSpeed = 1.0,
+    this.sleepTimerFadeCurve = SleepTimerFadeCurve.linear,
   });
 
   AudioSettings copyWith({
@@ -75,6 +83,9 @@ class AudioSettings {
     String? visualizerMode,
     NowPlayingSkin? nowPlayingSkin,
     bool? backgroundPlayback,
+    bool? rememberSpeedAndPitch,
+    double? playbackSpeed,
+    SleepTimerFadeCurve? sleepTimerFadeCurve,
   }) {
     return AudioSettings(
       equalizerEnabled: equalizerEnabled ?? this.equalizerEnabled,
@@ -101,6 +112,10 @@ class AudioSettings {
       visualizerMode: visualizerMode ?? this.visualizerMode,
       nowPlayingSkin: nowPlayingSkin ?? this.nowPlayingSkin,
       backgroundPlayback: backgroundPlayback ?? this.backgroundPlayback,
+      rememberSpeedAndPitch:
+          rememberSpeedAndPitch ?? this.rememberSpeedAndPitch,
+      playbackSpeed: playbackSpeed ?? this.playbackSpeed,
+      sleepTimerFadeCurve: sleepTimerFadeCurve ?? this.sleepTimerFadeCurve,
     );
   }
 
@@ -126,6 +141,9 @@ class AudioSettings {
       'visualizerMode': visualizerMode,
       'nowPlayingSkin': nowPlayingSkin.name,
       'backgroundPlayback': backgroundPlayback,
+      'rememberSpeedAndPitch': rememberSpeedAndPitch,
+      'playbackSpeed': playbackSpeed,
+      'sleepTimerFadeCurve': sleepTimerFadeCurve.name,
     };
   }
 
@@ -162,6 +180,12 @@ class AudioSettings {
         orElse: () => NowPlayingSkin.defaultModern,
       ),
       backgroundPlayback: map['backgroundPlayback'] as bool? ?? true,
+      rememberSpeedAndPitch: map['rememberSpeedAndPitch'] as bool? ?? true,
+      playbackSpeed: (map['playbackSpeed'] as num?)?.toDouble() ?? 1.0,
+      sleepTimerFadeCurve: SleepTimerFadeCurve.values.firstWhere(
+        (e) => e.name == map['sleepTimerFadeCurve'],
+        orElse: () => SleepTimerFadeCurve.linear,
+      ),
     );
   }
 

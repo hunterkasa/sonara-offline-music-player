@@ -93,6 +93,9 @@ class SpeedSheet extends ConsumerWidget {
                     if (selected) {
                       haptics.selection();
                       ref.read(playbackControllerProvider).setSpeed(speed);
+                      ref
+                          .read(audioSettingsProvider.notifier)
+                          .setPlaybackSpeed(speed);
                     }
                   },
                   selectedColor: theme.colorScheme.primaryContainer,

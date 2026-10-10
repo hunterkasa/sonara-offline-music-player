@@ -174,6 +174,7 @@ class PitchSpeedSheet extends ConsumerWidget {
             label: '${currentSpeed.toStringAsFixed(2)}x',
             onChanged: (val) {
               controller.setSpeed(val);
+              ref.read(audioSettingsProvider.notifier).setPlaybackSpeed(val);
             },
           ),
           Row(
@@ -185,6 +186,7 @@ class PitchSpeedSheet extends ConsumerWidget {
                 selected: isSelected,
                 onSelected: (_) {
                   controller.setSpeed(s);
+                  ref.read(audioSettingsProvider.notifier).setPlaybackSpeed(s);
                 },
               );
             }).toList(),

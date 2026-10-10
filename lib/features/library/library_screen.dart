@@ -15,7 +15,10 @@ import 'package:sonara/features/playlist/playlist_cover_picker_sheet.dart';
 import 'package:sonara/shared/artwork/artwork_widget.dart';
 import 'package:sonara/shared/artwork/playlist_artwork_widget.dart';
 import 'package:sonara/shared/cards/media_card.dart';
+import 'package:sonara/shared/selection/multi_select_action_bar.dart';
 import 'package:sonara/shared/track_tile/track_tile.dart';
+
+import '../playlist/add_to_playlist_sheet.dart';
 
 enum LibraryTab { playlists, songs, albums, artists, genres, folders }
 
@@ -44,6 +47,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   SongSortOption _sortOption = SongSortOption.titleAsc;
   bool _isGridView = false;
   final ScrollController _scrollController = ScrollController();
+  final Set<String> _selectedTrackKeys = {};
+  bool _isSelectionMode = false;
+  bool _isFolderTreeView = false;
+  String _currentFolderPath = '';
 
   @override
   void initState() {
@@ -172,11 +179,41 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
         ),
         actions: [
-          if (_currentTab == LibraryTab.songs)
+          if (_currentTab == LibraryTab.songs) ...[
+            IconButton(
+              icon: Icon(
+                _isSelectionMode
+                    ? Icons.checklist_rtl_rounded
+                    : Icons.checklist_rounded,
+              ),
+              tooltip: _isSelectionMode ? 'Exit Selection' : 'Select Songs',
+              onPressed: () {
+                setState(() {
+                  _isSelectionMode = !_isSelectionMode;
+                  if (!_isSelectionMode) _selectedTrackKeys.clear();
+                });
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.sort_rounded),
               tooltip: 'Sort',
               onPressed: () => _showSortSheet(context),
+            ),
+          ],
+          if (_currentTab == LibraryTab.folders)
+            IconButton(
+              icon: Icon(
+                _isFolderTreeView
+                    ? Icons.format_list_bulleted_rounded
+                    : Icons.account_tree_outlined,
+              ),
+              tooltip: _isFolderTreeView ? 'Flat View' : 'Folder Tree',
+              onPressed: () {
+                setState(() {
+                  _isFolderTreeView = !_isFolderTreeView;
+                  _currentFolderPath = '';
+                });
+              },
             ),
           if (_currentTab == LibraryTab.albums ||
               _currentTab == LibraryTab.artists)
@@ -282,7 +319,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) {
-        setState(() => _currentTab = tab);
+        setState(() {
+          _currentTab = tab;
+          _selectedTrackKeys.clear();
+          _isSelectionMode = false;
+          _currentFolderPath = '';
+        });
       },
     );
   }
@@ -310,6 +352,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget _buildSongsView() {
     final db = ref.watch(databaseProvider);
     final playback = ref.watch(playbackControllerProvider);
+    final haptics = ref.watch(hapticServiceProvider);
 
     return StreamBuilder<List<Track>>(
       stream: _getSortedTracksStream(db),
@@ -324,38 +367,205 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         }
 
         final titles = tracks.map((t) => t.titleSort).toList();
+        final isSelecting = _isSelectionMode || _selectedTrackKeys.isNotEmpty;
 
         return Stack(
           children: [
             ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.only(bottom: 96.0),
+              padding: EdgeInsets.only(bottom: isSelecting ? 148.0 : 96.0),
               itemCount: tracks.length,
               itemExtent: 64.0,
               itemBuilder: (context, index) {
                 final track = tracks[index];
+                final isSelected = _selectedTrackKeys.contains(track.trackKey);
+
                 return TrackTile(
                   track: track,
+                  isSelectable: isSelecting,
+                  isSelected: isSelected,
+                  onSelectChanged: (val) {
+                    haptics.selection();
+                    setState(() {
+                      if (val == true) {
+                        _selectedTrackKeys.add(track.trackKey);
+                      } else {
+                        _selectedTrackKeys.remove(track.trackKey);
+                        if (_selectedTrackKeys.isEmpty && !_isSelectionMode) {
+                          _isSelectionMode = false;
+                        }
+                      }
+                    });
+                  },
+                  onLongPress: () {
+                    haptics.medium();
+                    setState(() {
+                      _isSelectionMode = true;
+                      _selectedTrackKeys.add(track.trackKey);
+                    });
+                  },
                   onTap: () {
-                    playback.playQueue(
-                      tracks.map((t) => t.trackKey).toList(),
-                      initialIndex: index,
-                    );
+                    if (isSelecting) {
+                      haptics.selection();
+                      setState(() {
+                        if (isSelected) {
+                          _selectedTrackKeys.remove(track.trackKey);
+                          if (_selectedTrackKeys.isEmpty && !_isSelectionMode) {
+                            _isSelectionMode = false;
+                          }
+                        } else {
+                          _selectedTrackKeys.add(track.trackKey);
+                        }
+                      });
+                    } else {
+                      playback.playQueue(
+                        tracks.map((t) => t.trackKey).toList(),
+                        initialIndex: index,
+                      );
+                    }
                   },
                 );
               },
             ),
             // Sticky A-Z Scrubber
-            Positioned(
-              right: 2.0,
-              top: 16.0,
-              bottom: 110.0,
-              child: _buildAlphabetScrubber(titles),
-            ),
+            if (!isSelecting)
+              Positioned(
+                right: 2.0,
+                top: 16.0,
+                bottom: 110.0,
+                child: _buildAlphabetScrubber(titles),
+              ),
+            // Multi-Select Action Bar
+            if (isSelecting)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: MultiSelectActionBar(
+                  selectedCount: _selectedTrackKeys.length,
+                  totalCount: tracks.length,
+                  onClear: () {
+                    haptics.selection();
+                    setState(() {
+                      _selectedTrackKeys.clear();
+                      _isSelectionMode = false;
+                    });
+                  },
+                  onSelectAll: () {
+                    haptics.selection();
+                    setState(() {
+                      _selectedTrackKeys.addAll(tracks.map((t) => t.trackKey));
+                    });
+                  },
+                  onPlay: () {
+                    haptics.selection();
+                    final selected = _selectedTrackKeys.toList();
+                    if (selected.isNotEmpty) {
+                      playback.playQueue(selected);
+                    }
+                  },
+                  onAddToQueue: () async {
+                    haptics.selection();
+                    final selected = _selectedTrackKeys.toList();
+                    for (final k in selected) {
+                      await playback.addToQueue(k);
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Added ${selected.length} songs to queue',
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                    setState(() {
+                      _selectedTrackKeys.clear();
+                      _isSelectionMode = false;
+                    });
+                  },
+                  onAddToPlaylist: () {
+                    haptics.selection();
+                    final selected = _selectedTrackKeys.toList();
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (ctx) => AddToPlaylistSheet(trackKeys: selected),
+                    );
+                  },
+                  onFavorite: () async {
+                    haptics.selection();
+                    final selected = _selectedTrackKeys.toList();
+                    await db.setFavoriteTracks(selected, true);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Added ${selected.length} songs to Favorites',
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                    setState(() {
+                      _selectedTrackKeys.clear();
+                      _isSelectionMode = false;
+                    });
+                  },
+                  onDelete: () =>
+                      _showBatchDeleteDialog(_selectedTrackKeys.toList()),
+                ),
+              ),
           ],
         );
       },
     );
+  }
+
+  Future<void> _showBatchDeleteDialog(List<String> trackKeys) async {
+    final haptics = ref.read(hapticServiceProvider);
+    haptics.medium();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Songs'),
+        content: Text(
+          'Are you sure you want to remove ${trackKeys.length} ${trackKeys.length == 1 ? 'song' : 'songs'} from your library?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final db = ref.read(databaseProvider);
+      await db.deleteTracks(trackKeys);
+      haptics.light();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Deleted ${trackKeys.length} songs'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        setState(() {
+          _selectedTrackKeys.clear();
+          _isSelectionMode = false;
+        });
+      }
+    }
   }
 
   Stream<List<Track>> _getSortedTracksStream(AppDatabase db) {
@@ -649,11 +859,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Folders View
+  // Folders View (Flat & Hierarchy Tree Modes)
   // ---------------------------------------------------------------------------
   Widget _buildFoldersView() {
     final haptics = ref.read(hapticServiceProvider);
     final foldersAsync = ref.watch(folderSummariesStreamProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return foldersAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -663,44 +875,385 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           return _buildEmptyState('No music folders found');
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.only(bottom: 96.0),
-          itemCount: folders.length,
-          itemBuilder: (context, index) {
-            final folder = folders[index];
-            return ListTile(
-              leading: Container(
-                width: 44.0,
-                height: 44.0,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                child: Icon(
-                  Icons.folder_rounded,
-                  color: Theme.of(context).colorScheme.onTertiaryContainer,
-                ),
-              ),
-              title: Text(
-                folder.path,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                '${folder.trackCount} ${folder.trackCount == 1 ? 'song' : 'songs'}',
-              ),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                haptics.selection();
-                context.push(
-                  '/folder?path=${Uri.encodeQueryComponent(folder.path)}',
-                );
-              },
-            );
-          },
-        );
+        if (!_isFolderTreeView) {
+          return _buildFlatFoldersList(folders, haptics, theme, colorScheme);
+        }
+
+        return _buildFolderTreeView(folders, haptics, theme, colorScheme);
       },
+    );
+  }
+
+  Widget _buildFolderViewHeader(int folderCount, bool isTree) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final haptics = ref.read(hapticServiceProvider);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.m,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLowest,
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isTree ? Icons.account_tree_outlined : Icons.folder_open_rounded,
+            size: 18,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            isTree ? 'Folder Tree' : 'All Folders ($folderCount)',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const Spacer(),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(
+                value: false,
+                icon: Icon(Icons.format_list_bulleted_rounded, size: 16),
+                label: Text('Flat'),
+              ),
+              ButtonSegment(
+                value: true,
+                icon: Icon(Icons.account_tree_rounded, size: 16),
+                label: Text('Tree'),
+              ),
+            ],
+            selected: {_isFolderTreeView},
+            showSelectedIcon: false,
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onSelectionChanged: (set) {
+              haptics.selection();
+              setState(() {
+                _isFolderTreeView = set.first;
+                _currentFolderPath = '';
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlatFoldersList(
+    List<FolderSummary> folders,
+    HapticService haptics,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    return Column(
+      children: [
+        _buildFolderViewHeader(folders.length, false),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 96.0),
+            itemCount: folders.length,
+            itemBuilder: (context, index) {
+              final folder = folders[index];
+              return ListTile(
+                leading: Container(
+                  width: 44.0,
+                  height: 44.0,
+                  decoration: BoxDecoration(
+                    color: colorScheme.tertiaryContainer,
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: Icon(
+                    Icons.folder_rounded,
+                    color: colorScheme.onTertiaryContainer,
+                  ),
+                ),
+                title: Text(
+                  folder.path,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  '${folder.trackCount} ${folder.trackCount == 1 ? 'song' : 'songs'}',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  haptics.selection();
+                  context.push(
+                    '/folder?path=${Uri.encodeQueryComponent(folder.path)}',
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFolderTreeView(
+    List<FolderSummary> folders,
+    HapticService haptics,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    String norm(String p) =>
+        p.replaceAll('\\', '/').replaceAll(RegExp(r'^/+|/+$'), '');
+
+    final normalized = folders
+        .map((f) => (path: norm(f.path), count: f.trackCount))
+        .toList();
+
+    final currentNorm = norm(_currentFolderPath);
+    final prefix = currentNorm.isEmpty ? '' : '$currentNorm/';
+
+    // Calculate subfolders and direct tracks at this level
+    final Map<String, int> subfolderCounts = {};
+    int directCount = 0;
+    bool hasExactFolder = false;
+
+    for (final item in normalized) {
+      if (item.path == currentNorm && currentNorm.isNotEmpty) {
+        directCount += item.count;
+        hasExactFolder = true;
+      } else if (prefix.isEmpty || item.path.startsWith(prefix)) {
+        final remainder = prefix.isEmpty
+            ? item.path
+            : item.path.substring(prefix.length);
+        if (remainder.isNotEmpty) {
+          final firstSegment = remainder.split('/').first;
+          subfolderCounts[firstSegment] =
+              (subfolderCounts[firstSegment] ?? 0) + item.count;
+        }
+      }
+    }
+
+    final subfolderNames = subfolderCounts.keys.toList()..sort();
+    final breadcrumbSegments = currentNorm.isEmpty
+        ? <String>[]
+        : currentNorm.split('/');
+
+    return Column(
+      children: [
+        _buildFolderViewHeader(folders.length, true),
+
+        // Interactive Breadcrumbs Row
+        Container(
+          width: double.infinity,
+          color: colorScheme.surfaceContainerLow,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.m,
+            vertical: AppSpacing.xs,
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                InkWell(
+                  onTap: () {
+                    haptics.selection();
+                    setState(() => _currentFolderPath = '');
+                  },
+                  borderRadius: BorderRadius.circular(4.0),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4.0,
+                      vertical: 2.0,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.home_filled,
+                          size: 16,
+                          color: currentNorm.isEmpty
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Root',
+                          style: TextStyle(
+                            fontWeight: currentNorm.isEmpty
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: currentNorm.isEmpty
+                                ? colorScheme.primary
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                for (var i = 0; i < breadcrumbSegments.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      haptics.selection();
+                      final target = breadcrumbSegments.take(i + 1).join('/');
+                      setState(() => _currentFolderPath = target);
+                    },
+                    borderRadius: BorderRadius.circular(4.0),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4.0,
+                        vertical: 2.0,
+                      ),
+                      child: Text(
+                        breadcrumbSegments[i],
+                        style: TextStyle(
+                          fontWeight: (i == breadcrumbSegments.length - 1)
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: (i == breadcrumbSegments.length - 1)
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+
+        // List of entries: Parent navigation, Direct folder action, Subfolders
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 96.0),
+            children: [
+              // Up to Parent Folder row
+              if (currentNorm.isNotEmpty)
+                ListTile(
+                  leading: Container(
+                    width: 44.0,
+                    height: 44.0,
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Icon(
+                      Icons.drive_folder_upload_rounded,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  title: const Text(
+                    '.. Up to Parent',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text('Back to previous folder level'),
+                  onTap: () {
+                    haptics.selection();
+                    if (breadcrumbSegments.length <= 1) {
+                      setState(() => _currentFolderPath = '');
+                    } else {
+                      final parent = breadcrumbSegments
+                          .take(breadcrumbSegments.length - 1)
+                          .join('/');
+                      setState(() => _currentFolderPath = parent);
+                    }
+                  },
+                ),
+
+              // If current folder has direct tracks or matches an indexed folder
+              if (hasExactFolder || directCount > 0)
+                ListTile(
+                  leading: Container(
+                    width: 44.0,
+                    height: 44.0,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Icon(
+                      Icons.library_music_rounded,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  title: Text(
+                    'Songs in "${breadcrumbSegments.isNotEmpty ? breadcrumbSegments.last : currentNorm}"',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '$directCount ${directCount == 1 ? 'song' : 'songs'} directly in this folder',
+                  ),
+                  trailing: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                  ),
+                  onTap: () {
+                    haptics.selection();
+                    context.push(
+                      '/folder?path=${Uri.encodeQueryComponent(_currentFolderPath)}',
+                    );
+                  },
+                ),
+
+              // Immediate subfolders
+              for (final sub in subfolderNames)
+                ListTile(
+                  leading: Container(
+                    width: 44.0,
+                    height: 44.0,
+                    decoration: BoxDecoration(
+                      color: colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Icon(
+                      Icons.folder_rounded,
+                      color: colorScheme.onTertiaryContainer,
+                    ),
+                  ),
+                  title: Text(
+                    sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${subfolderCounts[sub]} ${subfolderCounts[sub] == 1 ? 'song' : 'songs'}',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    haptics.selection();
+                    final next = currentNorm.isEmpty
+                        ? sub
+                        : '$currentNorm/$sub';
+                    setState(() => _currentFolderPath = next);
+                  },
+                ),
+
+              if (subfolderNames.isEmpty && !hasExactFolder && directCount == 0)
+                const Padding(
+                  padding: EdgeInsets.all(AppSpacing.xl),
+                  child: Center(child: Text('Folder is empty')),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

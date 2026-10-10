@@ -128,5 +128,115 @@ void main() {
         }
       }
     });
+
+    test('parses ID3v2 USLT unsynced lyrics correctly', () async {
+      final tempFile = File('${Directory.systemTemp.path}/test_uslt.mp3');
+
+      // USLT frame:
+      // encoding: 0 (latin1), lang: 'eng', descriptor: null (0), text: 'Hello World Lyrics'
+      const lyricsText = 'Hello World Lyrics';
+      final payload = [
+        0x00, // encoding
+        0x65, 0x6E, 0x67, // 'eng'
+        0x00, // descriptor null terminator
+        ...lyricsText.codeUnits,
+      ];
+      final size = payload.length;
+      final frame = [
+        ...'USLT'.codeUnits,
+        (size >> 24) & 0xFF,
+        (size >> 16) & 0xFF,
+        (size >> 8) & 0xFF,
+        size & 0xFF,
+        0x00, 0x00, // flags
+        ...payload,
+      ];
+
+      final tagSize = frame.length;
+      final header = [
+        0x49, 0x44, 0x33, // 'ID3'
+        0x03, 0x00, // v2.3.0
+        0x00, // flags
+        (tagSize >> 21) & 0x7F,
+        (tagSize >> 14) & 0x7F,
+        (tagSize >> 7) & 0x7F,
+        tagSize & 0x7F,
+      ];
+
+      final fullBytes = [...header, ...frame];
+      while (fullBytes.length < 150) {
+        fullBytes.add(0);
+      }
+
+      await tempFile.writeAsBytes(fullBytes);
+      try {
+        final meta = await TagReader.readFromFile(tempFile);
+        expect(meta.lyrics, equals('Hello World Lyrics'));
+      } finally {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      }
+    });
+
+    test('parses ID3v2 SYLT synced lyrics into timestamped lines', () async {
+      final tempFile = File('${Directory.systemTemp.path}/test_sylt.mp3');
+
+      // SYLT frame:
+      // encoding: 0 (latin1), lang: 'eng', time format: 2 (ms), content type: 1 (lyrics), descriptor: 0
+      // syllable/line: 'Verse One', null, 4 bytes timestamp (1500ms = 0x000005DC)
+      const lineText = 'Verse One';
+      const timestampMs = 1500;
+      final payload = [
+        0x00, // encoding
+        0x65, 0x6E, 0x67, // 'eng'
+        0x02, // time format (milliseconds)
+        0x01, // content type (lyrics)
+        0x00, // descriptor null terminator
+        ...lineText.codeUnits,
+        0x00, // null separator
+        (timestampMs >> 24) & 0xFF,
+        (timestampMs >> 16) & 0xFF,
+        (timestampMs >> 8) & 0xFF,
+        timestampMs & 0xFF,
+      ];
+      final size = payload.length;
+      final frame = [
+        ...'SYLT'.codeUnits,
+        (size >> 24) & 0xFF,
+        (size >> 16) & 0xFF,
+        (size >> 8) & 0xFF,
+        size & 0xFF,
+        0x00, 0x00, // flags
+        ...payload,
+      ];
+
+      final tagSize = frame.length;
+      final header = [
+        0x49, 0x44, 0x33, // 'ID3'
+        0x03, 0x00, // v2.3.0
+        0x00, // flags
+        (tagSize >> 21) & 0x7F,
+        (tagSize >> 14) & 0x7F,
+        (tagSize >> 7) & 0x7F,
+        tagSize & 0x7F,
+      ];
+
+      final fullBytes = [...header, ...frame];
+      while (fullBytes.length < 150) {
+        fullBytes.add(0);
+      }
+
+      await tempFile.writeAsBytes(fullBytes);
+      try {
+        final meta = await TagReader.readFromFile(tempFile);
+        expect(meta.lyrics, isNotNull);
+        expect(meta.lyrics, contains('[00:01.50] Verse One'));
+      } finally {
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      }
+    });
   });
 }

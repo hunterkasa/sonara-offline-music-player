@@ -8,19 +8,31 @@ import 'package:sonara/app/theme/theme_tokens.dart';
 import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/core/services/haptic_service.dart';
 import 'package:sonara/data/db/app_database.dart';
+import 'package:sonara/data/db/database_provider.dart';
 import 'package:sonara/domain/services/daily_mix_service.dart';
 import 'package:sonara/domain/services/m3u_service.dart';
 import 'package:sonara/domain/services/playlist_service.dart';
+import 'package:sonara/features/playlist/add_to_playlist_sheet.dart';
 import 'package:sonara/features/playlist/playlist_cover_picker_sheet.dart';
 import 'package:sonara/features/playlist/playlist_track_picker_sheet.dart';
 import 'package:sonara/shared/artwork/playlist_artwork_widget.dart';
+import 'package:sonara/shared/selection/multi_select_action_bar.dart';
 import 'package:sonara/shared/sheets/track_context_sheet.dart';
 import 'package:sonara/shared/track_tile/track_tile.dart';
 
-class PlaylistDetailScreen extends ConsumerWidget {
+class PlaylistDetailScreen extends ConsumerStatefulWidget {
   const PlaylistDetailScreen({super.key, required this.playlistId});
 
   final int playlistId;
+
+  @override
+  ConsumerState<PlaylistDetailScreen> createState() =>
+      _PlaylistDetailScreenState();
+}
+
+class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
+  final Set<String> _selectedTrackKeys = {};
+  bool _isSelectionMode = false;
 
   String _formatTotalDuration(List<Track> tracks) {
     final totalMs = tracks.fold<int>(0, (sum, t) => sum + t.durationMs);
@@ -52,7 +64,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final playlistId = widget.playlistId;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isLikedSongs = playlistId == -1;
@@ -90,8 +103,110 @@ class PlaylistDetailScreen extends ConsumerWidget {
         final isSmart =
             isLikedSongs || isDailyMix || (playlist?.isSmart ?? false);
         final tracks = tracksAsync.value ?? [];
+        final isSelecting = _isSelectionMode || _selectedTrackKeys.isNotEmpty;
 
         return Scaffold(
+          bottomNavigationBar: isSelecting
+              ? MultiSelectActionBar(
+                  selectedCount: _selectedTrackKeys.length,
+                  totalCount: tracks.length,
+                  deleteLabel: (!isSmart && playlist != null && playlist.id > 0)
+                      ? 'Remove'
+                      : (isLikedSongs ? 'Unlike' : 'Delete'),
+                  deleteIcon: (!isSmart && playlist != null && playlist.id > 0)
+                      ? Icons.playlist_remove_rounded
+                      : (isLikedSongs
+                            ? Icons.favorite_border_rounded
+                            : Icons.delete_outline_rounded),
+                  onClear: () {
+                    haptics.selection();
+                    setState(() {
+                      _selectedTrackKeys.clear();
+                      _isSelectionMode = false;
+                    });
+                  },
+                  onSelectAll: () {
+                    haptics.selection();
+                    setState(() {
+                      _selectedTrackKeys.addAll(tracks.map((t) => t.trackKey));
+                    });
+                  },
+                  onPlay: () {
+                    haptics.selection();
+                    final selected = _selectedTrackKeys.toList();
+                    if (selected.isNotEmpty) {
+                      playback.playQueue(selected);
+                    }
+                  },
+                  onAddToQueue: () async {
+                    haptics.selection();
+                    final selected = _selectedTrackKeys.toList();
+                    for (final k in selected) {
+                      await playback.addToQueue(k);
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Added ${selected.length} songs to queue',
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                    setState(() {
+                      _selectedTrackKeys.clear();
+                      _isSelectionMode = false;
+                    });
+                  },
+                  onAddToPlaylist: () {
+                    haptics.selection();
+                    final selected = _selectedTrackKeys.toList();
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (ctx) => AddToPlaylistSheet(trackKeys: selected),
+                    );
+                  },
+                  onDelete: () async {
+                    haptics.selection();
+                    final selected = _selectedTrackKeys.toList();
+                    if (!isSmart && playlist != null && playlist.id > 0) {
+                      await playlistService.removeTracksFromPlaylist(
+                        playlist.id,
+                        selected,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Removed ${selected.length} songs from playlist',
+                            ),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } else if (isLikedSongs) {
+                      final db = ref.read(databaseProvider);
+                      await db.setFavoriteTracks(selected, false);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Removed ${selected.length} songs from Liked Songs',
+                            ),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    }
+                    setState(() {
+                      _selectedTrackKeys.clear();
+                      _isSelectionMode = false;
+                    });
+                  },
+                )
+              : null,
           body: CustomScrollView(
             slivers: [
               SliverAppBar(
@@ -100,6 +215,23 @@ class PlaylistDetailScreen extends ConsumerWidget {
                 stretch: true,
                 backgroundColor: colorScheme.surface,
                 actions: [
+                  if (tracks.isNotEmpty)
+                    IconButton(
+                      icon: Icon(
+                        _isSelectionMode
+                            ? Icons.checklist_rtl_rounded
+                            : Icons.checklist_rounded,
+                      ),
+                      tooltip: _isSelectionMode
+                          ? 'Exit Selection'
+                          : 'Select Songs',
+                      onPressed: () {
+                        setState(() {
+                          _isSelectionMode = !_isSelectionMode;
+                          if (!_isSelectionMode) _selectedTrackKeys.clear();
+                        });
+                      },
+                    ),
                   if (!isSmart)
                     IconButton(
                       icon: const Icon(Icons.playlist_add_rounded),
@@ -531,6 +663,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   },
                   itemBuilder: (context, index) {
                     final track = tracks[index];
+                    final isSelected = _selectedTrackKeys.contains(
+                      track.trackKey,
+                    );
+
                     return Material(
                       key: ValueKey(
                         'playlist_${playlist!.id}_${track.trackKey}_$index',
@@ -538,53 +674,93 @@ class PlaylistDetailScreen extends ConsumerWidget {
                       color: Colors.transparent,
                       child: TrackTile(
                         track: track,
-                        trackNumber: index + 1,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.more_vert_rounded,
-                                size: 20,
-                              ),
-                              color: colorScheme.onSurfaceVariant,
-                              tooltip: 'Track options',
-                              onPressed: () {
-                                haptics.medium();
-                                showModalBottomSheet<void>(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  useSafeArea: true,
-                                  builder: (ctx) => TrackContextSheet(
-                                    track: track,
-                                    playlistId: playlist.id,
-                                  ),
-                                );
-                              },
-                            ),
-                            ReorderableDragStartListener(
-                              index: index,
-                              child: Container(
-                                width: 36,
-                                height: 48,
-                                alignment: Alignment.center,
-                                color: Colors.transparent,
-                                child: Icon(
-                                  Icons.drag_handle_rounded,
-                                  color: colorScheme.onSurfaceVariant
-                                      .withValues(alpha: 0.6),
-                                  size: 22,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        onTap: () {
+                        trackNumber: isSelecting ? null : index + 1,
+                        isSelectable: isSelecting,
+                        isSelected: isSelected,
+                        onSelectChanged: (val) {
                           haptics.selection();
-                          final keys = tracks.map((t) => t.trackKey).toList();
-                          unawaited(
-                            playback.playQueue(keys, initialIndex: index),
-                          );
+                          setState(() {
+                            if (val == true) {
+                              _selectedTrackKeys.add(track.trackKey);
+                            } else {
+                              _selectedTrackKeys.remove(track.trackKey);
+                              if (_selectedTrackKeys.isEmpty &&
+                                  !_isSelectionMode) {
+                                _isSelectionMode = false;
+                              }
+                            }
+                          });
+                        },
+                        onLongPress: () {
+                          haptics.medium();
+                          setState(() {
+                            _isSelectionMode = true;
+                            _selectedTrackKeys.add(track.trackKey);
+                          });
+                        },
+                        trailing: isSelecting
+                            ? const SizedBox.shrink()
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.more_vert_rounded,
+                                      size: 20,
+                                    ),
+                                    color: colorScheme.onSurfaceVariant,
+                                    tooltip: 'Track options',
+                                    onPressed: () {
+                                      haptics.medium();
+                                      showModalBottomSheet<void>(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        useSafeArea: true,
+                                        builder: (ctx) => TrackContextSheet(
+                                          track: track,
+                                          playlistId: playlist.id,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  ReorderableDragStartListener(
+                                    index: index,
+                                    child: Container(
+                                      width: 36,
+                                      height: 48,
+                                      alignment: Alignment.center,
+                                      color: Colors.transparent,
+                                      child: Icon(
+                                        Icons.drag_handle_rounded,
+                                        color: colorScheme.onSurfaceVariant
+                                            .withValues(alpha: 0.6),
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                        onTap: () {
+                          if (isSelecting) {
+                            haptics.selection();
+                            setState(() {
+                              if (isSelected) {
+                                _selectedTrackKeys.remove(track.trackKey);
+                                if (_selectedTrackKeys.isEmpty &&
+                                    !_isSelectionMode) {
+                                  _isSelectionMode = false;
+                                }
+                              } else {
+                                _selectedTrackKeys.add(track.trackKey);
+                              }
+                            });
+                          } else {
+                            haptics.selection();
+                            final keys = tracks.map((t) => t.trackKey).toList();
+                            unawaited(
+                              playback.playQueue(keys, initialIndex: index),
+                            );
+                          }
                         },
                         onMore: () {
                           haptics.medium();

@@ -321,5 +321,56 @@ void main() {
       expect(artistAlbums.length, equals(1));
       expect(artistAlbums.first.title, equals('The Dark Side of the Moon'));
     });
+
+    test(
+      'setFavoriteTracks and deleteTracks perform batch updates and deletions',
+      () async {
+        await db
+            .into(db.tracks)
+            .insert(
+              TracksCompanion.insert(
+                trackKey: 'batch_1',
+                contentUri: 'content://m/b1',
+                path: '/Music/b1.mp3',
+                title: 'Batch 1',
+                titleSort: 'batch 1',
+                durationMs: 180000,
+                sizeBytes: 1000,
+              ),
+            );
+        await db
+            .into(db.tracks)
+            .insert(
+              TracksCompanion.insert(
+                trackKey: 'batch_2',
+                contentUri: 'content://m/b2',
+                path: '/Music/b2.mp3',
+                title: 'Batch 2',
+                titleSort: 'batch 2',
+                durationMs: 180000,
+                sizeBytes: 1000,
+              ),
+            );
+
+        // Verify batch favorite
+        await db.setFavoriteTracks(['batch_1', 'batch_2'], true);
+        var t1 = await db.getTrackByKey('batch_1');
+        var t2 = await db.getTrackByKey('batch_2');
+        expect(t1?.isFavorite, isTrue);
+        expect(t2?.isFavorite, isTrue);
+
+        // Verify batch unfavorite
+        await db.setFavoriteTracks(['batch_1'], false);
+        t1 = await db.getTrackByKey('batch_1');
+        expect(t1?.isFavorite, isFalse);
+
+        // Verify batch delete
+        await db.deleteTracks(['batch_1', 'batch_2']);
+        t1 = await db.getTrackByKey('batch_1');
+        t2 = await db.getTrackByKey('batch_2');
+        expect(t1, isNull);
+        expect(t2, isNull);
+      },
+    );
   });
 }

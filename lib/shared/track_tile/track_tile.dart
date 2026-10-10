@@ -13,6 +13,10 @@ class TrackTile extends StatelessWidget {
   final bool isPlaying;
   final int? trackNumber;
   final Widget? trailing;
+  final bool isSelectable;
+  final bool isSelected;
+  final ValueChanged<bool?>? onSelectChanged;
+  final VoidCallback? onLongPress;
 
   const TrackTile({
     super.key,
@@ -24,6 +28,10 @@ class TrackTile extends StatelessWidget {
     this.isPlaying = false,
     this.trackNumber,
     this.trailing,
+    this.isSelectable = false,
+    this.isSelected = false,
+    this.onSelectChanged,
+    this.onLongPress,
   });
 
   String _formatDuration(int ms) {
@@ -58,13 +66,22 @@ class TrackTile extends StatelessWidget {
           );
         };
 
+    final effectiveOnTap = isSelectable
+        ? () => onSelectChanged?.call(!isSelected)
+        : onTap;
+    final effectiveOnLongPress = isSelectable
+        ? null
+        : (onLongPress ?? defaultOnMore);
+
     final tileContent = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 64.0),
       child: Material(
-        color: Colors.transparent,
+        color: isSelected
+            ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : Colors.transparent,
         child: InkWell(
-          onTap: onTap,
-          onLongPress: defaultOnMore,
+          onTap: effectiveOnTap,
+          onLongPress: effectiveOnLongPress,
           borderRadius: BorderRadius.circular(8.0),
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -73,7 +90,36 @@ class TrackTile extends StatelessWidget {
             ),
             child: Row(
               children: [
-                if (trackNumber != null) ...[
+                if (isSelectable) ...[
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 24.0,
+                    height: 24.0,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.5,
+                              ),
+                        width: 2.0,
+                      ),
+                    ),
+                    child: isSelected
+                        ? Icon(
+                            Icons.check_rounded,
+                            size: 16.0,
+                            color: colorScheme.onPrimary,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12.0),
+                ],
+                if (trackNumber != null && !isSelectable) ...[
                   SizedBox(
                     width: 28.0,
                     child: Text(
@@ -141,7 +187,9 @@ class TrackTile extends StatelessWidget {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                if (trailing != null)
+                if (isSelectable)
+                  const SizedBox.shrink()
+                else if (trailing != null)
                   trailing!
                 else
                   IconButton(
@@ -156,6 +204,10 @@ class TrackTile extends StatelessWidget {
         ),
       ),
     );
+
+    if (isSelectable) {
+      return tileContent;
+    }
 
     return Dismissible(
       key: ValueKey('swipe_${track.trackKey}'),

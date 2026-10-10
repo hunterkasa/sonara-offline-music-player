@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sonara/audio/playback_controller.dart';
 import 'package:sonara/audio/sleep_timer.dart';
+import 'package:sonara/domain/models/audio_settings.dart';
 
 void main() {
   group('SleepTimerController Unit Tests', () {
@@ -61,6 +62,22 @@ void main() {
       controller.startEndOfTrack();
       expect(controller.state.isActive, isTrue);
       expect(controller.state.mode, equals(SleepTimerMode.endOfTrack));
+    });
+
+    test('setFadeCurve updates state.fadeCurve accurately', () {
+      expect(controller.state.fadeCurve, equals(SleepTimerFadeCurve.linear));
+
+      controller.setFadeCurve(SleepTimerFadeCurve.logarithmic);
+      expect(
+        controller.state.fadeCurve,
+        equals(SleepTimerFadeCurve.logarithmic),
+      );
+
+      controller.setFadeCurve(SleepTimerFadeCurve.exponential);
+      expect(
+        controller.state.fadeCurve,
+        equals(SleepTimerFadeCurve.exponential),
+      );
     });
   });
 }

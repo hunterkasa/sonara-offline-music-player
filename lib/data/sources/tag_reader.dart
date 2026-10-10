@@ -164,7 +164,13 @@ class TagReader {
                 discNumber = int.tryParse(discStr.split('/').first.trim());
                 break;
               case 'USLT':
-                lyrics = _decodeUslt(frameData);
+                lyrics ??= _decodeUslt(frameData);
+                break;
+              case 'SYLT':
+                final sylt = _decodeSylt(frameData);
+                if (sylt != null && sylt.isNotEmpty) {
+                  lyrics = sylt;
+                }
                 break;
               case 'APIC':
                 final pic = _decodeApic(frameData);
@@ -377,6 +383,12 @@ class TagReader {
     ).firstMatch(str);
     if (albumMatch != null) album = albumMatch.group(1);
 
+    final lyricsMatch = RegExp(
+      r'(?:LYRICS|UNSYNCEDLYRICS)=([^\x00]+?)(?=[A-Z_]+=|[\x00\x01\x02\x03]|$)',
+      caseSensitive: false,
+    ).firstMatch(str);
+    final lyrics = lyricsMatch?.group(1)?.trim();
+
     final resolvedTitle = MetadataUtils.resolveTitle(title, filePath);
     final resolvedArtist = MetadataUtils.resolveArtist(artist);
     final resolvedAlbum = MetadataUtils.resolveAlbum(album, filePath);
@@ -386,6 +398,7 @@ class TagReader {
       artist: resolvedArtist,
       album: resolvedAlbum,
       albumArtist: resolvedArtist,
+      lyrics: lyrics,
       codec: filePath.toLowerCase().endsWith('.opus') ? 'Opus' : 'Vorbis',
     );
   }
@@ -412,6 +425,7 @@ class TagReader {
     int? year;
     Uint8List? artwork;
     String? artMime;
+    String? lyrics;
 
     // Search for 'ilst' atom
     final ilstOffset = _findPattern(bytes, [0x69, 0x6C, 0x73, 0x74]); // 'ilst'
@@ -446,6 +460,9 @@ class TagReader {
               year = int.tryParse(RegExp(r'\d{4}').stringMatch(text) ?? '');
             }
             break;
+          case '©lyr':
+            lyrics = text;
+            break;
           case 'covr':
             if (atomData.length > 16) {
               // MP4 data atom header is 16 bytes
@@ -477,6 +494,7 @@ class TagReader {
       albumArtist: resolvedAlbumArtist,
       genres: genres,
       year: year,
+      lyrics: lyrics,
       embeddedArtwork: artwork,
       artworkMime: artMime,
       codec: 'AAC',
@@ -590,6 +608,86 @@ class TagReader {
       return utf8.decode(lyricsBytes, allowMalformed: true).trim();
     }
     return latin1.decode(lyricsBytes).trim();
+  }
+
+  static String? _decodeSylt(Uint8List bytes) {
+    if (bytes.length < 8) return null;
+    final encoding = bytes[0];
+    final timeFormat = bytes[4]; // 1 = MPEG frames, 2 = milliseconds
+    var offset = 6;
+
+    // Skip content descriptor
+    if (encoding == 1 || encoding == 2) {
+      while (offset < bytes.length - 1) {
+        if (bytes[offset] == 0 && bytes[offset + 1] == 0) {
+          offset += 2;
+          break;
+        }
+        offset += 2;
+      }
+    } else {
+      while (offset < bytes.length) {
+        if (bytes[offset] == 0) {
+          offset++;
+          break;
+        }
+        offset++;
+      }
+    }
+
+    final buffer = StringBuffer();
+    while (offset < bytes.length - 4) {
+      final textStart = offset;
+      var textEnd = textStart;
+      if (encoding == 1 || encoding == 2) {
+        while (textEnd < bytes.length - 5) {
+          if (bytes[textEnd] == 0 && bytes[textEnd + 1] == 0) break;
+          textEnd += 2;
+        }
+        offset = textEnd + 2;
+      } else {
+        while (textEnd < bytes.length - 5) {
+          if (bytes[textEnd] == 0) break;
+          textEnd++;
+        }
+        offset = textEnd + 1;
+      }
+
+      if (offset + 4 > bytes.length) break;
+
+      final textBytes = bytes.sublist(textStart, textEnd);
+      String text;
+      if (encoding == 1) {
+        text = _decodeUtf16(textBytes);
+      } else if (encoding == 2) {
+        text = _decodeUtf16(textBytes, isBigEndian: true);
+      } else if (encoding == 3) {
+        text = utf8.decode(textBytes, allowMalformed: true);
+      } else {
+        text = latin1.decode(textBytes);
+      }
+
+      final tsData = ByteData.sublistView(bytes, offset, offset + 4);
+      var ms = tsData.getUint32(0, Endian.big);
+      if (timeFormat == 1) {
+        ms = (ms * 26.122).round();
+      }
+      offset += 4;
+
+      final trimmed = text.trim();
+      if (trimmed.isNotEmpty) {
+        final minutes = ms ~/ 60000;
+        final seconds = (ms % 60000) ~/ 1000;
+        final hundredths = (ms % 1000) ~/ 10;
+        final mm = minutes.toString().padLeft(2, '0');
+        final ss = seconds.toString().padLeft(2, '0');
+        final xx = hundredths.toString().padLeft(2, '0');
+        buffer.writeln('[$mm:$ss.$xx] $trimmed');
+      }
+    }
+
+    final result = buffer.toString().trim();
+    return result.isNotEmpty ? result : null;
   }
 
   static (Uint8List, String)? _decodeApic(Uint8List bytes) {

@@ -472,6 +472,12 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     if (settings.pitchSemitones != _pitchSemitones) {
       await setPitchSemitones(settings.pitchSemitones);
     }
+
+    // 6. Playback Speed
+    if (settings.rememberSpeedAndPitch &&
+        settings.playbackSpeed != _player.speed) {
+      await setSpeed(settings.playbackSpeed);
+    }
   }
 
   Future<void> _applyEqualizerSettings() async {
@@ -755,6 +761,18 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> restoreSavedState() async {
     final result = await queueManager.restoreState();
     if (result.restored) {
+      if (_audioSettings.rememberSpeedAndPitch) {
+        if (_audioSettings.playbackSpeed != 1.0) {
+          try {
+            await _player.setSpeed(_audioSettings.playbackSpeed);
+          } catch (_) {}
+        }
+        if (_audioSettings.pitchSemitones != 0) {
+          try {
+            await setPitchSemitones(_audioSettings.pitchSemitones);
+          } catch (_) {}
+        }
+      }
       await _syncMediaItemFromQueue();
       await _reloadSlidingWindow(
         resumePlaying: false,

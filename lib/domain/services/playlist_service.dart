@@ -292,6 +292,14 @@ class PlaylistService {
     return _db.removeTrackFromPlaylist(playlistId, trackKey);
   }
 
+  Future<void> removeTracksFromPlaylist(
+    int playlistId,
+    List<String> trackKeys,
+  ) {
+    if (playlistId <= 0 || trackKeys.isEmpty) return Future.value();
+    return _db.removeTracksFromPlaylist(playlistId, trackKeys);
+  }
+
   Future<void> reorderTracks(int playlistId, int oldIndex, int newIndex) {
     if (playlistId <= 0) return Future.value();
     return _db.reorderPlaylistTracks(playlistId, oldIndex, newIndex);

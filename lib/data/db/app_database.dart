@@ -219,6 +219,24 @@ class AppDatabase extends _$AppDatabase {
     return newFavorite;
   }
 
+  /// Set favorite status of multiple tracks in batches
+  Future<void> setFavoriteTracks(
+    List<String> trackKeys,
+    bool isFavorite,
+  ) async {
+    if (trackKeys.isEmpty) return;
+    const batchSize = 400;
+    for (var i = 0; i < trackKeys.length; i += batchSize) {
+      final chunk = trackKeys.sublist(
+        i,
+        i + batchSize > trackKeys.length ? trackKeys.length : i + batchSize,
+      );
+      await (update(tracks)..where((t) => t.trackKey.isIn(chunk))).write(
+        TracksCompanion(isFavorite: Value(isFavorite)),
+      );
+    }
+  }
+
   /// Watch a track by key reactively
   Stream<Track?> watchTrack(String trackKey) {
     return (select(
@@ -449,6 +467,40 @@ class AppDatabase extends _$AppDatabase {
           playlistTracks,
         )..where((pt) => pt.id.equals(target.id))).go();
       }
+
+      // Compact positions
+      final remaining =
+          await (select(playlistTracks)
+                ..where((pt) => pt.playlistId.equals(playlistId))
+                ..orderBy([(pt) => OrderingTerm.asc(pt.position)]))
+              .get();
+      for (var i = 0; i < remaining.length; i++) {
+        if (remaining[i].position != i) {
+          await (update(playlistTracks)
+                ..where((pt) => pt.id.equals(remaining[i].id)))
+              .write(PlaylistTracksCompanion(position: Value(i)));
+        }
+      }
+
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await (update(playlists)..where((p) => p.id.equals(playlistId))).write(
+        PlaylistsCompanion(updatedAt: Value(now)),
+      );
+    });
+  }
+
+  /// Remove multiple tracks from a playlist in a batch
+  Future<void> removeTracksFromPlaylist(
+    int playlistId,
+    List<String> trackKeys,
+  ) async {
+    if (trackKeys.isEmpty) return;
+    await transaction(() async {
+      await (delete(playlistTracks)..where(
+            (pt) =>
+                pt.playlistId.equals(playlistId) & pt.trackKey.isIn(trackKeys),
+          ))
+          .go();
 
       // Compact positions
       final remaining =
@@ -713,6 +765,29 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('DELETE FROM tracks_fts WHERE track_key = ?;', [
         trackKey,
       ]);
+    });
+  }
+
+  /// Delete multiple tracks from database in batches
+  Future<void> deleteTracks(List<String> trackKeys) async {
+    if (trackKeys.isEmpty) return;
+    await transaction(() async {
+      const batchSize = 400;
+      for (var i = 0; i < trackKeys.length; i += batchSize) {
+        final chunk = trackKeys.sublist(
+          i,
+          i + batchSize > trackKeys.length ? trackKeys.length : i + batchSize,
+        );
+        await (delete(
+          playlistTracks,
+        )..where((pt) => pt.trackKey.isIn(chunk))).go();
+        await (delete(tracks)..where((t) => t.trackKey.isIn(chunk))).go();
+        for (final k in chunk) {
+          await customStatement('DELETE FROM tracks_fts WHERE track_key = ?;', [
+            k,
+          ]);
+        }
+      }
     });
   }
 

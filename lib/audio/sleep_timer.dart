@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/models/audio_settings.dart';
 import 'playback_controller.dart';
 import 'sonara_audio_handler.dart';
 
@@ -15,24 +17,28 @@ class SleepTimerState {
     this.remaining = Duration.zero,
     this.totalDuration = Duration.zero,
     this.isActive = false,
+    this.fadeCurve = SleepTimerFadeCurve.linear,
   });
 
   final SleepTimerMode mode;
   final Duration remaining;
   final Duration totalDuration;
   final bool isActive;
+  final SleepTimerFadeCurve fadeCurve;
 
   SleepTimerState copyWith({
     SleepTimerMode? mode,
     Duration? remaining,
     Duration? totalDuration,
     bool? isActive,
+    SleepTimerFadeCurve? fadeCurve,
   }) {
     return SleepTimerState(
       mode: mode ?? this.mode,
       remaining: remaining ?? this.remaining,
       totalDuration: totalDuration ?? this.totalDuration,
       isActive: isActive ?? this.isActive,
+      fadeCurve: fadeCurve ?? this.fadeCurve,
     );
   }
 }
@@ -41,7 +47,8 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
   SleepTimerController({
     required this.audioHandler,
     required this.playbackController,
-  }) : super(const SleepTimerState());
+    SleepTimerFadeCurve initialFadeCurve = SleepTimerFadeCurve.linear,
+  }) : super(SleepTimerState(fadeCurve: initialFadeCurve));
 
   final SonaraAudioHandler? audioHandler;
   final PlaybackController playbackController;
@@ -56,11 +63,19 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
   /// Returns the current state of the sleep timer.
   SleepTimerState get currentState => state;
 
+  /// Gets the current fade curve.
+  SleepTimerFadeCurve get fadeCurve => state.fadeCurve;
+
+  /// Updates the sleep timer gentle volume fade curve.
+  void setFadeCurve(SleepTimerFadeCurve curve) {
+    state = state.copyWith(fadeCurve: curve);
+  }
+
   /// Starts a duration-based timer with gentle fade-out in the last 20 seconds.
   void startTimer(Duration duration) {
     cancelTimer();
 
-    state = SleepTimerState(
+    state = state.copyWith(
       mode: SleepTimerMode.duration,
       remaining: duration,
       totalDuration: duration,
@@ -83,7 +98,7 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
     cancelTimer();
 
     _initialTrackKey = playbackController.currentSnapshot.currentTrackKey;
-    state = const SleepTimerState(
+    state = state.copyWith(
       mode: SleepTimerMode.endOfTrack,
       remaining: Duration.zero,
       totalDuration: Duration.zero,
@@ -128,7 +143,12 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
 
     unawaited(audioHandler?.player.setVolume(1.0));
 
-    state = const SleepTimerState();
+    state = state.copyWith(
+      mode: SleepTimerMode.none,
+      remaining: Duration.zero,
+      totalDuration: Duration.zero,
+      isActive: false,
+    );
   }
 
   void _handleFadeOut(Duration remaining) {
@@ -136,9 +156,23 @@ class SleepTimerController extends StateNotifier<SleepTimerState> {
     const fadeOutWindow = Duration(seconds: 20);
 
     if (remaining <= fadeOutWindow) {
-      final ratio = (remaining.inMilliseconds / fadeOutWindow.inMilliseconds)
-          .clamp(0.0, 1.0);
-      unawaited(audioHandler!.player.setVolume(ratio));
+      final r = (remaining.inMilliseconds / fadeOutWindow.inMilliseconds).clamp(
+        0.0,
+        1.0,
+      );
+      double vol;
+      switch (state.fadeCurve) {
+        case SleepTimerFadeCurve.logarithmic:
+          vol = log(1.0 + 9.0 * r) / ln10;
+          break;
+        case SleepTimerFadeCurve.exponential:
+          vol = r * r;
+          break;
+        case SleepTimerFadeCurve.linear:
+          vol = r;
+          break;
+      }
+      unawaited(audioHandler!.player.setVolume(vol.clamp(0.0, 1.0)));
     } else {
       unawaited(audioHandler!.player.setVolume(1.0));
     }

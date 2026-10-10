@@ -168,13 +168,13 @@ Status legend:
 - [x] Offline Wrapped share cards: connected rendered PNG export to native Android Share Sheet via `FileProvider` and MethodChannel `shareFile`
 - [x] Real audio waveform amplitude peak extraction: implemented 16-bit WAV PCM RMS calculation and compressed audio frame energy profiling in `WaveformGenerator.extractPeaksFromFile` with caching and synthesis fallback
 
-### [ ] Phase D: Must-Have Features for a Premier Offline Android Player
-- [ ] Multi-select batch operations in library lists (batch add to playlist, queue, delete, tag)
-- [ ] Custom playlist cover art picker with gallery import & crop
-- [ ] Embedded lyrics extraction priority (.lrc sidecar > USLT / SYLT / Vorbis lyrics)
-- [ ] Persistent playback speed & pitch memory toggle in Settings
-- [ ] Folder hierarchy navigation tree mode in Folders tab
-- [ ] Sleep timer volume gentle fade curve selector (linear, logarithmic, exponential)
+### [x] Phase D: Must-Have Features for a Premier Offline Android Player
+- [x] Multi-select batch operations in library lists (batch add to playlist, queue, delete, favorite)
+- [x] Custom playlist cover art picker with gallery import & crop/presets
+- [x] Embedded lyrics extraction priority (.lrc sidecar > SYLT synced > USLT / Vorbis / MP4 lyrics)
+- [x] Persistent playback speed & pitch memory toggle in Settings
+- [x] Folder hierarchy navigation tree mode in Folders tab with interactive breadcrumbs
+- [x] Sleep timer volume gentle fade curve selector (linear, logarithmic, exponential)
 
 ### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox
