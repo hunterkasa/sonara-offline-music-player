@@ -124,17 +124,27 @@ class AudioCutterService {
     required String filePath,
     required String title,
   }) async {
+    return shareFile(filePath: filePath, title: title, mimeType: 'audio/*');
+  }
+
+  /// Launches the native Android Share Sheet to share any file (e.g. audio clips or Wrapped cards).
+  Future<bool> shareFile({
+    required String filePath,
+    required String title,
+    String mimeType = '*/*',
+  }) async {
     if (defaultTargetPlatform != TargetPlatform.android) {
       return false;
     }
     try {
-      final result = await channel.invokeMethod<bool>('shareAudio', {
+      final result = await channel.invokeMethod<bool>('shareFile', {
         'filePath': filePath,
         'title': title,
+        'mimeType': mimeType,
       });
       return result ?? false;
     } on PlatformException catch (e) {
-      debugPrint('Share audio failed: ${e.message}');
+      debugPrint('Share file failed: ${e.message}');
       return false;
     }
   }

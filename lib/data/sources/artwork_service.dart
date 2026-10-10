@@ -13,6 +13,9 @@ class ArtworkService {
 
   Directory? _cacheDir;
 
+  static const int defaultMaxFiles = 300;
+  static const int defaultMaxSizeBytes = 50 * 1024 * 1024; // 50 MB
+
   Future<Directory> _getCacheDirectory() async {
     if (_cacheDir != null) return _cacheDir!;
     final tempDir = await getApplicationDocumentsDirectory();
@@ -30,17 +33,91 @@ class ArtworkService {
   }
 
   /// Caches embedded artwork bytes to disk and returns the cached file path.
+  /// Enforces disk LRU bounds by pruning oldest files when limits are reached.
   Future<String?> cacheArtworkBytes(String key, Uint8List bytes) async {
     try {
       final dir = await _getCacheDirectory();
       final file = File(p.join(dir.path, 'art_$key.jpg'));
       if (!file.existsSync()) {
         file.writeAsBytesSync(bytes, flush: true);
+        _pruneCacheInternal(dir);
+      } else {
+        try {
+          file.setLastModifiedSync(DateTime.now());
+        } catch (_) {}
       }
       return file.path;
     } catch (_) {
       return null;
     }
+  }
+
+  /// Prunes the artwork disk cache so that it does not exceed [maxFiles] or [maxSizeBytes].
+  /// Evicts the least recently accessed files first based on [lastModified].
+  Future<int> pruneCache({
+    int maxFiles = defaultMaxFiles,
+    int maxSizeBytes = defaultMaxSizeBytes,
+  }) async {
+    try {
+      final dir = await _getCacheDirectory();
+      return _pruneCacheInternal(
+        dir,
+        maxFiles: maxFiles,
+        maxSizeBytes: maxSizeBytes,
+      );
+    } catch (e) {
+      debugPrint('Error pruning artwork cache: $e');
+      return 0;
+    }
+  }
+
+  static int _pruneCacheInternal(
+    Directory dir, {
+    int maxFiles = defaultMaxFiles,
+    int maxSizeBytes = defaultMaxSizeBytes,
+  }) {
+    if (!dir.existsSync()) return 0;
+    final entities = dir
+        .listSync()
+        .whereType<File>()
+        .where((f) => p.basename(f.path).startsWith('art_'))
+        .toList();
+
+    if (entities.isEmpty) return 0;
+
+    final fileStats = entities.map((file) {
+      try {
+        final stat = file.statSync();
+        return (file: file, modified: stat.modified, size: stat.size);
+      } catch (_) {
+        return (
+          file: file,
+          modified: DateTime.fromMillisecondsSinceEpoch(0),
+          size: 0,
+        );
+      }
+    }).toList();
+
+    // Sort by modified ascending (oldest first for LRU eviction)
+    fileStats.sort((a, b) => a.modified.compareTo(b.modified));
+
+    var totalCount = fileStats.length;
+    var totalSize = fileStats.fold<int>(0, (sum, f) => sum + f.size);
+    var deletedCount = 0;
+
+    for (final item in fileStats) {
+      if (totalCount <= maxFiles && totalSize <= maxSizeBytes) {
+        break;
+      }
+      try {
+        item.file.deleteSync();
+        totalCount--;
+        totalSize -= item.size;
+        deletedCount++;
+      } catch (_) {}
+    }
+
+    return deletedCount;
   }
 
   /// Attempts to find artwork for a track:
@@ -67,6 +144,9 @@ class ArtworkService {
       final dir = await _getCacheDirectory();
       final cachedFile = File(p.join(dir.path, 'art_$artworkKey.jpg'));
       if (await cachedFile.exists()) {
+        try {
+          await cachedFile.setLastModified(DateTime.now());
+        } catch (_) {}
         return cachedFile;
       }
     }

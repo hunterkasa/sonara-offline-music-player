@@ -159,9 +159,27 @@ Status legend:
 - [x] Memoized Riverpod stream providers for albums and artists (`albumDetailStreamProvider`, `albumTracksStreamProvider`, `artistDetailStreamProvider`, `artistTracksStreamProvider`, `artistAlbumsStreamProvider`) eliminating stream recreation in `build()`
 - [x] Isolated MiniPlayer progress bar (`_MiniPlayerProgressBar`) and record selector filtering eliminating full mini-player rebuilds on position ticks
 
+### [x] Phase C: Phantom & Incomplete Features (Resolution of Roadmap Gaps)
+- [x] Android Auto individual track item resolution: implemented `@override Future<MediaItem?> getMediaItem(String mediaId)` in `SonaraAudioHandler`
+- [x] Crossfade engine & gentle volume ramps: integrated `crossfadeDurationSeconds` position stream volume ramping and smooth 150–200ms cubic fades on play/pause/skip
+- [x] Stereo channel balance & attenuation: connected `_audioSettings.stereoBalance` perceptual gain adjustment to `_updateEffectiveVolume()`
+- [x] Material 3 palette extraction: replaced raw JPEG bitstream byte averaging with `material_color_utilities` downsampled decoding (`QuantizerCelebi`, `Score.score`) and wired into `NowPlayingSheet` dynamic ambient theming via `paletteForTrackProvider`
+- [x] Disk LRU cache eviction: implemented `pruneCache` bounded to 50MB / 300 files with `lastModified` access timestamp tracking in `ArtworkService`
+- [x] Offline Wrapped share cards: connected rendered PNG export to native Android Share Sheet via `FileProvider` and MethodChannel `shareFile`
+- [x] Real audio waveform amplitude peak extraction: implemented 16-bit WAV PCM RMS calculation and compressed audio frame energy profiling in `WaveformGenerator.extractPeaksFromFile` with caching and synthesis fallback
+
+### [ ] Phase D: Must-Have Features for a Premier Offline Android Player
+- [ ] Multi-select batch operations in library lists (batch add to playlist, queue, delete, tag)
+- [ ] Custom playlist cover art picker with gallery import & crop
+- [ ] Embedded lyrics extraction priority (.lrc sidecar > USLT / SYLT / Vorbis lyrics)
+- [ ] Persistent playback speed & pitch memory toggle in Settings
+- [ ] Folder hierarchy navigation tree mode in Folders tab
+- [ ] Sleep timer volume gentle fade curve selector (linear, logarithmic, exponential)
+
 ### [ ] Phase 11: iOS Parity (On Request Only)
 - [ ] Document picker import into sandbox
 - [ ] AVAudioSession and background audio modes
 - [ ] MPNowPlayingInfoCenter & MPRemoteCommandCenter
 - [ ] iOS-specific equalizer and capability documentation
+
 

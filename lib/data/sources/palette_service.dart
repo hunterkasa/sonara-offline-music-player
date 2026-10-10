@@ -1,5 +1,12 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_color_utilities/material_color_utilities.dart';
+
+import '../db/database_provider.dart';
+import 'artwork_service.dart';
 
 class ExtractedPalette {
   final Color primary;
@@ -35,6 +42,8 @@ class PaletteService {
   static final Map<String, ExtractedPalette> _cache = {};
 
   /// Extracts or retrieves cached palette for a given artwork key.
+  /// Uses downsampled image decoding and [QuantizerCelebi] with [Score.score]
+  /// to extract authentic Material 3 color seeds.
   static Future<ExtractedPalette> getPaletteForArtwork({
     required String key,
     Uint8List? imageBytes,
@@ -44,14 +53,47 @@ class PaletteService {
       return _cache[key]!;
     }
 
-    final palette = await compute(
-      _extractPaletteIsolated,
-      _PaletteExtractRequest(
-        imageBytes: imageBytes,
-        fallbackArgb: fallbackSeedArgb ?? 0xFF6200EE,
-      ),
-    );
+    var seedArgb = fallbackSeedArgb ?? 0xFF6200EE;
 
+    if (imageBytes != null && imageBytes.length > 50) {
+      try {
+        final codec = await ui.instantiateImageCodec(
+          imageBytes,
+          targetWidth: 24,
+          targetHeight: 24,
+        );
+        final frame = await codec.getNextFrame();
+        final byteData = await frame.image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        if (byteData != null) {
+          final buffer = byteData.buffer.asUint8List();
+          final pixels = <int>[];
+          for (var i = 0; i < buffer.length - 3; i += 4) {
+            final r = buffer[i];
+            final g = buffer[i + 1];
+            final b = buffer[i + 2];
+            final a = buffer[i + 3];
+            // Filter transparent pixels
+            if (a >= 128) {
+              pixels.add((0xFF << 24) | (r << 16) | (g << 8) | b);
+            }
+          }
+          if (pixels.isNotEmpty) {
+            final quantizer = QuantizerCelebi();
+            final result = await quantizer.quantize(pixels, 16);
+            final ranked = Score.score(result.colorToCount);
+            if (ranked.isNotEmpty) {
+              seedArgb = ranked.first;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('PaletteService extraction error: $e');
+      }
+    }
+
+    final palette = fromSeed(seedArgb);
     _cache[key] = palette;
     return palette;
   }
@@ -68,47 +110,45 @@ class PaletteService {
       onPrimaryContainer: scheme.onPrimaryContainer,
     );
   }
-}
 
-class _PaletteExtractRequest {
-  final Uint8List? imageBytes;
-  final int fallbackArgb;
-
-  _PaletteExtractRequest({this.imageBytes, required this.fallbackArgb});
-}
-
-ExtractedPalette _extractPaletteIsolated(_PaletteExtractRequest request) {
-  var seedArgb = request.fallbackArgb;
-
-  if (request.imageBytes != null && request.imageBytes!.length > 100) {
-    final bytes = request.imageBytes!;
-    // Fast dominant color sampling across the middle bytes
-    var rSum = 0;
-    var gSum = 0;
-    var bSum = 0;
-    var count = 0;
-    final step = (bytes.length ~/ 200).clamp(4, 500);
-
-    for (var i = 0; i < bytes.length - 3; i += step) {
-      final r = bytes[i];
-      final g = bytes[i + 1];
-      final b = bytes[i + 2];
-      // Avoid pure white and pure black for better seed vibrance
-      if ((r + g + b) > 60 && (r + g + b) < 700) {
-        rSum += r;
-        gSum += g;
-        bSum += b;
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      final avgR = rSum ~/ count;
-      final avgG = gSum ~/ count;
-      final avgB = bSum ~/ count;
-      seedArgb = (0xFF << 24) | (avgR << 16) | (avgG << 8) | avgB;
-    }
+  static void clearCache() {
+    _cache.clear();
   }
-
-  return PaletteService.fromSeed(seedArgb);
 }
+
+/// Provides a dynamically extracted [ExtractedPalette] for the current track key.
+final paletteForTrackProvider = FutureProvider.family<ExtractedPalette, String>(
+  (ref, trackKey) async {
+    if (trackKey.isEmpty) {
+      return PaletteService.fromSeed(0xFF6200EE);
+    }
+
+    final track = await ref.watch(trackStreamProvider(trackKey).future);
+    final seed = track != null
+        ? (track.title.hashCode.abs() | 0xFF000000)
+        : (trackKey.hashCode.abs() | 0xFF000000);
+
+    if (track == null) {
+      return PaletteService.fromSeed(seed);
+    }
+
+    final artworkService = ref.read(artworkServiceProvider);
+    final file = await artworkService.resolveArtworkFile(
+      artworkKey: track.artworkKey,
+      filePath: track.path,
+    );
+
+    Uint8List? bytes;
+    if (file != null && await file.exists()) {
+      try {
+        bytes = await file.readAsBytes();
+      } catch (_) {}
+    }
+
+    return PaletteService.getPaletteForArtwork(
+      key: track.artworkKey ?? trackKey,
+      imageBytes: bytes,
+      fallbackSeedArgb: seed,
+    );
+  },
+);

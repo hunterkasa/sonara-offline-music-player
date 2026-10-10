@@ -226,12 +226,18 @@ void main() {
       expect(albumTracks.length, equals(3));
     });
 
-    test('getItem returns single resolved media item', () async {
-      final item = await audioHandler.getItem('auto_track_1');
-      expect(item, isNotNull);
-      expect(item!.title, equals('Journey Part 1'));
-      expect(item.artist, equals('Starlight Trio'));
-      expect(item.album, equals('Cosmic Journey'));
-    });
+    test(
+      'getMediaItem and getItem return single resolved media item',
+      () async {
+        final item = await audioHandler.getMediaItem('auto_track_1');
+        expect(item, isNotNull);
+        expect(item!.title, equals('Journey Part 1'));
+        expect(item.artist, equals('Starlight Trio'));
+        expect(item.album, equals('Cosmic Journey'));
+
+        final itemAlias = await audioHandler.getItem('auto_track_1');
+        expect(itemAlias, equals(item));
+      },
+    );
   });
 }

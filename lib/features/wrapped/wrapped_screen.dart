@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../app/theme/theme_tokens.dart';
+import '../../core/services/audio_cutter_service.dart';
 import '../../core/services/haptic_service.dart';
 import '../../domain/models/wrapped_data.dart';
 import '../../domain/services/wrapped_service.dart';
@@ -112,18 +116,38 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen>
       final bytes = byteData?.buffer.asUint8List();
 
       if (bytes != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.green),
-                const SizedBox(width: AppSpacing.s),
-                Text('Rendered ${bytes.lengthInBytes ~/ 1024} KB share card!'),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
+        final tempDir = await getTemporaryDirectory();
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final file = File(
+          p.join(tempDir.path, 'sonara_wrapped_$timestamp.png'),
         );
+        await file.writeAsBytes(bytes, flush: true);
+
+        final cutterService = ref.read(audioCutterServiceProvider);
+        final shared = await cutterService.shareFile(
+          filePath: file.path,
+          title: 'Sonara Wrapped Card',
+          mimeType: 'image/png',
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.green),
+                  const SizedBox(width: AppSpacing.s),
+                  Text(
+                    shared
+                        ? 'Opening Share sheet...'
+                        : 'Saved ${bytes.lengthInBytes ~/ 1024} KB share card!',
+                  ),
+                ],
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

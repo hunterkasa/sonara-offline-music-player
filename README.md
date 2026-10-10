@@ -104,8 +104,11 @@ flutter run -d emulator-5554
 - **Offline "Track Radio" (Phase 10):** Multi-factor acoustic and metadata similarity clustering engine (genre matching, era proximity, artist affiliation, and duration similarity) accessible directly via track context menus for instant intelligent queues.
 - **Smart Sleep Gestures (Phase 10):** Native accelerometer event detection with zero idle battery overhead, featuring shake-to-extend (+15 minutes) during timer fadeouts and flip-face-down-to-pause.
 - **Custom Tactile Now Playing Skins (Phase 10):** Dynamic player skins including Default Modern, Spinning Vinyl Turntable with tone arm physics, Retro 90s Cassette Deck with spinning spools, and Minimalist OLED Pure Black with high-contrast battery saving layout.
-- **Android Auto Dashboard Support (Phase 10):** Native `MediaBrowserServiceCompat` integration enabling vehicle touchscreen and steering-wheel navigation across Playlists, Artists, Albums, Liked Songs, and Recently Played.
+- **Android Auto Dashboard Support (Phase 10 & C):** Native `MediaBrowserServiceCompat` integration enabling vehicle touchscreen and steering-wheel navigation across Playlists, Artists, Albums, Liked Songs, and individual track resolution (`getMediaItem`).
 - **Expanded Home Screen Widget Suite (Phase 10):** Multi-form-factor widget choices including 2×1 Minimalist Pill widget, 4×1 Standard Player, and 4×2 Expanded Artwork Card widget with direct media controls.
+- **Audio Cutter & Ringtone Studio (Phase A):** Native lossless audio slicing engine via Android `MediaExtractor` and `MediaMuxer` with pure-Dart WAV fallback, interactive dual-handle `WaveformTrimmer`, A-B loop preview transport, system Ringtone / Notification / Alarm assignment via `RingtoneManager`, and direct sharing via Android Share Sheet.
+- **Isolate Architecture & Performance (Phase B):** Background worker isolates for tag scanning, indexed folder summaries, N+1 query elimination in smart radio and year-end wrapped recaps, memoized stream providers, and isolated progress bar rebuilds.
+- **Material 3 Quantized Palette & Crossfade (Phase C):** Real Material Design 3 palette extraction off the UI thread via `material_color_utilities` (`QuantizerCelebi`, `Score.score`) driving dynamic ambient theming in Now Playing, smooth cubic volume ramping and crossfades, LRU disk cache eviction for artwork (50MB / 300 files), and real waveform amplitude peak profiling (WAV PCM RMS and compressed frame energy).
 
 ### 5. Build Release APKs
 ```powershell

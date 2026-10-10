@@ -187,6 +187,27 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
         await _advanceSlidingWindowInPlace();
       }
     });
+
+    // 4. Crossfade volume ramp-down before track completion
+    _player.positionStream.listen((pos) {
+      if (_player.playing && _audioSettings.crossfadeDurationSeconds > 0) {
+        final totalDuration = _player.duration;
+        if (totalDuration != null &&
+            totalDuration.inSeconds >
+                _audioSettings.crossfadeDurationSeconds * 2) {
+          final remaining = totalDuration - pos;
+          final crossfadeDur = Duration(
+            seconds: _audioSettings.crossfadeDurationSeconds,
+          );
+          if (remaining > Duration.zero && remaining <= crossfadeDur) {
+            final progress =
+                remaining.inMilliseconds / crossfadeDur.inMilliseconds;
+            final baseVol = _currentVolumeMultiplier.clamp(0.0, 1.0);
+            _player.setVolume((baseVol * progress).clamp(0.0, 1.0));
+          }
+        }
+      }
+    });
   }
 
   void _listenToQueueManager() {
@@ -548,7 +569,7 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
 
   Future<void> _updateEffectiveVolume() async {
     final current = queueManager.currentTrack;
-    final multiplier = ReplayGainCalculator.computeVolumeMultiplier(
+    var multiplier = ReplayGainCalculator.computeVolumeMultiplier(
       trackGainDb: current?.replayGainTrackDb,
       albumGainDb: current?.replayGainAlbumDb,
       mode: _audioSettings.replayGainMode,
@@ -556,6 +577,10 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       preventClipping: _audioSettings.preventClipping,
       isShuffle: queueManager.state.shuffleEnabled,
     );
+    if (_audioSettings.stereoBalance != 0.0) {
+      // Perceptual attenuation adjustment for stereo balance panning
+      multiplier *= (1.0 - (_audioSettings.stereoBalance.abs() * 0.15));
+    }
     _currentVolumeMultiplier = multiplier;
     try {
       await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
@@ -573,15 +598,31 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
       await _reloadSlidingWindow(resumePlaying: true);
       return;
     }
-    try {
-      await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
-    } catch (_) {}
+    final baseVol = _currentVolumeMultiplier.clamp(0.0, 1.0);
     if (_cachedEqualizerParams == null &&
         equalizer != null &&
         _audioSettings.equalizerEnabled) {
       await _applyEqualizerSettings();
     }
-    await _player.play();
+    if (_audioSettings.smoothFades) {
+      try {
+        await _player.setVolume(0.0);
+        await _player.play();
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        await _player.setVolume(baseVol * 0.35);
+        await Future<void>.delayed(const Duration(milliseconds: 35));
+        await _player.setVolume(baseVol * 0.7);
+        await Future<void>.delayed(const Duration(milliseconds: 35));
+        await _player.setVolume(baseVol);
+      } catch (_) {
+        await _player.play();
+      }
+    } else {
+      try {
+        await _player.setVolume(baseVol);
+      } catch (_) {}
+      await _player.play();
+    }
   }
 
   @override
@@ -596,9 +637,19 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
         speed: _player.speed,
       );
     }
+    final baseVol = _currentVolumeMultiplier.clamp(0.0, 1.0);
+    if (_audioSettings.smoothFades && _player.playing) {
+      try {
+        await _player.setVolume(baseVol * 0.65);
+        await Future<void>.delayed(const Duration(milliseconds: 35));
+        await _player.setVolume(baseVol * 0.3);
+        await Future<void>.delayed(const Duration(milliseconds: 35));
+        await _player.setVolume(0.0);
+      } catch (_) {}
+    }
     await _player.pause();
     try {
-      await _player.setVolume(_currentVolumeMultiplier.clamp(0.0, 1.0));
+      await _player.setVolume(baseVol);
     } catch (_) {}
   }
 
@@ -617,8 +668,17 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> skipToNext() async {
     final hasNext = queueManager.advanceToNext();
     if (hasNext) {
-      // 100ms smooth transition prevents abrupt hardware DAC pops on skip
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (_audioSettings.smoothFades && _player.playing) {
+        try {
+          await _player.setVolume(
+            _currentVolumeMultiplier.clamp(0.0, 1.0) * 0.3,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 35));
+        } catch (_) {}
+      } else {
+        // 100ms smooth transition prevents abrupt hardware DAC pops on skip
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
       await _reloadSlidingWindow(resumePlaying: _player.playing);
     } else {
       await _player.stop();
@@ -633,7 +693,16 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     }
     final hasPrev = queueManager.retreatToPrevious();
     if (hasPrev) {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (_audioSettings.smoothFades && _player.playing) {
+        try {
+          await _player.setVolume(
+            _currentVolumeMultiplier.clamp(0.0, 1.0) * 0.3,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 35));
+        } catch (_) {}
+      } else {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
       await _reloadSlidingWindow(resumePlaying: _player.playing);
     }
   }
@@ -794,7 +863,8 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     return [];
   }
 
-  Future<MediaItem?> getItem(String mediaId) async {
+  @override
+  Future<MediaItem?> getMediaItem(String mediaId) async {
     final database = db;
     if (database == null) return null;
     final track = await database.getTrackByKey(mediaId);
@@ -803,6 +873,9 @@ class SonaraAudioHandler extends BaseAudioHandler with SeekHandler {
     final albumTitle = await database.getAlbumTitle(track.albumId);
     return _trackToMediaItem(track, artistName, albumTitle);
   }
+
+  /// Alias for backwards compatibility.
+  Future<MediaItem?> getItem(String mediaId) => getMediaItem(mediaId);
 
   @override
   Future<void> playFromMediaId(

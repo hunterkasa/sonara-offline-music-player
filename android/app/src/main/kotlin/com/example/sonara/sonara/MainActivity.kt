@@ -257,7 +257,22 @@ class MainActivity : AudioServiceActivity() {
                         result.error("INVALID_ARGUMENTS", "File path cannot be null", null)
                     } else {
                         try {
-                            shareAudio(filePath, title)
+                            shareGenericFile(filePath, title, "audio/*")
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("SHARE_ERROR", e.message, null)
+                        }
+                    }
+                }
+                "shareFile" -> {
+                    val filePath = call.argument<String>("filePath")
+                    val title = call.argument<String>("title") ?: "Share File"
+                    val mimeType = call.argument<String>("mimeType") ?: "*/*"
+                    if (filePath == null) {
+                        result.error("INVALID_ARGUMENTS", "File path cannot be null", null)
+                    } else {
+                        try {
+                            shareGenericFile(filePath, title, mimeType)
                             result.success(true)
                         } catch (e: Exception) {
                             result.error("SHARE_ERROR", e.message, null)
@@ -684,17 +699,17 @@ class MainActivity : AudioServiceActivity() {
         return false
     }
 
-    private fun shareAudio(filePath: String, title: String) {
+    private fun shareGenericFile(filePath: String, title: String, mimeType: String = "*/*") {
         val file = File(filePath)
         if (!file.exists()) return
         val contentUri = FileProvider.getUriForFile(applicationContext, "${packageName}.fileprovider", file)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "audio/*"
+            type = mimeType
             putExtra(Intent.EXTRA_STREAM, contentUri)
             putExtra(Intent.EXTRA_SUBJECT, title)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        val chooser = Intent.createChooser(shareIntent, "Share Audio Clip").apply {
+        val chooser = Intent.createChooser(shareIntent, title).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(chooser)

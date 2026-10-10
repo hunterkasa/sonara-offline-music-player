@@ -57,10 +57,12 @@ class NowPlayingSheet extends ConsumerWidget {
               .clamp(0.0, 1.0)
         : 0.0;
 
-    final seed = snapshot.title.isNotEmpty
-        ? snapshot.title.hashCode
-        : 0xFF6200EE;
-    final dominantColor = PaletteService.fromSeed(seed).primary;
+    final paletteAsync = ref.watch(paletteForTrackProvider(trackKey ?? ''));
+    final dominantColor =
+        paletteAsync.value?.primary ??
+        (snapshot.title.isNotEmpty
+            ? PaletteService.fromSeed(snapshot.title.hashCode).primary
+            : const Color(0xFF6200EE));
     final isMinimalistOled =
         audioSettings.nowPlayingSkin == NowPlayingSkin.minimalistOled;
     final isBlackBg =
